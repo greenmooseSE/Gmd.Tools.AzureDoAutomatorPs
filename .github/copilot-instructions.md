@@ -20,6 +20,10 @@ Rules:
 - Do not invent or repeat trivial bullets. If there are no secondary changes, omit the list.
 - Focus on clarity and impact. Avoid vague phrases like "updates" or "changes".
 
+## Agent commit behavior (CRITICAL)
+
+- Agents must never perform Git commits, pushes, or any automated VCS operations without explicit, pre-authorized user instruction.
+
 ## Code review instructions
 - When performing a code review, do not allow introduction of changes that result in compiler warnings.
 - When performing a code review, ensure introduced code is documented in a reasonable way (not empty comments) for any types or members visible outside their assembly (public, protected, protected internal). Prefer XML comments.
