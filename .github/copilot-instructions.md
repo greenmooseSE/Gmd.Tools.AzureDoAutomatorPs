@@ -103,7 +103,8 @@ instead of `public void Foo() { /* ... */ }`.
 - Use switch parameters for optional features (e.g., test and documentation generation)
 - Helper scripts should be dot-sourced if reused
 - Output errors and warnings in a user-friendly way
-- For logging in .ps1 scripts, use `ssLogIt.ps1` for all output messages to ensure consistent formatting (only use if ssLogIt.ps1 is already being invoked in the script)
+- For logging in .ps1 scripts, use `ssLogIt.ps1` for all output messages to ensure consistent formatting (only use if ssLogIt.ps1 is already being invoked in the script).
+- In catch blocks, invoke ssLogIt.ps1 with -Exception $_ to log full exception details.
 - Use ssLogIt.ps1 colored tokens like ::FgRed:: and ::FgDefault:: (or ::FgYellow::, ::FgGreen::, etc.) to highlight key info (e.g., file paths, variables).
 - When logging with .ps1, use only Info log level for the main result output message and use Debug level for all other detailed messages.
 - Do not indent log messages with spaces, instead use ssLogIt.ps1 -PushStackLevel -Message "group" followed by ssLogIt.ps1 -PopStackLevel.

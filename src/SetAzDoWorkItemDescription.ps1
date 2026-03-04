@@ -1,0 +1,98 @@
+<#
+.SYNOPSIS
+Set the description of an Azure DevOps work item
+
+.DESCRIPTION
+Updates the description field of an existing work item.
+
+.PARAMETER Organization
+The Azure DevOps organization name (required)
+
+.PARAMETER Project
+The Azure DevOps project name (required)
+
+.PARAMETER WorkItemId
+The work item ID to update (required)
+
+.PARAMETER Description
+The new description text (required)
+
+.PARAMETER PatToken
+Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+environment variable (expected to be encrypted).
+
+.OUTPUTS
+PSObject representing the updated work item
+
+.EXAMPLE
+    $updated = .\Set-AzDoWorkItemDescription.ps1 -Organization "myorg" -Project "myproject" -WorkItemId 123 -Description "New description"
+
+.NOTES
+- Requires Azure DevOps REST API access
+- Requires PAT token with work items read/write scope
+#>
+
+#Requires -Version 7.0
+
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$Organization,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Project,
+
+    [Parameter(Mandatory = $true)]
+    [int]$WorkItemId,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Description,
+
+    [string]$PatToken
+)
+
+Set-StrictMode -Version 3.0
+$ErrorActionPreference = 'Stop'
+
+# Import modules
+. "$PSScriptRoot/AzDoAutomatorConstants.ps1"
+. "$PSScriptRoot/AzDoPatTokenHelper.ps1"
+. "$PSScriptRoot/AzDoApiWrapper.ps1"
+. "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+
+# Validate ssLogIt.ps1 exists
+if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
+    Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH."
+}
+
+# Validate required parameters
+if (-not (Test-AzDoWorkItemIdValid $WorkItemId)) {
+    Write-Error "Parameter 'WorkItemId' must be a positive integer."
+}
+
+if ([string]::IsNullOrWhiteSpace($Description)) {
+    Write-Error "Parameter 'Description' cannot be empty."
+}
+
+$null = & ssLogIt.ps1 -Level Info -Message "Updating description for work item (ID: $WorkItemId)"
+
+# Get PAT token if not provided
+if ([string]::IsNullOrWhiteSpace($PatToken)) {
+    $PatToken = Get-AzDoPatToken -Decrypt
+}
+
+try {
+    $updateFields = @{
+        $script:FIELD_DESCRIPTION = $Description
+    }
+
+    $updated = Update-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $WorkItemId -Fields $updateFields -PatToken $PatToken
+
+    $null = & ssLogIt.ps1 -Level Info -Message "Successfully updated description for work item (ID: $($updated.id))"
+
+    return $updated
+}
+catch {
+    $null = & ssLogIt.ps1 -Level Error -Message "Failed to update description: $_" -Exception $_
+    Write-Error $_
+    throw
+}
