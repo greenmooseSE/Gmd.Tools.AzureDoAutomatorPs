@@ -8,7 +8,7 @@ with **markdown support**
 **Description**\
 A long feature desc
 with **markdown support**
-and newlines should be replaced with ``` `r`n ``` when sent with API.
+and newlines 
 ### Story 1 with title
 **tags**: autogen, some-story **SP**: 3\
 **Description**\

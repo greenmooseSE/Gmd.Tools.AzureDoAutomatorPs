@@ -365,6 +365,14 @@ function New-AzDoWorkItem {
         # Use string concatenation to produce literal $VariableName in URL
         $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/`$" + $WorkItemType + "?api-version=7.1"
 
+        # Multiline fields that require markdown format specification
+        [string[]]$multilineFields = @(
+            'System.Description',
+            'Microsoft.VSTS.Common.AcceptanceCriteria',
+            'Custom.ACScenarios',
+            'Custom.ExtraInformation'
+        )
+
         # Build PATCH operations for fields
         $patchOps = @()
         foreach ($fieldName in $Fields.Keys) {
@@ -376,6 +384,15 @@ function New-AzDoWorkItem {
                 op    = 'add'
                 path  = "/fields/$fieldName"
                 value = $Fields[$fieldName]
+            }
+
+            # Add multiline format specification for markdown fields
+            if ($fieldName -in $multilineFields -and -not [string]::IsNullOrWhiteSpace($Fields[$fieldName])) {
+                $patchOps += @{
+                    op    = 'add'
+                    path  = "/multilineFieldsFormat/$fieldName"
+                    value = 'Markdown'
+                }
             }
         }
 
@@ -466,6 +483,14 @@ function Update-AzDoWorkItem {
 
         $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId`?api-version=7.1-preview.3"
 
+        # Multiline fields that require markdown format specification
+        [string[]]$multilineFields = @(
+            'System.Description',
+            'Microsoft.VSTS.Common.AcceptanceCriteria',
+            'Custom.ACScenarios',
+            'Custom.ExtraInformation'
+        )
+
         # Build PATCH operations for fields
         $patchOps = @()
         foreach ($fieldName in $Fields.Keys) {
@@ -477,6 +502,15 @@ function Update-AzDoWorkItem {
                 op    = 'replace'
                 path  = "/fields/$fieldName"
                 value = $Fields[$fieldName]
+            }
+
+            # Add multiline format specification for markdown fields
+            if ($fieldName -in $multilineFields -and -not [string]::IsNullOrWhiteSpace($Fields[$fieldName])) {
+                $patchOps += @{
+                    op    = 'replace'
+                    path  = "/multilineFieldsFormat/$fieldName"
+                    value = 'Markdown'
+                }
             }
         }
 
