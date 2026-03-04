@@ -3,23 +3,38 @@
 Create Azure DevOps work item hierarchy from markdown file
 
 .DESCRIPTION
-Parses a markdown file and creates a hierarchy of Epic/Feature/Story or Feature/Story work items.
+Parses a markdown file using hierarchical headers and creates a hierarchy of Epic/Feature/Story work items.
 Performs full validation before creating any items (fail-fast approach).
 
 Markdown format:
-    # Epic Title (optional)
-    ## Feature 1 Title
-    - Story 1 Title
-      - AC: Acceptance criteria
-      - ACS: Acceptance criteria scenarios
-      - EI: Extra information
-      - SP: 5 (story points)
-    - Story 2 Title
-
-Pre-validates:
-- Valid markdown structure
-- No unsupported fields
-- Parse errors
+    # Epic Title
+    **tags**: tag1, tag2
+    **Description**
+    Multi-line description text
+    
+    ## Feature Title
+    **tags**: tag1, tag2
+    **Description**
+    Feature description
+    
+    ### Story Title
+    **tags**: tag1, tag2
+    **SP**: 5
+    **Description**
+    Story description as a developer...
+    
+    #### Acceptance Criteria
+    - [ ] Criterion 1
+    - [ ] Criterion 2
+    
+    #### AC Scenarios
+    1. **Scenario**: First scenario
+    Given...
+    When...
+    Then...
+    
+    #### Extra Information
+    Additional notes and requirements
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -47,14 +62,11 @@ PSObject with summary of created/planned work items with hierarchy
 Create hierarchy with DryRun first:
     .\New-AzDoHierarchyFromMarkdown.ps1 -Organization "myorg" -Project "myproject" -MarkdownFilePath "hierarchy.md" -DryRun
 
-Create actual hierarchy under Epic:
-    .\New-AzDoHierarchyFromMarkdown.ps1 -Organization "myorg" -Project "myproject" -MarkdownFilePath "hierarchy.md" -EpicId 100
-
 .NOTES
 - Markdown file must exist and be readable
 - Requires Azure DevOps REST API access
 - Pre-validates entire structure before creating items
-- Supported story-level fields: AC (Acceptance Criteria), ACS (Acceptance Criteria Scenarios), EI (Extra Information), SP (Story Points)
+- Hierarchy is inferred from header levels: # = Epic, ## = Feature, ### = Story
 #>
 
 #Requires -Version 7.0
@@ -80,10 +92,10 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 # Import modules
-. "$PSScriptRoot/AzDoAutomatorConstants.ps1"
-. "$PSScriptRoot/AzDoPatTokenHelper.ps1"
-. "$PSScriptRoot/AzDoApiWrapper.ps1"
-. "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+. "$PSScriptRoot\AzDoAutomatorConstants.ps1"
+. "$PSScriptRoot\AzDoPatTokenHelper.ps1"
+. "$PSScriptRoot\AzDoApiWrapper.ps1"
+. "$PSScriptRoot\AzDoWorkItemHelper.ps1"
 
 # Validate ssLogIt.ps1 exists
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
@@ -103,140 +115,14 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 }
 
 try {
-    # Read and parse markdown file
-    [string[]]$lines = @(Get-Content -LiteralPath $MarkdownFilePath -Raw) -split "`n"
+    # Call adapter to parse markdown to JSON
+    $null = & ssLogIt.ps1 -Level Info -Message "Converting markdown to JSON structure..."
+    $hierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $MarkdownFilePath -ErrorAction Stop
 
-    # Structure to hold parsed data
-    [object[]]$epics = @()
-    [object[]]$currentEpic = $null
-    [object[]]$features = @()
-    [object[]]$currentFeature = $null
-    [object[]]$stories = @()
+    [object[]]$epics = $hierarchy.epics
+    [object[]]$features = $hierarchy.topLevelFeatures
 
-    $null = & ssLogIt.ps1 -Level Debug -Message "Pre-validating markdown structure..."
-
-    # First pass: parse and validate structure
-    [int]$lineNum = 0
-    foreach ($line in $lines) {
-        $lineNum++
-        $line = $line.TrimEnd()
-
-        # Skip empty lines and comments
-        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('<!')) {
-            continue
-        }
-
-        # Check for Epic heading (# )
-        if ($line -match $script:REGEX_MARKDOWN_EPIC) {
-            [string]$epicTitle = $matches[1].Trim()
-            if ([string]::IsNullOrWhiteSpace($epicTitle)) {
-                Write-Error "Invalid Epic title at line $lineNum : Title cannot be empty"
-            }
-            $currentEpic = @{
-                Title    = $epicTitle
-                Features = @()
-            }
-            $epics += $currentEpic
-            $currentFeature = $null
-            $null = & ssLogIt.ps1 -Level Debug -Message "Found Epic: $epicTitle"
-            continue
-        }
-
-        # Check for Feature heading (## )
-        if ($line -match $script:REGEX_MARKDOWN_FEATURE) {
-            [string]$featureTitle = $matches[1].Trim()
-            if ([string]::IsNullOrWhiteSpace($featureTitle)) {
-                Write-Error "Invalid Feature title at line $lineNum : Title cannot be empty"
-            }
-            $currentFeature = @{
-                Title   = $featureTitle
-                Stories = @()
-            }
-            if ($null -ne $currentEpic) {
-                $currentEpic.Features += $currentFeature
-            }
-            else {
-                $features += $currentFeature
-            }
-            $null = & ssLogIt.ps1 -Level Debug -Message "Found Feature: $featureTitle"
-            continue
-        }
-
-        # Check for Story (- text)
-        if ($line -match $script:REGEX_MARKDOWN_STORY) {
-            [string]$storyTitle = $matches[1].Trim()
-            if ([string]::IsNullOrWhiteSpace($storyTitle)) {
-                Write-Error "Invalid Story title at line $lineNum : Title cannot be empty"
-            }
-            if ($null -eq $currentFeature) {
-                Write-Error "Story found at line $lineNum but no parent Feature: $storyTitle"
-            }
-            $story = @{
-                Title              = $storyTitle
-                AcceptanceCriteria = $null
-                AcScenarios        = $null
-                ExtraInformation   = $null
-                StoryPoints        = $null
-            }
-            $currentFeature.Stories += $story
-            $null = & ssLogIt.ps1 -Level Debug -Message "Found Story: $storyTitle"
-            continue
-        }
-
-        # Check for Acceptance Criteria (- AC: text)
-        if ($line -match $script:REGEX_MARKDOWN_AC) {
-            [string]$ac = $matches[1].Trim()
-            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
-                Write-Error "Acceptance Criteria found at line $lineNum but no parent Story"
-            }
-            $currentStory = $currentFeature.Stories[-1]
-            $currentStory.AcceptanceCriteria = $ac
-            continue
-        }
-
-        # Check for Acceptance Criteria Scenarios (- ACS: text)
-        if ($line -match $script:REGEX_MARKDOWN_AC_SCENARIOS) {
-            [string]$acs = $matches[1].Trim()
-            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
-                Write-Error "Acceptance Criteria Scenarios found at line $lineNum but no parent Story"
-            }
-            $currentStory = $currentFeature.Stories[-1]
-            $currentStory.AcScenarios = $acs
-            continue
-        }
-
-        # Check for Extra Information (- EI: text)
-        if ($line -match $script:REGEX_MARKDOWN_EXTRA_INFO) {
-            [string]$ei = $matches[1].Trim()
-            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
-                Write-Error "Extra Information found at line $lineNum but no parent Story"
-            }
-            $currentStory = $currentFeature.Stories[-1]
-            $currentStory.ExtraInformation = $ei
-            continue
-        }
-
-        # Check for Story Points (- SP: number)
-        if ($line -match $script:REGEX_MARKDOWN_SP) {
-            [int]$sp = $matches[1]
-            if ($sp -lt 0) {
-                Write-Error "Invalid Story Points at line $lineNum : Must be non-negative. Found: $sp"
-            }
-            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
-                Write-Error "Story Points found at line $lineNum but no parent Story"
-            }
-            $currentStory = $currentFeature.Stories[-1]
-            $currentStory.StoryPoints = $sp
-            continue
-        }
-
-        # Any other line is an error
-        if (-not [string]::IsNullOrWhiteSpace($line) -and -not $line.StartsWith('#')) {
-            Write-Error "Unsupported line format at line $lineNum : $line"
-        }
-    }
-
-    $null = & ssLogIt.ps1 -Level Debug -Message "Markdown structure validation successful"
+    $null = & ssLogIt.ps1 -Level Debug -Message "Markdown conversion successful"
 
     # Build dry-run summary
     [hashtable]$summary = @{
@@ -246,20 +132,29 @@ try {
         CreatedItems            = @()
     }
 
-    # Summary message
-    $totalFeatures = $epics | ForEach-Object { $_.Features.Count } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+    # Count items
+    $epicCount = $epics.Count
+    $totalFeatures = @()
+    if ($epics.Count -gt 0) {
+        $totalFeatures = $epics | ForEach-Object { $_.Features.Count } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+    }
+    $totalFeatures = if ($null -eq $totalFeatures) { 0 } else { [int]$totalFeatures }
     $totalFeatures += $features.Count
+    
     $totalStories = 0
     foreach ($epic in $epics) {
         foreach ($feature in $epic.Features) {
-            $totalStories += $feature.Stories.Count
+            if ($feature.Stories) {
+                $totalStories += @($feature.Stories).Count
+            }
         }
     }
     foreach ($feature in $features) {
-        $totalStories += $feature.Stories.Count
+        if ($feature.Stories) {
+            $totalStories += @($feature.Stories).Count
+        }
     }
 
-    $epicCount = $epics.Count
     $summary.PlannedEpics = $epicCount
     $summary.PlannedFeatures = $totalFeatures
     $summary.PlannedStories = $totalStories
@@ -280,61 +175,66 @@ try {
         $epicParams = @{
             Organization = $Organization
             Project      = $Project
-            Title        = $epic.Title
+            Title        = $epic.title
             PatToken     = $PatToken
+        }
+
+        if ($epic.description) {
+            $epicParams['Description'] = $epic.description
         }
 
         if ($PSBoundParameters.ContainsKey('EpicId')) {
             $epicParams['ParentEpicId'] = $EpicId
         }
 
-        $null = & ssLogIt.ps1 -Level Debug -Message "Creating Epic: $($epic.Title)"
-        $createdEpic = & "$PSScriptRoot/NewAzDoEpic.ps1" @epicParams -ErrorAction Stop
+        $null = & ssLogIt.ps1 -Level Debug -Message "Creating Epic: $($epic.title)"
+        $createdEpic = & "$PSScriptRoot\NewAzDoEpic.ps1" @epicParams -ErrorAction Stop
         $createdItems[$createdEpic.id] = $createdEpic
 
-        # Verify we got a Feature instead (Azure DevOps might treat them the same)
-        # Create Features under this Epic
-        foreach ($feature in $epic.Features) {
+        foreach ($feature in $epic.features) {
             $featureParams = @{
                 Organization    = $Organization
                 Project         = $Project
-                Title           = $feature.Title
+                Title           = $feature.title
                 ParentEpicId    = $createdEpic.id
                 PatToken        = $PatToken
             }
 
-            $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.Title) under Epic"
-            $createdFeature = & "$PSScriptRoot/NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
+            if ($feature.description) {
+                $featureParams['Description'] = $feature.description
+            }
+
+            $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.title) under Epic"
+            $createdFeature = & "$PSScriptRoot\NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
             $createdItems[$createdFeature.id] = $createdFeature
 
-            # Create Stories under Feature
-            foreach ($story in $feature.Stories) {
+            foreach ($story in $feature.stories) {
                 $storyParams = @{
                     Organization    = $Organization
                     Project         = $Project
-                    Title           = $story.Title
+                    Title           = $story.title
                     ParentFeatureId = $createdFeature.id
                     PatToken        = $PatToken
                 }
 
-                if ($null -ne $story.AcceptanceCriteria) {
-                    $storyParams['AcceptanceCriteria'] = $story.AcceptanceCriteria
+                if ($story.description) {
+                    $storyParams['Description'] = $story.description
+                }
+                if ($story.acceptanceCriteria) {
+                    $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+                }
+                if ($story.acScenarios) {
+                    $storyParams['AcScenarios'] = $story.acScenarios
+                }
+                if ($story.extraInformation) {
+                    $storyParams['ExtraInformation'] = $story.extraInformation
+                }
+                if ($story.storyPoints) {
+                    $storyParams['StoryPoints'] = $story.storyPoints
                 }
 
-                if ($null -ne $story.AcScenarios) {
-                    $storyParams['AcScenarios'] = $story.AcScenarios
-                }
-
-                if ($null -ne $story.ExtraInformation) {
-                    $storyParams['ExtraInformation'] = $story.ExtraInformation
-                }
-
-                if ($null -ne $story.StoryPoints) {
-                    $storyParams['StoryPoints'] = $story.StoryPoints
-                }
-
-                $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.Title)"
-                $createdStory = & "$PSScriptRoot/NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
+                $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
                 $createdItems[$createdStory.id] = $createdStory
             }
         }
@@ -345,56 +245,81 @@ try {
         $featureParams = @{
             Organization = $Organization
             Project      = $Project
-            Title        = $feature.Title
+            Title        = $feature.title
             PatToken     = $PatToken
+        }
+
+        if ($feature.description) {
+            $featureParams['Description'] = $feature.description
         }
 
         if ($PSBoundParameters.ContainsKey('EpicId')) {
             $featureParams['ParentEpicId'] = $EpicId
         }
 
-        $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.Title)"
-        $createdFeature = & "$PSScriptRoot/NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
+        $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.title)"
+        $createdFeature = & "$PSScriptRoot\NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
         $createdItems[$createdFeature.id] = $createdFeature
 
-        # Create Stories under Feature
-        foreach ($story in $feature.Stories) {
+        foreach ($story in $feature.stories) {
             $storyParams = @{
                 Organization    = $Organization
                 Project         = $Project
-                Title           = $story.Title
+                Title           = $story.title
                 ParentFeatureId = $createdFeature.id
                 PatToken        = $PatToken
             }
 
-            if ($null -ne $story.AcceptanceCriteria) {
-                $storyParams['AcceptanceCriteria'] = $story.AcceptanceCriteria
+            if ($story.description) {
+                $storyParams['Description'] = $story.description
+            }
+            if ($story.acceptanceCriteria) {
+                $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+            }
+            if ($story.acScenarios) {
+                $storyParams['AcScenarios'] = $story.acScenarios
+            }
+            if ($story.extraInformation) {
+                $storyParams['ExtraInformation'] = $story.extraInformation
+            }
+            if ($story.storyPoints) {
+                $storyParams['StoryPoints'] = $story.storyPoints
             }
 
-            if ($null -ne $story.AcScenarios) {
-                $storyParams['AcScenarios'] = $story.AcScenarios
-            }
-
-            if ($null -ne $story.ExtraInformation) {
-                $storyParams['ExtraInformation'] = $story.ExtraInformation
-            }
-
-            if ($null -ne $story.StoryPoints) {
-                $storyParams['StoryPoints'] = $story.StoryPoints
-            }
-
-            $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.Title)"
-            $createdStory = & "$PSScriptRoot/NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+            $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
+            $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
             $createdItems[$createdStory.id] = $createdStory
         }
     }
 
     $summary.CreatedItems = $createdItems
+
+    # Add "generated" tag to all created items
+    $null = & ssLogIt.ps1 -Level Debug -Message "Adding 'generated' tag to all created work items..."
+    [int]$taggedCount = 0
+    foreach ($itemId in $createdItems.Keys) {
+        try {
+            $null = & "$PSScriptRoot\SetAzDoWorkItemTags.ps1" `
+                -Organization $Organization `
+                -Project $Project `
+                -WorkItemId $itemId `
+                -Tags @("generated") `
+                -Mode Add `
+                -PatToken $PatToken `
+                -ErrorAction Stop
+            $taggedCount++
+        }
+        catch {
+            $null = & ssLogIt.ps1 -Level Warn -Message "Failed to tag work item $itemId with 'generated': $_"
+        }
+    }
+    $null = & ssLogIt.ps1 -Level Debug -Message "Tagged $taggedCount items with 'generated' tag"
+
     $null = & ssLogIt.ps1 -Level Info -Message "Successfully created $($createdItems.Count) work items from markdown"
 
     return $summary
 }
 catch {
     $null = & ssLogIt.ps1 -Level Error -Message "Failed to create hierarchy from markdown: $_"
-    Write-Error $_
+    throw
 }

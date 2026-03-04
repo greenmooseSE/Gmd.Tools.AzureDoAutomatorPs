@@ -12,6 +12,19 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - **Generating hierarchies** from markdown files
 - **Deleting** Epic and all children with safety confirmations
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+  - [Configure PAT Token](#1-configure-pat-token)
+  - [Verify Helper Scripts](#2-verify-helper-scripts)
+- [Module Architecture](#module-architecture)
+- [Automation Scripts](#automation-scripts)
+- [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
+- [Example Hierarchy](#example-hierarchy)
+- [Testing](#testing)
+- [Contributing](#contributing)
+
 ## Prerequisites
 
 - **PowerShell 7.0+** (pwsh - PowerShell Core)
@@ -368,6 +381,12 @@ Example output:
 [INFO] Successfully created Feature ::FgGreen::User Authentication::FgDefault:: (ID: 456)
 ```
 
+## Example Hierarchy
+
+The repository includes an example hierarchy file that matches the parser format used by `NewAzDoHierarchyFromMarkdown.ps1` and demonstrates how to structure Epics, Features, Stories, Acceptance Criteria, AC Scenarios, tags and story points.
+
+See the full example in [example-hierarchy.md](example-hierarchy.md).
+
 ## Testing
 
 Run basic integration tests to verify setup:
@@ -555,6 +574,111 @@ foreach ($id in $storyIds) {
         -WorkItemId $id -StoryPoints 5
 }
 ```
+
+## Creating Work Item Hierarchies from Markdown
+
+The `NewAzDoHierarchyFromMarkdown.ps1` script allows you to define entire work item hierarchies using a simple markdown format. This is the recommended approach for bulk creating structured work items.
+
+### Markdown Format Guide
+
+The markdown format supports:
+
+#### Structure
+```markdown
+# Epic Title (optional)
+
+## Feature Title
+- Story Title
+  - Property: Value
+```
+
+#### Supported Properties
+
+**Acceptance Criteria (AC)** - Use checkbox-style lists:
+```markdown
+- Story Title
+  - AC: - [ ] First criterion`r`nSecond line of criterion
+  - AC: - [ ] Another criterion
+```
+
+**Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
+```markdown
+- Story Title
+  - ACS: 1. Given user is logged in`r`nWhen user clicks button`r`nThen action succeeds
+  - ACS: 2. Given invalid input`r`nWhen form is submitted`r`nThen error is shown
+```
+
+**Story Points (SP)**:
+```markdown
+- Story Title
+  - SP: 8
+```
+
+**Extra Information (EI)**:
+```markdown
+- Story Title
+  - EI: This is additional context for the story
+```
+
+**Tags** - Automatically added:
+- All work items created include the `generated` tag for tracking
+- Additional tags can be added after creation using `SetAzDoWorkItemTags.ps1`
+
+#### Complete Example
+
+See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-ready example demonstrating:
+- Multi-epic structures with multiple features and stories
+- Acceptance criteria with multiple lines and markdown formatting
+- Numbered Gherkin scenarios with proper Given/When/Then structure
+- Story points estimation
+- Real-world use cases (Customer Portal Redesign)
+
+### Usage
+
+**Dry Run (Preview)**:
+```powershell
+# Preview what will be created without making changes
+$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -MarkdownFilePath ".\hierarchy.md" `
+    -DryRun
+
+Write-Host "Would create: $($result.PlannedEpics) epic(s), $($result.PlannedFeatures) feature(s), $($result.PlannedStories) story(ies)"
+```
+
+**Create Hierarchy Under Existing Epic**:
+```powershell
+# Create features and stories under an existing epic
+$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -MarkdownFilePath ".\hierarchy.md" `
+    -EpicId 123
+```
+
+**Create Complete Hierarchy with New Epic**:
+```powershell
+# Create epics, features, and stories
+$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -MarkdownFilePath ".\hierarchy.md"
+
+# Access created work items
+$result.CreatedItems | ForEach-Object { 
+    Write-Host "$($_.fields.'System.WorkItemType'): $($_.fields.'System.Title') (ID: $($_.id))"
+}
+```
+
+### Best Practices
+
+1. **Start with DryRun**: Always use `-DryRun` first to validate your markdown structure
+2. **Use relative paths**: Keep hierarchy files in the same directory as scripts for easier execution
+3. **Include descriptions**: Add context in markdown comments (lines starting with #)
+4. **Validate structure**: Run validation before large bulk operations
+5. **Track with tags**: The `generated` tag automatically identifies script-created items
+6. **Add more details**: Create additional tags after generation for better organization
 
 ## Troubleshooting
 

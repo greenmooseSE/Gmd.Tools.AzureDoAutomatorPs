@@ -121,7 +121,10 @@ $ErrorActionPreference = 'Stop'
 
 [regex]$script:REGEX_MARKDOWN_EPIC = '^\#\s+(.+)$'           # # Epic Title
 [regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+(.+)$'      # ## Feature Title
-[regex]$script:REGEX_MARKDOWN_STORY = '^\-\s+(.+)$'          # - Story Title
+[regex]$script:REGEX_MARKDOWN_STORY = '^\#\#\#\s+(.+)$'      # ### Story Title
+[regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI)
+[regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1, tag2
+[regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*\\?$'     # **Description** or **Description**\
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
 [regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information

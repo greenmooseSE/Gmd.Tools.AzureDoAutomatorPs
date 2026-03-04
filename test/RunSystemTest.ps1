@@ -58,39 +58,51 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Project,
 
-    [string]$EpicTitle = "WIP System Test Epic",
+    [string]$EpicTitle,
 
-    [string]$PatToken
+    [string]$PatToken,
+
+    [switch]$Cleanup
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-# Script directory
-[string]$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Add timestamp to epic title if not already provided to ensure uniqueness and enable multiple test runs
+if ([string]::IsNullOrWhiteSpace($EpicTitle)) {
+    $EpicTitle = "WIP System Test Epic - $([datetime]::UtcNow.ToString('yyyyMMdd-HHmmss'))"
+}
+
+# Script directory - RunSystemTest is in the test folder, but src scripts are in src folder
+[string]$SRC_DIR = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) .. src
+[string]$SRC_DIR = $SRC_DIR  # Alias for clarity
 
 # Import modules
-. "$SCRIPT_DIR/AzDoAutomatorConstants.ps1"
-. "$SCRIPT_DIR/AzDoPatTokenHelper.ps1"
-. "$SCRIPT_DIR/AzDoApiWrapper.ps1"
-. "$SCRIPT_DIR/AzDoWorkItemHelper.ps1"
+. "$SRC_DIR/AzDoAutomatorConstants.ps1"
+. "$SRC_DIR/AzDoPatTokenHelper.ps1"
+. "$SRC_DIR/AzDoApiWrapper.ps1"
+. "$SRC_DIR/AzDoWorkItemHelper.ps1"
 
 # Validate ssLogIt.ps1 exists
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
-    Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH. Ensure helper scripts are available."
+    & "$SRC_DIR/ssLogIt.ps1" -Level Error -Message "Required helper script 'ssLogIt.ps1' not found in PATH. Ensure helper scripts are available."
+    throw "Required helper script 'ssLogIt.ps1' not found in PATH. Ensure helper scripts are available."
 }
 
 # Validate parameters
 if ([string]::IsNullOrWhiteSpace($Organization)) {
-    Write-Error "Parameter 'Organization' cannot be empty."
+    & "$SRC_DIR/ssLogIt.ps1" -Level Error -Message "Parameter 'Organization' cannot be empty."
+    throw "Parameter 'Organization' cannot be empty."
 }
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
-    Write-Error "Parameter 'Project' cannot be empty."
+    & "$SRC_DIR/ssLogIt.ps1" -Level Error -Message "Parameter 'Project' cannot be empty."
+    throw "Parameter 'Project' cannot be empty."
 }
 
 if ([string]::IsNullOrWhiteSpace($EpicTitle)) {
-    Write-Error "Parameter 'EpicTitle' cannot be empty."
+    & "$SRC_DIR/ssLogIt.ps1" -Level Error -Message "Parameter 'EpicTitle' cannot be empty."
+    throw "Parameter 'EpicTitle' cannot be empty."
 }
 
 # Get PAT token if not provided
@@ -139,6 +151,23 @@ $null = & ssLogIt.ps1 -Level Info -Message "====================================
 $null = & ssLogIt.ps1 -Level Info -Message "Organization: ::FgGreen::$Organization::FgDefault::"
 $null = & ssLogIt.ps1 -Level Info -Message "Project: ::FgGreen::$Project::FgDefault::"
 $null = & ssLogIt.ps1 -Level Info -Message "Epic Title: ::FgGreen::$EpicTitle::FgDefault::"
+
+# Cleanup existing epic if requested
+if ($Cleanup) {
+    $null = & ssLogIt.ps1 -Level Info -Message "Cleanup mode: Checking for existing epic to delete..."
+    try {
+        $existingForCleanup = & "$SRC_DIR/FindAzDoItemByTitle.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Type $script:WORKITEM_TYPE_EPIC -PatToken $PatToken
+        if ($null -ne $existingForCleanup) {
+            $null = & ssLogIt.ps1 -Level Info -Message "Deleting existing epic (ID: $($existingForCleanup.id))..."
+            & "$SRC_DIR/RemoveAzDoEpic.ps1" -Organization $Organization -Project $Project -EpicId $existingForCleanup.id -PatToken $PatToken
+            $null = & ssLogIt.ps1 -Level Info -Message "Epic deleted successfully"
+        }
+    }
+    catch {
+        $null = & ssLogIt.ps1 -Level Warn -Message "Failed to cleanup existing epic: $_"
+    }
+}
+
 $null = & ssLogIt.ps1 -PushStackLevel -Message "Running Tests"
 
 try {
@@ -148,7 +177,7 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 1: Checking if Epic already exists..."
 
     try {
-        $existingEpic = & "$SCRIPT_DIR/FindAzDoItemByTitle.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Type $script:WORKITEM_TYPE_EPIC -PatToken $PatToken
+        $existingEpic = & "$SRC_DIR/FindAzDoItemByTitle.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Type $script:WORKITEM_TYPE_EPIC -PatToken $PatToken
 
         if ($null -ne $existingEpic) {
             Log-TestResult "Epic Existence Check" $false "Epic with title '$EpicTitle' already exists (ID: $($existingEpic.id)). Cannot proceed with test."
@@ -168,7 +197,7 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 2: Creating Epic..."
 
     try {
-        $epic = & "$SCRIPT_DIR/NewAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Description "Automated system test epic" -PatToken $PatToken
+        $epic = & "$SRC_DIR/NewAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Description "Automated system test epic" -PatToken $PatToken
 
         if ($null -eq $epic -or $null -eq $epic.id) {
             throw "Failed to create Epic"
@@ -189,7 +218,7 @@ try {
 
     try {
         $featureTitle = "$EpicTitle - Feature"
-        $feature = & "$SCRIPT_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id -Description "Test feature" -PatToken $PatToken
+        $feature = & "$SRC_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id -Description "Test feature" -PatToken $PatToken
 
         if ($null -eq $feature -or $null -eq $feature.id) {
             throw "Failed to create Feature"
@@ -210,7 +239,7 @@ try {
 
     try {
         $storyTitle = "$EpicTitle - Story"
-        $story = & "$SCRIPT_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id `
+        $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id `
             -Description "Test story description" -AcceptanceCriteria "Test AC" -StoryPoints 3 -PatToken $PatToken
 
         if ($null -eq $story -or $null -eq $story.id) {
@@ -231,7 +260,7 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 5: Retrieving work item..."
 
     try {
-        $retrieved = & "$SCRIPT_DIR/GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -PatToken $PatToken
+        $retrieved = & "$SRC_DIR/GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -PatToken $PatToken
 
         if ($null -eq $retrieved -or $retrieved.id -ne $story.id) {
             throw "Failed to retrieve Story or ID mismatch"
@@ -250,7 +279,7 @@ try {
 
     try {
         $newDesc = "Updated description at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        $updated = & "$SCRIPT_DIR/SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Description $newDesc -PatToken $PatToken
+        $updated = & "$SRC_DIR/SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Description $newDesc -PatToken $PatToken
 
         if ($null -eq $updated -or $updated.fields.'System.Description' -ne $newDesc) {
             throw "Description not updated correctly"
@@ -269,7 +298,7 @@ try {
 
     try {
         $newAC = "Updated AC at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        $updated = & "$SCRIPT_DIR/SetAzDoAcceptanceCriteria.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -AcceptanceCriteria $newAC -PatToken $PatToken
+        $updated = & "$SRC_DIR/SetAzDoAcceptanceCriteria.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -AcceptanceCriteria $newAC -PatToken $PatToken
 
         if ($null -eq $updated -or $updated.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' -ne $newAC) {
             throw "Acceptance Criteria not updated correctly"
@@ -288,7 +317,7 @@ try {
 
     try {
         $newSP = 8
-        $updated = & "$SCRIPT_DIR/SetAzDoStoryPoints.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -StoryPoints $newSP -PatToken $PatToken
+        $updated = & "$SRC_DIR/SetAzDoStoryPoints.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -StoryPoints $newSP -PatToken $PatToken
 
         if ($null -eq $updated -or $updated.fields.'Microsoft.VSTS.Scheduling.StoryPoints' -ne $newSP) {
             throw "Story Points not updated correctly"
@@ -307,7 +336,7 @@ try {
 
     try {
         $tags = @("test", "system-test", "automated")
-        $updated = & "$SCRIPT_DIR/SetAzDoWorkItemTags.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Tags $tags -Mode Replace -PatToken $PatToken
+        $updated = & "$SRC_DIR/SetAzDoWorkItemTags.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Tags $tags -Mode Replace -PatToken $PatToken
 
         if ($null -eq $updated) {
             throw "Failed to set tags"
@@ -326,7 +355,7 @@ try {
 
     try {
         $addTags = @("additional")
-        $updated = & "$SCRIPT_DIR/SetAzDoWorkItemTags.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Tags $addTags -Mode Add -PatToken $PatToken
+        $updated = & "$SRC_DIR/SetAzDoWorkItemTags.ps1" -Organization $Organization -Project $Project -WorkItemId $story.id -Tags $addTags -Mode Add -PatToken $PatToken
 
         if ($null -eq $updated) {
             throw "Failed to add tags"
@@ -360,7 +389,7 @@ try {
         Set-Content -LiteralPath $tempMarkdownPath -Value $markdownContent -Encoding UTF8
 
         # Run hierarchy creation
-        $hierarchyResult = & "$SCRIPT_DIR/NewAzDoHierarchyFromMarkdown.ps1" -Organization $Organization -Project $Project `
+        $hierarchyResult = & "$SRC_DIR/NewAzDoHierarchyFromMarkdown.ps1" -Organization $Organization -Project $Project `
             -MarkdownFilePath $tempMarkdownPath -EpicId $epic.id -PatToken $PatToken
 
         if ($null -eq $hierarchyResult -or $hierarchyResult.CreatedItems.Count -lt 3) {
@@ -386,7 +415,7 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 12: Updating existing Story..."
 
     try {
-        $updated = & "$SCRIPT_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title "$EpicTitle - Story" `
+        $updated = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title "$EpicTitle - Story" `
             -ParentFeatureId $feature.id -Description "Updated via UpdateExisting" -StoryPoints 5 -UpdateExisting -PatToken $PatToken
 
         if ($null -eq $updated -or $updated.id -ne $story.id) {
@@ -402,7 +431,6 @@ try {
 catch {
     $null = & ssLogIt.ps1 -PopStackLevel -Message "Tests Stopped"
     $null = & ssLogIt.ps1 -Level Error -Message "::FgRed::System test failed::FgDefault::" -Exception $_
-    Write-Error $_.Exception.Message
     throw
 }
 
