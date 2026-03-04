@@ -1,0 +1,4 @@
+[submodule "submodules/Gmd.Chassi.DotNet"]
+	path = submodules/Gmd.Chassi.DotNet
+	url = https://github.com/greenmooseSE/Gmd.Chassi.DotNet.git
+	branch = develop
