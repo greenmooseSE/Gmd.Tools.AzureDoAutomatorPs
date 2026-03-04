@@ -6,7 +6,7 @@ Create or update an Azure DevOps Story work item
 Creates a new Story in Azure DevOps under a parent Feature, or updates an existing one if -UpdateExisting is specified.
 When updating, searches for a story with the same title within the same Feature.
 
-Supports setting description, acceptance criteria, and story points.
+Supports setting description, acceptance criteria, acceptance criteria scenarios, extra information, and story points.
 Returns the created or updated Story work item with ID.
 
 .PARAMETER Organization
@@ -26,6 +26,12 @@ Optional description for the Story
 
 .PARAMETER AcceptanceCriteria
 Optional acceptance criteria for the Story
+
+.PARAMETER AcScenarios
+Optional acceptance criteria scenarios for the Story
+
+.PARAMETER ExtraInformation
+Optional extra information for the Story
 
 .PARAMETER StoryPoints
 Optional story point value (must be non-negative integer)
@@ -50,6 +56,13 @@ Create a Story with full details:
         -ParentFeatureId 123 -Description "Build login form" `
         -AcceptanceCriteria "Must support email/password and OAuth" -StoryPoints 5
 
+Create a Story with all multi-line fields:
+    $story = .\New-AzDoStory.ps1 -Organization "myorg" -Project "myproject" -Title "Login Flow" `
+        -ParentFeatureId 123 -Description "Build complete login flow" `
+        -AcceptanceCriteria "Must support email/password and OAuth" `
+        -AcScenarios "Given user is on login page, When they enter credentials, Then they are authenticated" `
+        -ExtraInformation "Requires integration with OAuth provider" -StoryPoints 5
+
 Update an existing Story:
     $story = .\New-AzDoStory.ps1 -Organization "myorg" -Project "myproject" -Title "Existing Story" `
         -ParentFeatureId 123 -UpdateExisting -StoryPoints 8
@@ -59,6 +72,7 @@ Update an existing Story:
 - Requires PAT token with work items read/write scope
 - ParentFeatureId must be a valid Feature work item ID
 - Fails fast without updating if Story exists and -UpdateExisting not specified
+- Supports multi-line fields: Description, AcceptanceCriteria, AcScenarios, ExtraInformation
 #>
 
 #Requires -Version 7.0
@@ -79,6 +93,10 @@ param(
     [string]$Description,
 
     [string]$AcceptanceCriteria,
+
+    [string]$AcScenarios,
+
+    [string]$ExtraInformation,
 
     [int]$StoryPoints,
 
@@ -186,6 +204,14 @@ try {
             $updateFields[$script:FIELD_ACCEPTANCE_CRITERIA] = $AcceptanceCriteria
         }
 
+        if ($PSBoundParameters.ContainsKey('AcScenarios')) {
+            $updateFields[$script:FIELD_AC_SCENARIOS] = $AcScenarios
+        }
+
+        if ($PSBoundParameters.ContainsKey('ExtraInformation')) {
+            $updateFields[$script:FIELD_EXTRA_INFORMATION] = $ExtraInformation
+        }
+
         if ($PSBoundParameters.ContainsKey('StoryPoints')) {
             $updateFields[$script:FIELD_STORY_POINTS] = $StoryPoints
         }
@@ -212,6 +238,14 @@ try {
 
     if ($PSBoundParameters.ContainsKey('AcceptanceCriteria')) {
         $createFields[$script:FIELD_ACCEPTANCE_CRITERIA] = $AcceptanceCriteria
+    }
+
+    if ($PSBoundParameters.ContainsKey('AcScenarios')) {
+        $createFields[$script:FIELD_AC_SCENARIOS] = $AcScenarios
+    }
+
+    if ($PSBoundParameters.ContainsKey('ExtraInformation')) {
+        $createFields[$script:FIELD_EXTRA_INFORMATION] = $ExtraInformation
     }
 
     if ($PSBoundParameters.ContainsKey('StoryPoints')) {

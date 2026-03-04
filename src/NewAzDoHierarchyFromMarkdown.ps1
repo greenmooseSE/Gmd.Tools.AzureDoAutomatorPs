@@ -11,6 +11,8 @@ Markdown format:
     ## Feature 1 Title
     - Story 1 Title
       - AC: Acceptance criteria
+      - ACS: Acceptance criteria scenarios
+      - EI: Extra information
       - SP: 5 (story points)
     - Story 2 Title
 
@@ -52,6 +54,7 @@ Create actual hierarchy under Epic:
 - Markdown file must exist and be readable
 - Requires Azure DevOps REST API access
 - Pre-validates entire structure before creating items
+- Supported story-level fields: AC (Acceptance Criteria), ACS (Acceptance Criteria Scenarios), EI (Extra Information), SP (Story Points)
 #>
 
 #Requires -Version 7.0
@@ -171,6 +174,8 @@ try {
             $story = @{
                 Title              = $storyTitle
                 AcceptanceCriteria = $null
+                AcScenarios        = $null
+                ExtraInformation   = $null
                 StoryPoints        = $null
             }
             $currentFeature.Stories += $story
@@ -186,6 +191,28 @@ try {
             }
             $currentStory = $currentFeature.Stories[-1]
             $currentStory.AcceptanceCriteria = $ac
+            continue
+        }
+
+        # Check for Acceptance Criteria Scenarios (- ACS: text)
+        if ($line -match $script:REGEX_MARKDOWN_AC_SCENARIOS) {
+            [string]$acs = $matches[1].Trim()
+            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
+                Write-Error "Acceptance Criteria Scenarios found at line $lineNum but no parent Story"
+            }
+            $currentStory = $currentFeature.Stories[-1]
+            $currentStory.AcScenarios = $acs
+            continue
+        }
+
+        # Check for Extra Information (- EI: text)
+        if ($line -match $script:REGEX_MARKDOWN_EXTRA_INFO) {
+            [string]$ei = $matches[1].Trim()
+            if ($null -eq $currentFeature -or $currentFeature.Stories.Count -eq 0) {
+                Write-Error "Extra Information found at line $lineNum but no parent Story"
+            }
+            $currentStory = $currentFeature.Stories[-1]
+            $currentStory.ExtraInformation = $ei
             continue
         }
 
@@ -294,6 +321,14 @@ try {
                     $storyParams['AcceptanceCriteria'] = $story.AcceptanceCriteria
                 }
 
+                if ($null -ne $story.AcScenarios) {
+                    $storyParams['AcScenarios'] = $story.AcScenarios
+                }
+
+                if ($null -ne $story.ExtraInformation) {
+                    $storyParams['ExtraInformation'] = $story.ExtraInformation
+                }
+
                 if ($null -ne $story.StoryPoints) {
                     $storyParams['StoryPoints'] = $story.StoryPoints
                 }
@@ -334,6 +369,14 @@ try {
 
             if ($null -ne $story.AcceptanceCriteria) {
                 $storyParams['AcceptanceCriteria'] = $story.AcceptanceCriteria
+            }
+
+            if ($null -ne $story.AcScenarios) {
+                $storyParams['AcScenarios'] = $story.AcScenarios
+            }
+
+            if ($null -ne $story.ExtraInformation) {
+                $storyParams['ExtraInformation'] = $story.ExtraInformation
             }
 
             if ($null -ne $story.StoryPoints) {

@@ -55,6 +55,8 @@ $ErrorActionPreference = 'Stop'
 # Description and content fields
 [string]$script:FIELD_DESCRIPTION = 'System.Description'
 [string]$script:FIELD_ACCEPTANCE_CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria'
+[string]$script:FIELD_AC_SCENARIOS = 'Custom.ACScenarios'
+[string]$script:FIELD_EXTRA_INFORMATION = 'Custom.ExtraInformation'
 
 # Story point field (common in Scrum)
 [string]$script:FIELD_STORY_POINTS = 'Microsoft.VSTS.Scheduling.StoryPoints'
@@ -121,6 +123,8 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+(.+)$'      # ## Feature Title
 [regex]$script:REGEX_MARKDOWN_STORY = '^\-\s+(.+)$'          # - Story Title
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
+[regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
+[regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
 
 # ============================================================================
