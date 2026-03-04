@@ -1,0 +1,18 @@
+<!-- Directory.Build.targets - root level, applies to all projects -->
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <!-- Copy YAML contracts if configured. Only runs when both source and destination paths are set. -->
+    <Target Name="CopyYamlContracts" BeforeTargets="Build" Condition="'$(NCrunch)' != '1' And '$(YamlContractsSourceDirRelativeToSln)' != '' And '$(YamlContractsDestDirRelativeToProj)' != ''">
+        <PropertyGroup>
+            <!-- Calculate solution directory: if SolutionDir is unset or "*Undefined*", compute from project location -->
+             <!-- On unix-like CI, it seems solution dir has no trailing slush (but project dir has) so ensure we get one -->
+            <YamlSlnDir Condition="'$(SolutionDir)' != '' And '$(SolutionDir)' != '*Undefined*'">$(SolutionDir)/</YamlSlnDir>
+            <YamlSlnDir Condition="'$(YamlSlnDir)' == ''">../../</YamlSlnDir>
+            <YamlContractsSourcePath>$(YamlSlnDir)$(YamlContractsSourceDirRelativeToSln)</YamlContractsSourcePath>
+            <YamlContractsDestPath>$(ProjectDir)$(YamlContractsDestDirRelativeToProj)</YamlContractsDestPath>
+            <CopyScriptPath>$(YamlSlnDir)submodules/Gmd.Chassi.DotNet/helpers/copyGeneratedContractsToWebApiProj.ps1</CopyScriptPath>
+        </PropertyGroup>
+        <Message Text="YamlSlnDir: $(YamlSlnDir) CopyScriptPath: $(CopyScriptPath)" Importance="high" />
+        <Message Text="Executing YAML Contracts Copy - Source: $(YamlContractsSourcePath), Dest: $(YamlContractsDestPath)" Importance="high" />
+        <Exec Command="pwsh -nop -noni -file &quot;$(CopyScriptPath)&quot; -SourcePath &quot;$(YamlContractsSourcePath)&quot; -DestinationPath &quot;$(YamlContractsDestPath)&quot;" />
+    </Target>
+</Project>

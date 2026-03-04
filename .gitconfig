@@ -1,0 +1,6 @@
+[core]
+    #Needs to be false otherwise eol = lf is ignored according to https://git-scm.com/docs/git-config
+	autocrlf = false
+	eol = lf
+[submodule]
+	recurse = true

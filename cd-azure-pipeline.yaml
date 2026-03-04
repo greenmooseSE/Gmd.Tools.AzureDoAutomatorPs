@@ -1,0 +1,69 @@
+resources:
+  repositories:
+    - repository: buildTemplates
+      type: github
+      name: greenmooseSE/Gmd.Tools.AzureDO.BuildTemplates
+      ref: "refs/heads/develop"
+      endpoint: greenmooseSE
+
+  pipelines:
+    - pipeline: ci-pipeline1
+      source: "CI.TODO.PushBucket"
+      trigger:
+        branches:
+          - refs/heads/feat/*
+          - refs/heads/bug/*
+
+    # Only use 1 pipeline dependency for now to avoid duplicate triggers and ambiguous code base.
+    # - pipeline: ci-pipeline2
+    #   source: "CI.TODO"
+    #   trigger:
+    #     branches:
+    #       - refs/heads/feat/*
+    #       - refs/heads/bug/*
+
+parameters:
+  - name: paramBuildNameToDeployToDev
+    displayName: Deploy to Dev, a specific CI build as identified by its build number.
+    type: string
+    default: " "
+  - name: paramDeployProd
+    displayName: Deploy specified rc-tag to production.
+    type: boolean
+    default: false
+
+pr: none
+trigger:
+  branches:
+    exclude:
+      - "*"
+
+  tags:
+    include:
+      - "rc-*"
+
+name: $(BuildName)$(Rev:+rr)
+
+extends:
+  template: templates/base-cd.yaml@buildTemplates
+  parameters:
+    paramTemplatesRepoName: buildTemplates
+    #paramDeploymentType: nuget, ftp
+    paramDeploymentType: nuget
+    # paramCiHasArtifacts: If false, we will not try to deploy anything from CI but CD will only handle the versioning branching strategy.
+    paramCiHasArtifacts: true
+    # paramCiArtifactType: node|dotnet-web (nuget/web apps)
+    paramCiArtifactType: dotnet-web
+    # paramEnvVarsForTestTask:
+    #   AzDoApiPAT_Tests: $(AzDoApiPAT_Tests)
+    paramBuildNameToDeployToDev: ${{ parameters.paramBuildNameToDeployToDev }}
+    paramDeployProd: ${{ parameters.paramDeployProd }}
+    ${{ if endsWith(variables['Build.DefinitionName'], 'Pushbucket') }}:
+      paramCiPipelineResourceName: ci-pipeline1
+      paramPipelineDefinitionId: TBD
+    ${{ else }}:
+      paramPipelineDefinitionId: TBD
+      paramCiPipelineResourceName: ci-pipeline2
+    # Task group names to use, with optional <env>
+    paramVariableGroupNames:
+      - "mygroup-<env>"
