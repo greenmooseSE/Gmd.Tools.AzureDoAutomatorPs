@@ -577,47 +577,149 @@ foreach ($id in $storyIds) {
 
 ## Creating Work Item Hierarchies from Markdown
 
-The `NewAzDoHierarchyFromMarkdown.ps1` script allows you to define entire work item hierarchies using a simple markdown format. This is the recommended approach for bulk creating structured work items.
+The `NewAzDoHierarchyFromMarkdown.ps1` script allows you to define entire work item hierarchies using a simple markdown format with strict validation:
+
+### Validation Rules
+
+The converter validates your markdown during parsing:
+
+1. **Title Prefixes**: Epic, Feature, and Story titles must start with their type prefix
+   - Non-compliant: `# Customer Portal` (missing "Epic: " prefix)
+   - Compliant: `# Epic: Customer Portal`
+
+2. **Header Levels in Descriptions**: Headers in descriptions must respect hierarchy levels
+   - Level 1-2 headers (`#`, `##`) in Epic/Feature descriptions → Error
+   - Level 1-3 headers (`#`, `##`, `###`) in Story descriptions → Error
+   - This prevents confusion with work item hierarchy markers
+
+3. **Structure Validation**: Stories must have parent Features, Features must be under Epics or at top level
+
+Example of validation error:
+```
+Epic: My Epic
+Description with a level 2 header:
+## Subtopic (ERROR: level 2 headers not allowed in Epic descriptions)
+```
+
+Should be:
+```
+Epic: My Epic
+Description with a level 3 header:
+### Subtopic (OK: level 3+ headers allowed in Epic descriptions)
+```
 
 ### Markdown Format Guide
 
-The markdown format supports:
+The markdown format supports structured hierarchy with required naming conventions and header level validation:
 
-#### Structure
+#### Naming Conventions
+
+All work item titles must include a type prefix to avoid confusion with header levels:
+
+- **Epic** titles must start with `Epic: ` (e.g., `# Epic: Customer Portal Redesign`)
+- **Feature** titles must start with `Feature: ` (e.g., `## Feature: User Authentication`)
+- **Story** titles must start with `Story: ` (e.g., `### Story: OAuth 2.0 Implementation`)
+
+#### Header Level Requirements
+
+To prevent headers in descriptions from being confused with hierarchy markers:
+
+- **Epic and Feature descriptions**: Must use headers at level 3 (###) or higher
+  - Avoid using `#` or `##` in descriptions
+  - Example: `### Key Objectives` ✅ (allowed), `## Implementation` ❌ (not allowed)
+
+- **Story descriptions**: Must use headers at level 4 (####) or higher
+  - Avoid using `#`, `##`, or `###` in descriptions
+  - Example: `#### Scenarios` ✅ (allowed), `### Implementation` ❌ (not allowed)
+
+#### Basic Structure
+
 ```markdown
-# Epic Title (optional)
+# Epic: Epic Title
 
-## Feature Title
-- Story Title
-  - Property: Value
+**tags**: tag1, tag2\
+**Description**\
+Multi-line description with headers at level 3 or higher
+### Header in Epic Description
+More content here
+
+## Feature: Feature Title
+
+**tags**: tag1, tag2\
+**SP**: 21\
+**Description**\
+Feature description with headers at level 3 or higher
+### Implementation Details
+Additional context
+
+### Story: Story Title
+
+**tags**: tag1, tag2\
+**SP**: 5\
+**Description**\
+Story description with headers at level 4 or higher
+#### Acceptance Criteria
+- [ ] Criterion 1
+
+#### AC Scenarios
+1. **Scenario**: First scenario\
+  Given...\
+  When...\
+  Then...
+
+#### Extra Information
+- Additional notes and references
 ```
 
-#### Supported Properties
+#### Formatting Guidelines
+
+**Newlines in Descriptions**: Use trailing backslash (`\`) at the end of lines to enforce newlines:
+
+```markdown
+## Feature: Example
+
+**tags**: documentation, guide\
+**Description**\
+This is the first line\
+This is the second line (backslash above enforces newline)\
+This is the third line
+```
+
+**Supported Properties**
 
 **Acceptance Criteria (AC)** - Use checkbox-style lists:
 ```markdown
-- Story Title
-  - AC: - [ ] First criterion`r`nSecond line of criterion
-  - AC: - [ ] Another criterion
+#### Acceptance Criteria
+- [ ] First criterion
+- [ ] Second criterion
 ```
 
 **Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
 ```markdown
-- Story Title
-  - ACS: 1. Given user is logged in`r`nWhen user clicks button`r`nThen action succeeds
-  - ACS: 2. Given invalid input`r`nWhen form is submitted`r`nThen error is shown
+#### AC Scenarios
+1. **Scenario**: User logs in\
+  Given user is on login page\
+  When user enters valid credentials\
+  Then user is logged in\
+  And dashboard is displayed
+
+2. **Scenario**: Login fails with invalid password\
+  Given user is on login page\
+  When user enters invalid password\
+  Then error message is shown
 ```
 
 **Story Points (SP)**:
 ```markdown
-- Story Title
-  - SP: 8
+**SP**: 8
 ```
 
 **Extra Information (EI)**:
 ```markdown
-- Story Title
-  - EI: This is additional context for the story
+#### Extra Information
+- Reference documentation: https://docs.example.com
+- Consider security implications\
+- Apply rate limiting on API endpoints
 ```
 
 **Tags** - Automatically added:
@@ -627,11 +729,16 @@ The markdown format supports:
 #### Complete Example
 
 See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-ready example demonstrating:
-- Multi-epic structures with multiple features and stories
+- Epic titles with "Epic: " prefix including emoticons
+- Feature titles with "Feature: " prefix
+- Story titles with "Story: " prefix
+- Multi-level features and stories with proper hierarchy
+- Headers in descriptions using correct nesting levels (### in features, #### in stories)
 - Acceptance criteria with multiple lines and markdown formatting
 - Numbered Gherkin scenarios with proper Given/When/Then structure
 - Story points estimation
-- Real-world use cases (Customer Portal Redesign)
+- Real-world use cases (Customer Portal Redesign with authentication, ticketing, and knowledge base features)
+- Trailing backslashes for enforcing newlines in markdown
 
 ### Usage
 

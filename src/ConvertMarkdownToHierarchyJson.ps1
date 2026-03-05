@@ -7,22 +7,26 @@ Parses a markdown file using hierarchical headers and produces a JSON structure 
 the hierarchy of Epic/Feature/Story work items with all their metadata. This adapter script
 validates that all markdown content is properly captured and can be easily inspected.
 
-Markdown format:
-    # Epic Title
+Markdown format (with required type prefixes):
+    # Epic: Epic Title
     **tags**: tag1, tag2
     **Description**
-    Multi-line description text
+    Multi-line description with headers at level 3+
+    ### Header in Epic Description
+    More content here
     
-    ## Feature Title
+    ## Feature: Feature Title
     **tags**: tag1, tag2
     **Description**
-    Feature description
+    Feature description with headers at level 3+
+    ### Header in Feature Description
     
-    ### Story Title
+    ### Story: Story Title
     **tags**: tag1, tag2
     **SP**: 5
     **Description**
-    Story description as a developer...
+    Story description with headers at level 4+
+    #### Header in Story Description
     
     #### Acceptance Criteria
     - [ ] Criterion 1
@@ -32,6 +36,12 @@ Markdown format:
     
     #### Extra Information
     Additional notes
+
+Validation Rules:
+- Epic, Feature, and Story titles must be prefixed with "Epic: ", "Feature: ", and "Story: " respectively
+- Headers in epic and feature descriptions must start at level 3 (###) or higher
+- Headers in story descriptions must start at level 4 (####) or higher
+- Newlines in descriptions can be enforced with trailing backslash
 
 Output JSON structure:
     {
@@ -55,7 +65,7 @@ Inspect structure:
 
 .NOTES
 - Markdown file must exist and be readable
-- Validates entire structure during parsing
+- Validates entire structure during parsing (including title prefixes and header levels in descriptions)
 - Descriptions are preserved as-is from markdown (with newlines)
 - All content is normalized and validated before output
 #>
@@ -70,6 +80,48 @@ $ErrorActionPreference = 'Stop'
 
 # Import modules
 . "$PSScriptRoot\AzDoAutomatorConstants.ps1"
+
+# ============================================================================
+# Helper Functions for Description Validation
+# ============================================================================
+
+<#
+.SYNOPSIS
+Validates that epic and feature descriptions don't have headers at levels 1-2
+#>
+function Test-DescriptionHeaderLevelsForEpicFeature {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Description,
+        [Parameter(Mandatory = $true)]
+        [string]$ItemType  # 'Epic' or 'Feature'
+    )
+    
+    [string[]]$lines = $Description -split "`n"
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2) {
+            throw "$ItemType description at line $i contains level 1/2 header (# or ##). Headers in $ItemType descriptions must start at level 3 (###) or higher to distinguish from hierarchy headers."
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Validates that story descriptions don't have headers at levels 1-3
+#>
+function Test-DescriptionHeaderLevelsForStory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+    
+    [string[]]$lines = $Description -split "`n"
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3) {
+            throw "Story description at line $i contains level 1/2/3 header (#, ##, or ###). Headers in story descriptions must start at level 4 (####) or higher to distinguish from hierarchy headers."
+        }
+    }
+}
 
 # Validate markdown file
 if (-not (Test-Path -LiteralPath $MarkdownFilePath -PathType Leaf)) {
@@ -112,12 +164,15 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
                     $currentEpic['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
                     $currentFeature['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                    Test-DescriptionHeaderLevelsForStory -Description $desc
                     $currentStory['description'] = $desc
                 }
                 Write-Debug "Finalized description from empty line"
@@ -133,9 +188,18 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         # Finalize any active description first
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) { $currentEpic['description'] = $desc }
-            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) { $currentFeature['description'] = $desc }
-            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) { $currentStory['description'] = $desc }
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                $currentEpic['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                $currentFeature['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                Test-DescriptionHeaderLevelsForStory -Description $desc
+                $currentStory['description'] = $desc
+            }
             $descriptionLines = @()
         }
         
@@ -190,7 +254,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         # Finalize any pending description
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) { $currentEpic['description'] = $desc }
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                $currentEpic['description'] = $desc
+            }
             $descriptionLines = @()
         }
         
@@ -216,8 +283,14 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         # Finalize any pending description
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) { $currentEpic['description'] = $desc }
-            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) { $currentFeature['description'] = $desc }
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                $currentEpic['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                $currentFeature['description'] = $desc
+            }
             $descriptionLines = @()
         }
         
@@ -247,9 +320,18 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         # Finalize any pending description
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) { $currentEpic['description'] = $desc }
-            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) { $currentFeature['description'] = $desc }
-            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) { $currentStory['description'] = $desc }
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                $currentEpic['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                $currentFeature['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                Test-DescriptionHeaderLevelsForStory -Description $desc
+                $currentStory['description'] = $desc
+            }
             $descriptionLines = @()
         }
         
@@ -337,9 +419,18 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
 # Finalize any pending data
 if ($descriptionLines.Count -gt 0) {
     [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-    if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) { $currentEpic['description'] = $desc }
-    elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) { $currentFeature['description'] = $desc }
-    elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) { $currentStory['description'] = $desc }
+    if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+        $currentEpic['description'] = $desc
+    }
+    elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+        $currentFeature['description'] = $desc
+    }
+    elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+        Test-DescriptionHeaderLevelsForStory -Description $desc
+        $currentStory['description'] = $desc
+    }
 }
 
 if ($sectionLines.Count -gt 0 -and $null -ne $currentSectionType) {

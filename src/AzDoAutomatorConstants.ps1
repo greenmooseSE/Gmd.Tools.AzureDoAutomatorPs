@@ -119,9 +119,9 @@ $ErrorActionPreference = 'Stop'
 # Markdown Parsing Patterns for Hierarchy
 # ============================================================================
 
-[regex]$script:REGEX_MARKDOWN_EPIC = '^\#\s+(.+)$'           # # Epic Title
-[regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+(.+)$'      # ## Feature Title
-[regex]$script:REGEX_MARKDOWN_STORY = '^\#\#\#\s+(.+)$'      # ### Story Title
+[regex]$script:REGEX_MARKDOWN_EPIC = '^\#\s+Epic:\s*(.+)$'           # # Epic: Title
+[regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+Feature:\s*(.+)$'      # ## Feature: Title
+[regex]$script:REGEX_MARKDOWN_STORY = '^\#\#\#\s+Story:\s*(.+)$'      # ### Story: Title
 [regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI)
 [regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1, tag2
 [regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*\\?$'     # **Description** or **Description**\
@@ -129,6 +129,10 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
+
+# Header level validation patterns  
+[regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2 = '^\s*#{1,2}\s'     # # or ##
+[regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3 = '^\s*#{1,3}\s'   # #, ##, or ###
 
 # ============================================================================
 # Tag Modes
