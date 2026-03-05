@@ -200,8 +200,8 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
 
     # Section headers (#### ...) - but only finalize description if we're in a story
     if ($line -match $script:REGEX_MARKDOWN_SECTION_HEADER) {
-        # Only treat as section header if we're collecting story description or in section mode
-        if ($currentLineType -eq 'story_desc' -or $currentLineType -eq 'section') {
+        # Only treat as section header if we're collecting story description, in section mode, or have an active story
+        if ($currentLineType -eq 'story_desc' -or $currentLineType -eq 'section' -or ($null -ne $currentStory -and [string]::IsNullOrWhiteSpace($currentLineType))) {
             # Finalize any active description first
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
@@ -488,6 +488,35 @@ if ($sectionLines.Count -gt 0 -and $null -ne $currentSectionType) {
 }
 
 Write-Debug "Markdown parsing complete - finalized any pending sections"
+
+# Add "autoGen" tag to all items (Epics, Features, Stories)
+foreach ($epic in $epics) {
+    if ($epic.tags -notcontains 'autoGen') {
+        $epic.tags += 'autoGen'
+    }
+    foreach ($feature in $epic.features) {
+        if ($feature.tags -notcontains 'autoGen') {
+            $feature.tags += 'autoGen'
+        }
+        foreach ($story in $feature.stories) {
+            if ($story.tags -notcontains 'autoGen') {
+                $story.tags += 'autoGen'
+            }
+        }
+    }
+}
+foreach ($feature in $topLevelFeatures) {
+    if ($feature.tags -notcontains 'autoGen') {
+        $feature.tags += 'autoGen'
+    }
+    foreach ($story in $feature.stories) {
+        if ($story.tags -notcontains 'autoGen') {
+            $story.tags += 'autoGen'
+        }
+    }
+}
+
+Write-Debug "Added 'autoGen' tag to all items"
 
 # Build the output JSON structure
 $output = @{

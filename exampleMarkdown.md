@@ -15,49 +15,45 @@ with **markdown support**
     └───────────┘
 ```
 
-## Feature: Feat Title
-**tags**: tbd\
-**Effort**: 13\
+## Feature: 🏗️ CI Pipeline & Build (001)
+
+**tags**: infrastructure, ciPipeline, build\
+**Effort**: 2\
 **Description**\
-A long feature desc\
-with **markdown support**\
-and newlines
+Ensure the solution builds, all tests pass, and artifacts are published in the CI pipeline.\
+The Azure DevOps pipeline template is already referenced; this feature validates the end-to-end flow.\
+This must be green before any other work begins.
 
-### The feature subtitle 1
-something
+### Story: 🔧 CI pipeline builds solution and runs tests (001)
 
-### The feture subitle 2
-something else
-
-### Story: Some story with title
-
-**tags**: tbd\
-**SP**: 3\
+**tags**: ci, build, pipeline\
+**SP**: 2\
 **Description**\
-
-#### Persona
 As a developer\
-I want to do this\
-So that we validate those things
-
-#### Details
-Nothing more here
+I want the CI pipeline to build the solution and run all tests\
+So that every commit is validated automatically.
 
 #### Acceptance Criteria
-- [ ] Should not throw.
-- [ ] Documented
+- [ ] `dotnet build TheSln.sln` completes without errors
+- [ ] `dotnet test TheSln.sln` runs all NUnit tests and reports results
+- [ ] Pipeline YAML (`ci-azure-pipeline.yaml`) is configured with correct solution path
+- [ ] Test results are published as pipeline artifacts
+- [ ] All introduced code has unit/integration test coverage
 
 #### AC Scenarios
-1. **Scenario**: User can log in\
-  Given Start page yada\
-  When yadaya\
-  Then foo
-1. **Scenario**: User can log out\
-  Given Start page yada\
-  When yadaya\
-  Then foo
+1. **Scenario**: Solution builds successfully\
+   Given the CI pipeline triggers on a commit\
+   When `dotnet build TheSln.sln` executes\
+   Then the build should complete with exit code 0\
+   And no compiler warnings should be present
+
+2. **Scenario**: All tests pass in CI\
+   Given the CI pipeline has built the solution\
+   When `dotnet test TheSln.sln` executes\
+   Then all tests should pass\
+   And test results should be published as pipeline artifacts
 
 #### Extra Information
-* Login should follow standards at http://microsoft.com/...
-
-
+- The CI template `base-ci-dotnet-web.yaml` from `buildTemplates` is already referenced.
+- `paramSlnFile: TheSln.sln` is set.
+- Verify `paramPublishBuildArtifacts: true` produces the expected API artifact for CD.

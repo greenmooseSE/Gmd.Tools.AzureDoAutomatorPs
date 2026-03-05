@@ -315,29 +315,6 @@ try {
 
     $summary.CreatedItems = $createdItems
 
-    # Add "autoGen" tag to all created items
-    $null = & ssLogIt.ps1 -Level Debug -Message "Adding 'autoGen' tag to all created work items..."
-    [int]$taggedCount = 0
-    foreach ($itemId in $createdItems.Keys) {
-        try {
-            $null = & "$PSScriptRoot\SetAzDoWorkItemTags.ps1" `
-                -Organization $Organization `
-                -Project $Project `
-                -WorkItemId $itemId `
-                -Tags @("autoGen") `
-                -Mode Add `
-                -PatToken $PatToken `
-                -ErrorAction Stop
-            $taggedCount++
-        }
-        catch {
-            $null = & ssLogIt.ps1 -Level Warn -Message "Failed to tag work item $itemId with 'autoGen': $_"
-        }
-    }
-    $null = & ssLogIt.ps1 -Level Debug -Message "Tagged $taggedCount items with 'autoGen' tag"
-
-    $null = & ssLogIt.ps1 -Level Info -Message "Successfully created $($createdItems.Count) work items from markdown"
-
     # Apply tags to all created items
     $null = & ssLogIt.ps1 -Level Debug -Message "Applying tags to created work items..."
     [int]$taggedCount = 0
@@ -363,7 +340,7 @@ try {
                         -Project $Project `
                         -WorkItemId $createdId `
                         -Tags $epic.tags `
-                        -Mode Replace `
+                        -Mode Add `
                         -PatToken $PatToken `
                         -ErrorAction Stop
                     $taggedCount++
@@ -386,7 +363,7 @@ try {
                             -Project $Project `
                             -WorkItemId $createdId `
                             -Tags $feature.tags `
-                            -Mode Replace `
+                            -Mode Add `
                             -PatToken $PatToken `
                             -ErrorAction Stop
                         $taggedCount++
@@ -409,7 +386,7 @@ try {
                                 -Project $Project `
                                 -WorkItemId $createdId `
                                 -Tags $story.tags `
-                                -Mode Replace `
+                                -Mode Add `
                                 -PatToken $PatToken `
                                 -ErrorAction Stop
                             $taggedCount++
@@ -436,7 +413,7 @@ try {
                         -Project $Project `
                         -WorkItemId $createdId `
                         -Tags $feature.tags `
-                        -Mode Replace `
+                        -Mode Add `
                         -PatToken $PatToken `
                         -ErrorAction Stop
                     $taggedCount++
@@ -459,7 +436,7 @@ try {
                             -Project $Project `
                             -WorkItemId $createdId `
                             -Tags $story.tags `
-                            -Mode Replace `
+                            -Mode Add `
                             -PatToken $PatToken `
                             -ErrorAction Stop
                         $taggedCount++
