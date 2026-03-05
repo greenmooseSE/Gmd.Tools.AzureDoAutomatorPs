@@ -192,6 +192,10 @@ try {
             $epicParams['Description'] = $epic.description
         }
 
+        if ($epic.effort) {
+            $epicParams['Effort'] = $epic.effort
+        }
+
         if ($PSBoundParameters.ContainsKey('EpicId')) {
             $epicParams['ParentEpicId'] = $EpicId
         }
@@ -211,6 +215,10 @@ try {
 
             if ($feature.description) {
                 $featureParams['Description'] = $feature.description
+            }
+
+            if ($feature.effort) {
+                $featureParams['Effort'] = $feature.effort
             }
 
             $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.title) under Epic"
@@ -260,6 +268,10 @@ try {
 
         if ($feature.description) {
             $featureParams['Description'] = $feature.description
+        }
+
+        if ($feature.effort) {
+            $featureParams['Effort'] = $feature.effort
         }
 
         if ($PSBoundParameters.ContainsKey('EpicId')) {

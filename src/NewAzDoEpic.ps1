@@ -19,6 +19,9 @@ The Epic title (required)
 .PARAMETER Description
 Optional description for the Epic
 
+.PARAMETER Effort
+Optional effort value for the Epic (must be a non-negative integer)
+
 .PARAMETER PatToken
 Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
 environment variable (expected to be encrypted).
@@ -32,6 +35,9 @@ Create a new Epic:
 
 Create an Epic with description:
     $epic = .\NewAzDoEpic.ps1 -Organization "myorg" -Project "myproject" -Title "Q1 Features" -Description "Features planned for Q1"
+
+Create an Epic with effort:
+    $epic = .\NewAzDoEpic.ps1 -Organization "myorg" -Project "myproject" -Title "Q1 Features" -Effort 21
 
 .NOTES
 - Requires Azure DevOps REST API access
@@ -51,6 +57,8 @@ param(
     [string]$Title,
 
     [string]$Description,
+
+    [int]$Effort,
 
     [string]$PatToken
 )
@@ -82,6 +90,10 @@ if ([string]::IsNullOrWhiteSpace($Title)) {
     Write-Error "Parameter 'Title' cannot be empty."
 }
 
+if ($PSBoundParameters.ContainsKey('Effort') -and $Effort -lt 0) {
+    Write-Error "Parameter 'Effort' must be a non-negative integer. Provided: $Effort"
+}
+
 # Log script start
 $null = & ssLogIt.ps1 -Level Info -Message "Creating Epic: ::FgGreen::$Title::FgDefault:: in project ::FgGreen::$Project::FgDefault::"
 
@@ -98,6 +110,10 @@ try {
 
     if ($PSBoundParameters.ContainsKey('Description')) {
         $createFields[$script:FIELD_DESCRIPTION] = $Description
+    }
+
+    if ($PSBoundParameters.ContainsKey('Effort')) {
+        $createFields[$script:FIELD_EFFORT] = $Effort
     }
 
     $logMessage = "Creating new Epic with title ::FgGreen::$Title::FgDefault::"

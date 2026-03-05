@@ -1,20 +1,37 @@
 # Epic: Epic Title 
-**tags**: autogen, tbd\
+**tags**: tbd\
+**Effort**: 21\
 **Description**\
-### The title
+### The epic subtitle 1
 The epic description here\
 with **markdown support**
 
+### The epic subtitle 2 - architecture
+
+```
+          │
+    ┌─────▼─────┐
+    │  Database │
+    └───────────┘
+```
+
 ## Feature: Feat Title
-**tags**: autogen, tbd\
+**tags**: tbd\
+**Effort**: 13\
 **Description**\
 A long feature desc\
 with **markdown support**\
 and newlines
 
+### The feature subtitle 1
+something
+
+### The feture subitle 2
+something else
+
 ### Story: Some story with title
 
-**tags**: autogen, tbd\
+**tags**: tbd\
 **SP**: 3\
 **Description**\
 

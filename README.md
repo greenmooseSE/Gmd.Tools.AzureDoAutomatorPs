@@ -112,6 +112,14 @@ $epic = .\NewAzDoEpic.ps1 `
     -Title "Q1 2024 Roadmap" `
     -Description "All features planned for Q1 2024"
 
+# Create Epic with effort
+$epic = .\NewAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Q1 2024 Roadmap" `
+    -Description "All features planned for Q1 2024" `
+    -Effort 21
+
 # Returned object has full work item details
 Write-Host "Created Epic ID: $($epic.id)"
 ```
@@ -121,6 +129,7 @@ Write-Host "Created Epic ID: $($epic.id)"
 - `Project` (required): Project name
 - `Title` (required): Epic title
 - `Description` (optional): Epic description
+- `Effort` (optional): Effort value in story points (non-negative integer)
 - `PatToken` (optional): Override default PAT token
 
 #### `NewAzDoFeature.ps1`
@@ -134,6 +143,14 @@ $feature = .\NewAzDoFeature.ps1 `
     -Title "User Authentication System" `
     -Description "Implement OAuth 2.0 authentication" `
     -ParentEpicId 42
+
+# Create Feature with effort
+$feature = .\NewAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Search System" `
+    -Description "Implement search functionality" `
+    -Effort 13
 
 # Update existing Feature
 $feature = .\NewAzDoFeature.ps1 `
@@ -151,6 +168,7 @@ $feature = .\NewAzDoFeature.ps1 `
 - `Description` (optional): Feature description
 - `ParentEpicId` (optional): Parent Epic ID
 - `UpdateExisting` (switch): Update if feature exists
+- `Effort` (optional): Effort value in story points (non-negative integer)
 - `PatToken` (optional): Override default PAT token
 
 #### `NewAzDoStory.ps1`
@@ -241,6 +259,17 @@ $updated = .\SetAzDoStoryPoints.ps1 `
     -Project "myproj" `
     -WorkItemId 123 `
     -StoryPoints 5
+```
+
+#### `SetAzDoEffort.ps1`
+Update Epic or Feature effort value.
+
+```powershell
+$updated = .\SetAzDoEffort.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Effort 21
 ```
 
 ### Tag Management
@@ -434,6 +463,7 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoWorkItemDescription.ps1       (Set description)
 │   ├── SetAzDoAcceptanceCriteria.ps1        (Set acceptance criteria)
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
+│   ├── SetAzDoEffort.ps1                    (Set effort for Epic/Feature)
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)
 │   ├── RemoveAzDoEpic.ps1                   (Delete Epic and children)
@@ -638,6 +668,7 @@ To prevent headers in descriptions from being confused with hierarchy markers:
 # Epic: Epic Title
 
 **tags**: tag1, tag2\
+**Effort**: 21\
 **Description**\
 Multi-line description with headers at level 3 or higher
 ### Header in Epic Description
@@ -646,7 +677,7 @@ More content here
 ## Feature: Feature Title
 
 **tags**: tag1, tag2\
-**SP**: 21\
+**Effort**: 13\
 **Description**\
 Feature description with headers at level 3 or higher
 ### Implementation Details
@@ -712,6 +743,11 @@ This is the third line
 **Story Points (SP)**:
 ```markdown
 **SP**: 8
+```
+
+**Effort** - Available for Epics and Features (non-negative integer):
+```markdown
+**Effort**: 21
 ```
 
 **Extra Information (EI)**:

@@ -153,14 +153,29 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
     
     # Skip empty lines and comments
     if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('<!')) {
-        # If collecting description and this is an empty line that's not at section boundary, it might be the end
+        # If collecting description and this is an empty line that's not at section boundary, check what comes next
         if ($currentLineType -match '_desc$' -and ($lineNum + 1 -lt $lines.Count)) {
             [string]$nextLine = $lines[$lineNum + 1].TrimEnd()
-            if (-not [string]::IsNullOrWhiteSpace($nextLine) -and -not ($nextLine -match '^#{1,4}\s')) {
-                # Not a header coming,  might be mid-description, continue skipping empty line
+            [bool]$isHierarchyBoundary = $false
+            
+            # For Epic descriptions: stop at # Epic: or ## Feature:
+            if ($currentLineType -eq 'epic_desc') {
+                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE)
+            }
+            # For Feature descriptions: stop at ## Feature: or ### Story: or # Epic:
+            elseif ($currentLineType -eq 'feature_desc') {
+                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC)
+            }
+            # For Story descriptions: stop at ### Story: or ## Feature: or # Epic: or #### SectionHeader
+            elseif ($currentLineType -eq 'story_desc') {
+                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
+            }
+            
+            if (-not [string]::IsNullOrWhiteSpace($nextLine) -and -not $isHierarchyBoundary) {
+                # Not a hierarchy boundary coming, might be mid-description, continue skipping empty line
                 continue
             }
-            # Empty line before header or end of content, treat as end of description
+            # Empty line before hierarchy boundary or end of content, treat as end of description
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
@@ -183,49 +198,59 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         continue
     }
 
-    # Section headers (#### ...)
+    # Section headers (#### ...) - but only finalize description if we're in a story
     if ($line -match $script:REGEX_MARKDOWN_SECTION_HEADER) {
-        # Finalize any active description first
-        if ($descriptionLines.Count -gt 0) {
-            [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
-            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
-                $currentEpic['description'] = $desc
+        # Only treat as section header if we're collecting story description or in section mode
+        if ($currentLineType -eq 'story_desc' -or $currentLineType -eq 'section') {
+            # Finalize any active description first
+            if ($descriptionLines.Count -gt 0) {
+                [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
+                if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                    $currentEpic['description'] = $desc
+                }
+                elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                    $currentFeature['description'] = $desc
+                }
+                elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                    Test-DescriptionHeaderLevelsForStory -Description $desc
+                    $currentStory['description'] = $desc
+                }
+                $descriptionLines = @()
             }
-            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
-                $currentFeature['description'] = $desc
+            
+            # Finalize any active section before starting a new one
+            if ($currentLineType -eq 'section' -and $null -ne $currentSectionType -and $sectionLines.Count -gt 0) {
+                [string]$sectionContent = ($sectionLines | Join-String -Separator "`n").Trim()
+                if ($currentSectionType -eq 'AC' -and $null -ne $currentStory) { $currentStory['acceptanceCriteria'] = $sectionContent }
+                elseif ($currentSectionType -eq 'ACS' -and $null -ne $currentStory) { $currentStory['acScenarios'] = $sectionContent }
+                elseif ($currentSectionType -eq 'EI' -and $null -ne $currentStory) { $currentStory['extraInformation'] = $sectionContent }
+                $sectionLines = @()
             }
-            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-                Test-DescriptionHeaderLevelsForStory -Description $desc
-                $currentStory['description'] = $desc
+            
+            [string]$sectionTitle = $matches[1].Trim()
+            if ($sectionTitle -match 'Acceptance Criteria') {
+                $currentSectionType = 'AC'
             }
-            $descriptionLines = @()
-        }
-        
-        # Finalize any active section before starting a new one
-        if ($currentLineType -eq 'section' -and $null -ne $currentSectionType -and $sectionLines.Count -gt 0) {
-            [string]$sectionContent = ($sectionLines | Join-String -Separator "`n").Trim()
-            if ($currentSectionType -eq 'AC' -and $null -ne $currentStory) { $currentStory['acceptanceCriteria'] = $sectionContent }
-            elseif ($currentSectionType -eq 'ACS' -and $null -ne $currentStory) { $currentStory['acScenarios'] = $sectionContent }
-            elseif ($currentSectionType -eq 'EI' -and $null -ne $currentStory) { $currentStory['extraInformation'] = $sectionContent }
+            elseif ($sectionTitle -match 'AC Scenarios') {
+                $currentSectionType = 'ACS'
+            }
+            elseif ($sectionTitle -match 'Extra Information') {
+                $currentSectionType = 'EI'
+            }
             $sectionLines = @()
+            $currentLineType = 'section'
+            Write-Debug "Found section: $sectionTitle"
+            continue
         }
-        
-        [string]$sectionTitle = $matches[1].Trim()
-        if ($sectionTitle -match 'Acceptance Criteria') {
-            $currentSectionType = 'AC'
+        else {
+            # For epic/feature descriptions, #### headers are part of the description content, not section markers
+            if ($currentLineType -match '_desc$') {
+                $descriptionLines += $line
+                continue
+            }
         }
-        elseif ($sectionTitle -match 'AC Scenarios') {
-            $currentSectionType = 'ACS'
-        }
-        elseif ($sectionTitle -match 'Extra Information') {
-            $currentSectionType = 'EI'
-        }
-        $sectionLines = @()
-        $currentLineType = 'section'
-        Write-Debug "Found section: $sectionTitle"
-        continue
     }
 
     # If we're in a section, collect lines for it
@@ -269,6 +294,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             title       = $epicTitle
             tags        = @()
             description = $null
+            effort      = $null
             features    = @()
         }
         $epics += $currentEpic
@@ -302,6 +328,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             title       = $featureTitle
             tags        = @()
             description = $null
+            effort      = $null
             stories     = @()
         }
         if ($null -ne $currentEpic) {
@@ -398,6 +425,26 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             throw "Story Points found at line $($lineNum+1) but no parent Story"
         }
         $currentStory['storyPoints'] = $sp
+        continue
+    }
+
+    if ($line -match '^\*\*Effort\*\*:\s*(\d+)') {
+        [int]$effort = $matches[1]
+        if ($effort -lt 0) {
+            throw "Invalid Effort at line $($lineNum+1) : Must be non-negative. Found: $effort"
+        }
+        if ($null -ne $currentStory) {
+            throw "Effort found at line $($lineNum+1) but should only be on Epic or Feature, not Story"
+        }
+        if ($null -ne $currentFeature) {
+            $currentFeature['effort'] = $effort
+        }
+        elseif ($null -ne $currentEpic) {
+            $currentEpic['effort'] = $effort
+        }
+        else {
+            throw "Effort found at line $($lineNum+1) but no parent Epic or Feature"
+        }
         continue
     }
 

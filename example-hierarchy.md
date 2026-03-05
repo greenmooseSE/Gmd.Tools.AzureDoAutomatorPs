@@ -1,6 +1,7 @@
 # Epic: 🚀 Customer Portal Redesign - Q1 2024
 
 **tags**: customer-portal, redesign, high-priority, frontend\
+**Effort**: 40
 **Description**\
 Complete overhaul of the customer support portal to provide a modern, intuitive interface\
 with improved accessibility and mobile responsiveness. This epic encompasses all design,\
@@ -16,9 +17,37 @@ development, and testing activities for the new portal experience.
 Our team will implement a microservices backend with a React-based frontend\
 to enable faster iteration and better scalability.
 
+```
+┌────────────────────────┐
+│  React Portal (Web)    │
+│  Mobile Responsive     │
+└────────────┬───────────┘
+             │
+     ┌───────▼────────┐
+     │  API Gateway   │
+     ├────────────────┤
+     │  Auth / Rate   │
+     │  Limiting      │
+     └───────┬────────┘
+             │
+    ┌────────┼────────┐
+    │        │        │
+┌───▼──┐ ┌──▼───┐ ┌──▼────┐
+│User  │ │Auth  │ │Ticket │
+│Svc   │ │Svc   │ │Svc    │
+└───┬──┘ └──┬───┘ └──┬────┘
+    │       │        │
+    └───────┴────────┘
+          │
+    ┌─────▼─────┐
+    │  Database │
+    └───────────┘
+```
+
 ## Feature: 🎨 User Authentication & Profile Management
 
 **tags**: authentication, user-management, security, auth-v2\
+**Effort**: 13
 **Description**\
 Implement modern OAuth 2.0 authentication with Microsoft Entra ID and allow users\
 to manage their profiles, preferences, and security settings. This feature provides\
@@ -112,6 +141,7 @@ my account reflects my current details and communication preferences.
 ## Feature: 📊 Support Ticket Management System
 
 **tags**: ticketing, support, customer-support, workflow\
+**Effort**: 11
 **Description**\
 Complete overhaul of the support ticket system with real-time updates, intelligent\
 routing to support agents, and self-service capabilities. Users can create, track,\
@@ -199,6 +229,7 @@ changes so I'm always informed about the progress of my issue resolution.
 ## Feature: 📚 Knowledge Base & Self-Service
 
 **tags**: knowledge-base, documentation, self-service, ai\
+**Effort**: 8
 **Description**\
 Build an intelligent knowledge base system with full-text search, AI-powered suggestions,\
 and community-contributed content. Users can search for solutions before creating tickets\

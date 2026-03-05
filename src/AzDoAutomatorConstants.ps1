@@ -61,6 +61,9 @@ $ErrorActionPreference = 'Stop'
 # Story point field (common in Scrum)
 [string]$script:FIELD_STORY_POINTS = 'Microsoft.VSTS.Scheduling.StoryPoints'
 
+# Effort field (for epics and features)
+[string]$script:FIELD_EFFORT = 'Microsoft.VSTS.Scheduling.Effort'
+
 # Parent/Link field
 [string]$script:FIELD_PARENT = 'System.Parent'
 
@@ -129,6 +132,7 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
+[regex]$script:REGEX_MARKDOWN_EFFORT = '^\*\*Effort\*\*:\s*(\d+)$'    # **Effort**: 21
 
 # Header level validation patterns  
 [regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2 = '^\s*#{1,2}\s'     # # or ##

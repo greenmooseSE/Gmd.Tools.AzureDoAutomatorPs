@@ -28,6 +28,9 @@ Optional parent Epic work item ID. If provided, the Feature will be created as a
 Switch parameter. If specified, will update the existing Feature if found. If not specified and the Feature
 exists, script will fail with an error message.
 
+.PARAMETER Effort
+Optional effort value for the Feature (must be a non-negative integer)
+
 .PARAMETER PatToken
 Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
 environment variable (expected to be encrypted).
@@ -44,6 +47,9 @@ Create a Feature under an Epic:
 
 Update an existing Feature:
     $feature = .\New-AzDoFeature.ps1 -Organization "myorg" -Project "myproject" -Title "Existing Feature" -UpdateExisting -Description "Updated description"
+
+Create a Feature with effort:
+    $feature = .\New-AzDoFeature.ps1 -Organization "myorg" -Project "myproject" -Title "Search Feature" -Effort 13
 
 .NOTES
 - Requires Azure DevOps REST API access
@@ -68,6 +74,8 @@ param(
     [int]$ParentEpicId,
 
     [switch]$UpdateExisting,
+
+    [int]$Effort,
 
     [string]$PatToken
 )
@@ -97,6 +105,10 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
 
 if ([string]::IsNullOrWhiteSpace($Title)) {
     Write-Error "Parameter 'Title' cannot be empty."
+}
+
+if ($PSBoundParameters.ContainsKey('Effort') -and $Effort -lt 0) {
+    Write-Error "Parameter 'Effort' must be a non-negative integer. Provided: $Effort"
 }
 
 # Log script start
@@ -151,6 +163,10 @@ try {
             $updateFields[$script:FIELD_DESCRIPTION] = $Description
         }
 
+        if ($PSBoundParameters.ContainsKey('Effort')) {
+            $updateFields[$script:FIELD_EFFORT] = $Effort
+        }
+
         $logMessage = "Updating existing Feature (ID: $($existingFeature.id))"
         $null = & ssLogIt.ps1 -Level Debug -Message "$logMessage"
 
@@ -169,6 +185,10 @@ try {
 
     if ($PSBoundParameters.ContainsKey('Description')) {
         $createFields[$script:FIELD_DESCRIPTION] = $Description
+    }
+
+    if ($PSBoundParameters.ContainsKey('Effort')) {
+        $createFields[$script:FIELD_EFFORT] = $Effort
     }
 
     # Add parent Epic if specified
