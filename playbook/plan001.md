@@ -1,4 +1,4 @@
-# Epic: Gmd.Tools.AzureDoAutomatorPs - Full CRUD & MCP Integration
+# Epic: Gmd.Tools.AzureDoAutomatorPs
 
 **tags**: azDoAutomator, azDo, automation, crudOperations, mcpServer  
 **Effort**: 79  
