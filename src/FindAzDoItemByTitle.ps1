@@ -7,6 +7,10 @@ Searches Azure DevOps for a work item with the given title and returns the full
 work item object if found. Optionally filter by work item type using the
 `-Type` parameter (e.g. Epic, Feature, User Story).
 
+When -NormalizeTitle is specified, searches for work items with titles matching
+the base title (e.g., "Test story 2 (004)" matches search for "Test story 2"),
+and uses WIQL CONTAINS for broader matching.
+
 .PARAMETER Organization
 Azure DevOps organization name (required)
 
@@ -20,7 +24,13 @@ Work item title to search for (required)
 Optional work item type to filter by (e.g. Epic, Feature, Story)
 
 .PARAMETER ParentId
-Optional parent work item ID to filter by (e.g. find Feature under specific Epic)
+Optional parent work item ID to filter by (e.g. find Feature under specific Epic).
+When specified with -NormalizeTitle, ensures match is found under the specific parent.
+
+.PARAMETER NormalizeTitle
+Switch: If specified, normalizes the title by stripping version suffixes like "(001)"
+and uses CONTAINS matching. Useful for finding items that may have been created with
+version suffixes.
 
 .PARAMETER PatToken
 Optional PAT token for authentication. If not provided, retrieves from
@@ -32,6 +42,7 @@ PSObject representing the found work item, or $null if not found. Throws error o
 .EXAMPLE
     $wi = .\FindAzDoItemByTitle.ps1 -Organization "myorg" -Project "myproj" -Title "My Epic" -Type Epic
     $feature = .\FindAzDoItemByTitle.ps1 -Organization "myorg" -Project "myproj" -Title "My Feature" -Type Feature -ParentId 123
+    $story = .\FindAzDoItemByTitle.ps1 -Organization "myorg" -Project "myproj" -Title "Test story 2" -NormalizeTitle -Type "User Story" -ParentId 1635
 #>
 
 #Requires -Version 7.0
@@ -50,6 +61,8 @@ param(
 
     [int]$ParentId,
 
+    [switch]$NormalizeTitle,
+
     [string]$PatToken
 )
 
@@ -61,6 +74,13 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+
+# Helper function to normalize title (strip version suffixes)
+function Normalize-TitleForMatching {
+    param([string]$Title)
+    $normalized = $Title -replace '\s*\(\d+\)\s*$', ''
+    return $normalized.Trim()
+}
 
 # Validate ssLogIt helper
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
@@ -88,11 +108,27 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 }
 
 try {
-    # Escape single quotes in title for WIQL query (double them)
-    [string]$escapedTitle = $Title -replace "'","''"
+    # Determine normalized vs exact match behavior
+    [string]$searchTitle = $Title
+    [string]$normalizedSearchTitle = $null
+    
+    if ($NormalizeTitle) {
+        $normalizedSearchTitle = Normalize-TitleForMatching -Title $Title
+        $searchTitle = $normalizedSearchTitle
+        $null = & ssLogIt.ps1 -Level Debug -Message "Normalized search title: ::FgGreen::$normalizedSearchTitle::FgDefault::"
+    }
 
-    # Build WIQL query
-    [string]$query = "SELECT [System.Id], [System.Title], [System.WorkItemType] FROM WorkItems WHERE [System.Title] = '$escapedTitle'"
+    # Escape single quotes in title for WIQL query (double them)
+    [string]$escapedTitle = $searchTitle -replace "'","''"
+
+    # Build WIQL query - use CONTAINS for normalized search, exact match for regular search
+    [string]$query = "SELECT [System.Id], [System.Title], [System.WorkItemType], [System.Parent] FROM WorkItems WHERE [System.Title]"
+    
+    if ($NormalizeTitle) {
+        $query += " CONTAINS '$escapedTitle'"
+    } else {
+        $query += " = '$escapedTitle'"
+    }
 
     if ($PSBoundParameters.ContainsKey('Type') -and -not [string]::IsNullOrWhiteSpace($Type)) {
         $query += " AND [System.WorkItemType] = '$Type'"
@@ -102,7 +138,7 @@ try {
         $query += " AND [System.Parent] = '$ParentId'"
     }
 
-    $logMessage = "Executing WIQL query for title ::FgGreen::$Title::FgDefault::"
+    $logMessage = "Executing WIQL query for title ::FgGreen::$searchTitle::FgDefault::"
     $null = & ssLogIt.ps1 -Level Debug -Message "$logMessage"
 
     # Build auth header directly (matching working command)
@@ -122,30 +158,58 @@ try {
     $workItems = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body -ErrorAction Stop
 
     if ($null -eq $workItems.workItems -or @($workItems.workItems).Count -eq 0) {
-        $null = & ssLogIt.ps1 -Level Debug -Message "Work item not found: $Title"
+        $null = & ssLogIt.ps1 -Level Debug -Message "Work item not found: $searchTitle"
         return $null
     }
 
-    if (@($workItems.workItems).Count -gt 1) {
-        $logMessage = "Multiple work items found with title ::FgGreen::$Title::FgDefault::. Returning first match."
-        $null = & ssLogIt.ps1 -Level Debug -Message "$logMessage"
+    # If NormalizeTitle is enabled, filter by normalized title match
+    [object]$matchedItem = $null
+    if ($NormalizeTitle) {
+        $null = & ssLogIt.ps1 -Level Debug -Message "Filtering $(@($workItems.workItems).Count) CONTAINS results by normalized title match..."
+        
+        foreach ($wiRef in $workItems.workItems) {
+            # For each candidate, get full details to check normalized title
+            $full = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $wiRef.id -PatToken $PatToken -ErrorAction SilentlyContinue
+            if ($null -ne $full -and $full.fields.'System.Title') {
+                $candidateNormalized = Normalize-TitleForMatching -Title $full.fields.'System.Title'
+                if ($candidateNormalized -eq $normalizedSearchTitle) {
+                    # Found a match - check parent if specified
+                    if ($PSBoundParameters.ContainsKey('ParentId')) {
+                        if ($full.fields.'System.Parent' -eq $ParentId) {
+                            $matchedItem = $full
+                            $null = & ssLogIt.ps1 -Level Debug -Message "Found matching work item under parent $($ParentId):  ID $($full.id)"
+                            break
+                        }
+                    } else {
+                        $matchedItem = $full
+                        $null = & ssLogIt.ps1 -Level Debug -Message "Found matching work item by normalized title: ID $($full.id)"
+                        break
+                    }
+                }
+            }
+        }
+    } else {
+        # For exact match, just use the first result
+        if (@($workItems.workItems).Count -gt 1) {
+            $logMessage = "Multiple work items found with title ::FgGreen::$searchTitle::FgDefault::. Returning first match."
+            $null = & ssLogIt.ps1 -Level Debug -Message "$logMessage"
+        }
+
+        # Retrieve full work item details for the first match
+        $firstId = $workItems.workItems[0].id
+        $matchedItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $firstId -PatToken $PatToken
     }
 
-    # Retrieve full work item details
-    $firstId = $workItems.workItems[0].id
-    $workItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $firstId -PatToken $PatToken
-
-    if ($null -eq $workItem) {
-        $null = & ssLogIt.ps1 -Level Error -Message "Failed to retrieve full work item details for ID: $firstId"
-        Write-Error "Could not retrieve full details for work item ID $firstId"
-        throw "Work item found in WIQL results but failed to retrieve full details (ID: $firstId)"
+    if ($null -eq $matchedItem) {
+        $null = & ssLogIt.ps1 -Level Debug -Message "No work item matched the search criteria: $searchTitle"
+        return $null
     }
 
-    $wiTitle = $workItem.fields.'System.Title'
-    $wiType = $workItem.fields.'System.WorkItemType'
-    $null = & ssLogIt.ps1 -Level Info -Message "Found work item: ::FgGreen::$wiTitle::FgDefault:: (Type: $wiType, ID: $($workItem.id))"
+    $wiTitle = $matchedItem.fields.'System.Title'
+    $wiType = $matchedItem.fields.'System.WorkItemType'
+    $null = & ssLogIt.ps1 -Level Info -Message "Found work item: ::FgGreen::$wiTitle::FgDefault:: (Type: $wiType, ID: $($matchedItem.id))"
 
-    return $workItem
+    return $matchedItem
 }
 catch {
     $null = & ssLogIt.ps1 -Level Error -Message "Failed to search for work item: $_" -Exception $_

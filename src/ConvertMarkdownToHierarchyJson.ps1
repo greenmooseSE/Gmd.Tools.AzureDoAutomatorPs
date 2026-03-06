@@ -123,6 +123,24 @@ function Test-DescriptionHeaderLevelsForStory {
     }
 }
 
+<#
+.SYNOPSIS
+Validates that bug descriptions don't have headers at levels 1-4
+#>
+function Test-DescriptionHeaderLevelsForBug {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+    
+    [string[]]$lines = $Description -split "`n"
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3_4) {
+            throw "Bug description at line $i contains level 1/2/3/4 header (#, ##, ###, or ####). Headers in bug descriptions must start at level 5 (#####) or higher to distinguish from hierarchy headers."
+        }
+    }
+}
+
 # Validate markdown file
 if (-not (Test-Path -LiteralPath $MarkdownFilePath -PathType Leaf)) {
     throw "Markdown file not found: $MarkdownFilePath"
@@ -139,10 +157,11 @@ Write-Debug "Parsing markdown file: $MarkdownFilePath"
 [object[]]$topLevelFeatures = @()
 [hashtable]$currentFeature = $null
 [hashtable]$currentStory = $null
+[hashtable]$currentBug = $null
 
 # State machine for parsing
-[string]$currentLineType = $null # 'epic', 'feature', 'story', 'epic_desc', 'feature_desc', 'story_desc', 'section'
-[string]$currentSectionType = $null # 'AC', 'ACS', 'EI'
+[string]$currentLineType = $null # 'epic', 'feature', 'story', 'bug', 'epic_desc', 'feature_desc', 'story_desc', 'bug_desc', 'section'
+[string]$currentSectionType = $null # 'AC', 'ACS', 'EI', 'RS', 'SI', 'FIB', 'IIB'
 [string[]]$descriptionLines = @()
 [string[]]$sectionLines = @()
 
@@ -173,9 +192,13 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 elseif ($currentLineType -eq 'feature_desc') {
                     $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC)
                 }
-                # For Story descriptions: stop at ### Story: or ## Feature: or # Epic: or #### SectionHeader
+                # For Story descriptions: stop at ### Story: or #### Bug: or ## Feature: or # Epic: or #### SectionHeader
                 elseif ($currentLineType -eq 'story_desc') {
-                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
+                }
+                # For Bug descriptions: stop at #### Bug: or ### Story: or ## Feature: or # Epic: or ##### SectionHeader
+                elseif ($currentLineType -eq 'bug_desc') {
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match '^\#\#\#\#\#\s')
                 }
                 
                 if (-not $isHierarchyBoundary) {
@@ -199,6 +222,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                     Test-DescriptionHeaderLevelsForStory -Description $desc
                     $currentStory['description'] = $desc
                 }
+                elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    $currentBug['description'] = $desc
+                }
                 Write-Debug "Finalized description from empty line(s)"
                 $descriptionLines = @()
                 $currentLineType = $null
@@ -207,7 +234,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         continue
     }
 
-    # Section headers (#### ...) - but only finalize description if we're in a story
+    # Section headers (#### ...) - but only finalize description if we're in a story or bug
     if ($line -match $script:REGEX_MARKDOWN_SECTION_HEADER) {
         # Only treat as section header if we're collecting story description, in section mode, or have an active story
         if ($currentLineType -eq 'story_desc' -or $currentLineType -eq 'section' -or ($null -ne $currentStory -and [string]::IsNullOrWhiteSpace($currentLineType))) {
@@ -226,6 +253,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                     Test-DescriptionHeaderLevelsForStory -Description $desc
                     $currentStory['description'] = $desc
                 }
+                elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    $currentBug['description'] = $desc
+                }
                 $descriptionLines = @()
             }
             
@@ -235,6 +266,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 if ($currentSectionType -eq 'AC' -and $null -ne $currentStory) { $currentStory['acceptanceCriteria'] = $sectionContent }
                 elseif ($currentSectionType -eq 'ACS' -and $null -ne $currentStory) { $currentStory['acScenarios'] = $sectionContent }
                 elseif ($currentSectionType -eq 'EI' -and $null -ne $currentStory) { $currentStory['extraInformation'] = $sectionContent }
+                elseif ($currentSectionType -eq 'RS' -and $null -ne $currentBug) { $currentBug['reproSteps'] = $sectionContent }
+                elseif ($currentSectionType -eq 'SI' -and $null -ne $currentBug) { $currentBug['systemInfo'] = $sectionContent }
+                elseif ($currentSectionType -eq 'FIB' -and $null -ne $currentBug) { $currentBug['foundInBuild'] = $sectionContent }
+                elseif ($currentSectionType -eq 'IIB' -and $null -ne $currentBug) { $currentBug['integratedInBuild'] = $sectionContent }
                 $sectionLines = @()
             }
             
@@ -247,6 +282,18 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             }
             elseif ($sectionTitle -match 'Extra Information') {
                 $currentSectionType = 'EI'
+            }
+            elseif ($sectionTitle -match 'Repro Steps') {
+                $currentSectionType = 'RS'
+            }
+            elseif ($sectionTitle -match 'System Info') {
+                $currentSectionType = 'SI'
+            }
+            elseif ($sectionTitle -match 'Found in Build|Found In Build') {
+                $currentSectionType = 'FIB'
+            }
+            elseif ($sectionTitle -match 'Integrated in Build|Integrated In Build') {
+                $currentSectionType = 'IIB'
             }
             $sectionLines = @()
             $currentLineType = 'section'
@@ -261,16 +308,70 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             }
         }
     }
+    
+    # Also handle ##### headers for bug section markers
+    if ($line -match '^\#\#\#\#\#\s+(.+)$') {
+        if ($currentLineType -eq 'bug_desc' -or $currentLineType -eq 'section' -or ($null -ne $currentBug -and [string]::IsNullOrWhiteSpace($currentLineType))) {
+            # Finalize any active description first
+            if ($descriptionLines.Count -gt 0) {
+                [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
+                if ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    $currentBug['description'] = $desc
+                }
+                $descriptionLines = @()
+            }
+            
+            # Finalize any active section before starting a new one
+            if ($currentLineType -eq 'section' -and $null -ne $currentSectionType -and $sectionLines.Count -gt 0) {
+                [string]$sectionContent = ($sectionLines | Join-String -Separator "`n").Trim()
+                if ($currentSectionType -eq 'RS' -and $null -ne $currentBug) { $currentBug['reproSteps'] = $sectionContent }
+                elseif ($currentSectionType -eq 'SI' -and $null -ne $currentBug) { $currentBug['systemInfo'] = $sectionContent }
+                elseif ($currentSectionType -eq 'FIB' -and $null -ne $currentBug) { $currentBug['foundInBuild'] = $sectionContent }
+                elseif ($currentSectionType -eq 'IIB' -and $null -ne $currentBug) { $currentBug['integratedInBuild'] = $sectionContent }
+                $sectionLines = @()
+            }
+            
+            [string]$sectionTitle = $matches[1].Trim()
+            if ($sectionTitle -match 'Repro Steps') {
+                $currentSectionType = 'RS'
+            }
+            elseif ($sectionTitle -match 'System Info') {
+                $currentSectionType = 'SI'
+            }
+            elseif ($sectionTitle -match 'Found in Build|Found In Build') {
+                $currentSectionType = 'FIB'
+            }
+            elseif ($sectionTitle -match 'Integrated in Build|Integrated In Build') {
+                $currentSectionType = 'IIB'
+            }
+            $sectionLines = @()
+            $currentLineType = 'section'
+            Write-Debug "Found bug section: $sectionTitle"
+            continue
+        }
+        else {
+            # For bug descriptions, ##### headers are part of the description content, not section markers
+            if ($currentLineType -eq 'bug_desc') {
+                $descriptionLines += $line
+                continue
+            }
+        }
+    }
 
     # If we're in a section, collect lines for it
     if ($currentLineType -eq 'section') {
-        if ($line -match '^#{1,3}\s') {
+        if ($line -match '^#{1,3}\s' -or $line -match '^\#\#\#\#\s' -or $line -match '^\#\#\#\#\#\s') {
             # New hierarchy header, finalize section
             if ($sectionLines.Count -gt 0) {
                 [string]$sectionContent = ($sectionLines | Join-String -Separator "`n").Trim()
                 if ($currentSectionType -eq 'AC' -and $null -ne $currentStory) { $currentStory['acceptanceCriteria'] = $sectionContent }
                 elseif ($currentSectionType -eq 'ACS' -and $null -ne $currentStory) { $currentStory['acScenarios'] = $sectionContent }
                 elseif ($currentSectionType -eq 'EI' -and $null -ne $currentStory) { $currentStory['extraInformation'] = $sectionContent }
+                elseif ($currentSectionType -eq 'RS' -and $null -ne $currentBug) { $currentBug['reproSteps'] = $sectionContent }
+                elseif ($currentSectionType -eq 'SI' -and $null -ne $currentBug) { $currentBug['systemInfo'] = $sectionContent }
+                elseif ($currentSectionType -eq 'FIB' -and $null -ne $currentBug) { $currentBug['foundInBuild'] = $sectionContent }
+                elseif ($currentSectionType -eq 'IIB' -and $null -ne $currentBug) { $currentBug['integratedInBuild'] = $sectionContent }
             }
             $sectionLines = @()
             $currentSectionType = $null
@@ -368,6 +469,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 Test-DescriptionHeaderLevelsForStory -Description $desc
                 $currentStory['description'] = $desc
             }
+            elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                Test-DescriptionHeaderLevelsForBug -Description $desc
+                $currentBug['description'] = $desc
+            }
             $descriptionLines = @()
         }
         
@@ -386,10 +491,59 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             acceptanceCriteria   = $null
             acScenarios          = $null
             extraInformation     = $null
+            bugs                 = @()
         }
         $currentFeature.stories += $currentStory
+        $currentBug = $null
         $currentLineType = 'story'
         Write-Debug "Found Story: $storyTitle"
+        continue
+    }
+
+    if ($line -match $script:REGEX_MARKDOWN_BUG) {
+        # Finalize any pending description
+        if ($descriptionLines.Count -gt 0) {
+            [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                $currentEpic['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                $currentFeature['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                Test-DescriptionHeaderLevelsForStory -Description $desc
+                $currentStory['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                Test-DescriptionHeaderLevelsForBug -Description $desc
+                $currentBug['description'] = $desc
+            }
+            $descriptionLines = @()
+        }
+        
+        [string]$bugTitle = $matches[1].Trim()
+        if ([string]::IsNullOrWhiteSpace($bugTitle)) {
+            throw "Invalid Bug title at line $($lineNum+1) : Title cannot be empty"
+        }
+        if ($null -eq $currentStory) {
+            throw "Bug found at line $($lineNum+1) but no parent Story: $bugTitle"
+        }
+        $currentBug = @{
+            title                = $bugTitle
+            tags                 = @()
+            description          = $null
+            storyPoints          = $null
+            priority             = $null
+            reproSteps           = $null
+            systemInfo           = $null
+            foundInBuild         = $null
+            integratedInBuild    = $null
+        }
+        $currentStory.bugs += $currentBug
+        $currentLineType = 'bug'
+        Write-Debug "Found Bug: $bugTitle"
         continue
     }
 
@@ -430,10 +584,27 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         if ($sp -lt 0) {
             throw "Invalid Story Points at line $($lineNum+1) : Must be non-negative. Found: $sp"
         }
-        if ($null -eq $currentStory) {
-            throw "Story Points found at line $($lineNum+1) but no parent Story"
+        if ($null -ne $currentBug) {
+            $currentBug['storyPoints'] = $sp
         }
-        $currentStory['storyPoints'] = $sp
+        elseif ($null -eq $currentStory) {
+            throw "Story Points found at line $($lineNum+1) but no parent Story or Bug"
+        }
+        else {
+            $currentStory['storyPoints'] = $sp
+        }
+        continue
+    }
+
+    if ($line -match $script:REGEX_MARKDOWN_PRIORITY) {
+        [int]$priority = [int]$matches[1]
+        if ($priority -lt 1 -or $priority -gt 4) {
+            throw "Invalid Priority at line $($lineNum+1) : Must be between 1 and 4. Found: $priority"
+        }
+        if ($null -eq $currentBug) {
+            throw "Priority found at line $($lineNum+1) but no parent Bug"
+        }
+        $currentBug['priority'] = $priority
         continue
     }
 
@@ -459,7 +630,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
 
     # Description start marker
     if ($line -match $script:REGEX_MARKDOWN_DESCRIPTION_START) {
-        $currentLineType = if ($null -ne $currentStory) { 'story_desc' } elseif ($null -ne $currentFeature) { 'feature_desc' } else { 'epic_desc' }
+        $currentLineType = if ($null -ne $currentBug) { 'bug_desc' } elseif ($null -ne $currentStory) { 'story_desc' } elseif ($null -ne $currentFeature) { 'feature_desc' } else { 'epic_desc' }
         $descriptionLines = @()
         Write-Debug "Started collecting description for $currentLineType"
         continue
@@ -487,6 +658,10 @@ if ($descriptionLines.Count -gt 0) {
         Test-DescriptionHeaderLevelsForStory -Description $desc
         $currentStory['description'] = $desc
     }
+    elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+        Test-DescriptionHeaderLevelsForBug -Description $desc
+        $currentBug['description'] = $desc
+    }
 }
 
 if ($sectionLines.Count -gt 0 -and $null -ne $currentSectionType) {
@@ -494,11 +669,15 @@ if ($sectionLines.Count -gt 0 -and $null -ne $currentSectionType) {
     if ($currentSectionType -eq 'AC' -and $null -ne $currentStory) { $currentStory['acceptanceCriteria'] = $sectionContent }
     elseif ($currentSectionType -eq 'ACS' -and $null -ne $currentStory) { $currentStory['acScenarios'] = $sectionContent }
     elseif ($currentSectionType -eq 'EI' -and $null -ne $currentStory) { $currentStory['extraInformation'] = $sectionContent }
+    elseif ($currentSectionType -eq 'RS' -and $null -ne $currentBug) { $currentBug['reproSteps'] = $sectionContent }
+    elseif ($currentSectionType -eq 'SI' -and $null -ne $currentBug) { $currentBug['systemInfo'] = $sectionContent }
+    elseif ($currentSectionType -eq 'FIB' -and $null -ne $currentBug) { $currentBug['foundInBuild'] = $sectionContent }
+    elseif ($currentSectionType -eq 'IIB' -and $null -ne $currentBug) { $currentBug['integratedInBuild'] = $sectionContent }
 }
 
 Write-Debug "Markdown parsing complete - finalized any pending sections"
 
-# Add "autoGen" tag to all items (Epics, Features, Stories)
+# Add "autoGen" tag to all items (Epics, Features, Stories, Bugs)
 foreach ($epic in $epics) {
     if ($epic.tags -notcontains 'autoGen') {
         $epic.tags += 'autoGen'
@@ -511,6 +690,11 @@ foreach ($epic in $epics) {
             if ($story.tags -notcontains 'autoGen') {
                 $story.tags += 'autoGen'
             }
+            foreach ($bug in $story.bugs) {
+                if ($bug.tags -notcontains 'autoGen') {
+                    $bug.tags += 'autoGen'
+                }
+            }
         }
     }
 }
@@ -521,6 +705,11 @@ foreach ($feature in $topLevelFeatures) {
     foreach ($story in $feature.stories) {
         if ($story.tags -notcontains 'autoGen') {
             $story.tags += 'autoGen'
+        }
+        foreach ($bug in $story.bugs) {
+            if ($bug.tags -notcontains 'autoGen') {
+                $bug.tags += 'autoGen'
+            }
         }
     }
 }

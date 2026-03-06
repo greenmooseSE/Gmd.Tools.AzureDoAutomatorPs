@@ -58,6 +58,13 @@ $ErrorActionPreference = 'Stop'
 [string]$script:FIELD_AC_SCENARIOS = 'Custom.ACScenarios'
 [string]$script:FIELD_EXTRA_INFORMATION = 'Custom.ExtraInformation'
 
+# Bug-specific fields
+[string]$script:FIELD_REPRO_STEPS = 'Microsoft.VSTS.TCM.ReproSteps'
+[string]$script:FIELD_SYSTEM_INFO = 'Microsoft.VSTS.TCM.SystemInfo'
+[string]$script:FIELD_FOUND_IN_BUILD = 'Microsoft.VSTS.Build.FoundInBuild'
+[string]$script:FIELD_INTEGRATED_IN_BUILD = 'Microsoft.VSTS.Build.IntegratedInBuild'
+[string]$script:FIELD_PRIORITY = 'Microsoft.VSTS.Common.Priority'
+
 # Story point field (common in Scrum)
 [string]$script:FIELD_STORY_POINTS = 'Microsoft.VSTS.Scheduling.StoryPoints'
 
@@ -125,7 +132,8 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_EPIC = '^\#\s+Epic:\s*(.+)$'           # # Epic: Title
 [regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+Feature:\s*(.+)$'      # ## Feature: Title
 [regex]$script:REGEX_MARKDOWN_STORY = '^\#\#\#\s+Story:\s*(.+)$'      # ### Story: Title
-[regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI)
+[regex]$script:REGEX_MARKDOWN_BUG = '^\#\#\#\#\s+Bug:\s*(.+)$'       # #### Bug: Title
+[regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI, Repro Steps, etc.)
 [regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1, tag2
 [regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*\\?$'     # **Description** or **Description**\
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
@@ -133,10 +141,16 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
 [regex]$script:REGEX_MARKDOWN_EFFORT = '^\*\*Effort\*\*:\s*(\d+)$'    # **Effort**: 21
+[regex]$script:REGEX_MARKDOWN_PRIORITY = '^\*\*Priority\*\*:\s*([1-4])$'    # **Priority**: 1-4
 
 # Header level validation patterns  
 [regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2 = '^\s*#{1,2}\s'     # # or ##
 [regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3 = '^\s*#{1,3}\s'   # #, ##, or ###
+[regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3_4 = '^\s*#{1,4}\s'   # #, ##, ###, or ####
+
+# Title version suffix pattern for stripping work items with version suffixes like (001), (01), (7), etc.
+# Used as: $normalized = $Title -replace $REGEX_TITLE_VERSION_SUFFIX, ''
+[regex]$script:REGEX_TITLE_VERSION_SUFFIX = '\s*\(\d+\)\s*$'        # (NNN) where N is any digit count, at end of string
 
 # ============================================================================
 # Tag Modes

@@ -102,6 +102,8 @@ param(
 
     [switch]$UpdateExisting,
 
+    [int]$WorkItemId,
+
     [string]$PatToken
 )
 
@@ -161,25 +163,37 @@ try {
         Write-Error "Parent Feature with ID $ParentFeatureId not found."
     }
 
-    # Search for existing Story with same title in same Feature
-    try {
-        $scriptArgs = @{
-            Organization = $Organization
-            Project      = $Project
-            Title        = $Title
-            Type         = $script:WORKITEM_TYPE_STORY
-            ParentId     = $ParentFeatureId
+    # Get existing story if WorkItemId provided or search by title
+    [object]$existingStory = $null
+    
+    if ($PSBoundParameters.ContainsKey('WorkItemId') -and $WorkItemId -gt 0) {
+        # If WorkItemId is provided, fetch it directly
+        $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $WorkItemId -PatToken $PatToken -ErrorAction SilentlyContinue
+        if ($null -eq $existingStory) {
+            Write-Error "Specified WorkItemId $WorkItemId not found."
         }
-
-        if ($PSBoundParameters.ContainsKey('PatToken')) {
-            $scriptArgs['PatToken'] = $PatToken
-        }
-
-        $existingStory = & "$PSScriptRoot/FindAzDoItemByTitle.ps1" @scriptArgs
     }
-    catch {
-        # Unexpected error - rethrow
-        throw
+    else {
+        # Search for existing Story with same title in same Feature
+        try {
+            $scriptArgs = @{
+                Organization = $Organization
+                Project      = $Project
+                Title        = $Title
+                Type         = $script:WORKITEM_TYPE_STORY
+                ParentId     = $ParentFeatureId
+            }
+
+            if ($PSBoundParameters.ContainsKey('PatToken')) {
+                $scriptArgs['PatToken'] = $PatToken
+            }
+
+            $existingStory = & "$PSScriptRoot/FindAzDoItemByTitle.ps1" @scriptArgs
+        }
+        catch {
+            # Unexpected error - rethrow
+            throw
+        }
     }
 
     if ($null -ne $existingStory) {

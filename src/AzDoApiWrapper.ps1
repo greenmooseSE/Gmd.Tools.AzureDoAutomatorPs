@@ -230,7 +230,7 @@ function Invoke-AzDoWiql {
 
         $headers = New-AzDoAuthHeader -PatToken $PatToken
 
-        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/wiql?api-version=7.1-preview.3"
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/wiql?api-version=7.1"
 
         $body = @{
             query = $Query
