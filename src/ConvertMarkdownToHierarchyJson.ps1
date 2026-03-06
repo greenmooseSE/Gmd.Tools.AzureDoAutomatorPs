@@ -155,27 +155,36 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
     if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('<!')) {
         # If collecting description and this is an empty line that's not at section boundary, check what comes next
         if ($currentLineType -match '_desc$' -and ($lineNum + 1 -lt $lines.Count)) {
-            [string]$nextLine = $lines[$lineNum + 1].TrimEnd()
+            # Skip consecutive empty/blank lines to find the next non-empty line
+            [int]$nextNonEmptyIdx = $lineNum + 1
+            while ($nextNonEmptyIdx -lt $lines.Count -and [string]::IsNullOrWhiteSpace($lines[$nextNonEmptyIdx])) {
+                $nextNonEmptyIdx++
+            }
+            
             [bool]$isHierarchyBoundary = $false
+            if ($nextNonEmptyIdx -lt $lines.Count) {
+                [string]$nextLine = $lines[$nextNonEmptyIdx].TrimEnd()
+                
+                # For Epic descriptions: stop at # Epic: or ## Feature:
+                if ($currentLineType -eq 'epic_desc') {
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE)
+                }
+                # For Feature descriptions: stop at ## Feature: or ### Story: or # Epic:
+                elseif ($currentLineType -eq 'feature_desc') {
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC)
+                }
+                # For Story descriptions: stop at ### Story: or ## Feature: or # Epic: or #### SectionHeader
+                elseif ($currentLineType -eq 'story_desc') {
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
+                }
+                
+                if (-not $isHierarchyBoundary) {
+                    # Not a hierarchy boundary coming, might be mid-description, continue skipping empty lines
+                    continue
+                }
+            }
             
-            # For Epic descriptions: stop at # Epic: or ## Feature:
-            if ($currentLineType -eq 'epic_desc') {
-                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE)
-            }
-            # For Feature descriptions: stop at ## Feature: or ### Story: or # Epic:
-            elseif ($currentLineType -eq 'feature_desc') {
-                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC)
-            }
-            # For Story descriptions: stop at ### Story: or ## Feature: or # Epic: or #### SectionHeader
-            elseif ($currentLineType -eq 'story_desc') {
-                $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
-            }
-            
-            if (-not [string]::IsNullOrWhiteSpace($nextLine) -and -not $isHierarchyBoundary) {
-                # Not a hierarchy boundary coming, might be mid-description, continue skipping empty line
-                continue
-            }
-            # Empty line before hierarchy boundary or end of content, treat as end of description
+            # Empty line(s) before hierarchy boundary or end of content, treat as end of description
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
@@ -190,7 +199,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                     Test-DescriptionHeaderLevelsForStory -Description $desc
                     $currentStory['description'] = $desc
                 }
-                Write-Debug "Finalized description from empty line"
+                Write-Debug "Finalized description from empty line(s)"
                 $descriptionLines = @()
                 $currentLineType = $null
             }
