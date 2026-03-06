@@ -85,8 +85,7 @@ Low-level REST API wrapper with retry logic:
 - `New-AzDoWorkItem`: Create new work items
 - `Update-AzDoWorkItem`: Update existing work items
 - `Remove-AzDoWorkItem`: Delete work items
-- `Remove-AzDoWorkItem`: Delete work items
-- `RemoveAzDoComment.ps1`: Remove a comment from a work item (uses comments API, preview.3). Supports `-TextMatchRegex` to delete comments whose latest text matches a provided regular expression.
+- `New-AzDoComment`: Add comment to a work item
 - Built-in retry logic for transient failures
 - Comprehensive error logging
 
@@ -263,7 +262,7 @@ $fullStory = .\GetAzDoUserStory.ps1 `
 - Id, State, Title
 - Description, AcceptanceCriteria, ACScenarios
 - StoryPoints, ExtraInformation, Tags
-- Comments (array with latest version of each comment including createdDate, lastModifiedDate, text, createdBy.displayName, and reactions)
+- Comments (array with latest version of each comment including id, createdDate, lastModifiedDate, text, and createdBy.displayName)
 
 #### `UpdateAzDoUserStory.ps1`
 Update one or more fields of a User Story via PATCH operation.
@@ -400,6 +399,127 @@ $updated = .\SetAzDoWorkItemTags.ps1 `
 - `Mode` (optional): 'Add', 'Replace', or 'Remove' (default: 'Replace')
 - `PatToken` (optional): Override default PAT token
 
+### Comment Management
+
+#### `NewAzDoComment.ps1`
+Add a new comment to a work item.
+
+```powershell
+# Create a simple comment
+$comment = .\NewAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Content "This is a comment"
+
+# Create a comment with markdown formatting
+$comment = .\NewAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Content "**Important**: Please review this carefully"
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `Content` (required): Comment content (supports markdown)
+- `PatToken` (optional): Override default PAT token
+
+#### `RemoveAzDoComment.ps1`
+Remove a comment from a work item.
+
+```powershell
+# Remove comment by ID
+$result = .\RemoveAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456
+
+# Remove comments matching a regex pattern
+$result = .\RemoveAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -TextMatchRegex "^TODO:.*" `
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `CommentId` (optional): Specific comment ID to remove
+- `TextMatchRegex` (optional): Regular expression to match comments by text (removes latest version of matching comments)
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Either `CommentId` or `TextMatchRegex` must be provided.
+
+#### `NewAzDoCommentReaction.ps1`
+Add a reaction to a work item comment.
+
+```powershell
+# Add a 'like' reaction
+$reaction = .\NewAzDoCommentReaction.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456 `
+    -ReactionType "like"
+
+# Add other reaction types
+$reaction = .\NewAzDoCommentReaction.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456 `
+    -ReactionType "heart"
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `CommentId` (required): Comment ID
+- `ReactionType` (required): Type of reaction: `like`, `dislike`, `heart`, `hooray`, `smile`, `confused`
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Only one reaction per user per comment per reaction type is allowed. Adding the same reaction twice by the same user will update the count.
+
+#### `GetAzDoCommentReactions.ps1`
+Retrieve all reactions for a work item comment.
+
+```powershell
+# Get all reactions for a comment
+$reactions = .\GetAzDoCommentReactions.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456
+
+# Filter reactions by type
+$likes = $reactions | Where-Object { $_.type -eq "like" }
+Write-Host "Likes: $($likes.count)"
+
+# Display all reaction types and counts
+foreach ($reaction in $reactions) {
+    Write-Host "$($reaction.type): $($reaction.count)"
+}
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `CommentId` (required): Comment ID
+- `PatToken` (optional): Override default PAT token
+
+**Output Fields:**
+- `type`: Reaction type (like, dislike, heart, hooray, smile, confused)
+- `count`: Total number of reactions of this type
+- `isCurrentUserEngaged`: Whether current user has reacted with this type
+
 ### Advanced Operations
 
 #### `GetAzDoHierarchyForEpic.ps1`
@@ -448,7 +568,7 @@ Epic
         ├── Id, State, Title, Description
         ├── AcceptanceCriteria, ACScenarios
         ├── StoryPoints, ExtraInformation, Tags
-        └── Comments (array with reactions)
+        └── Comments (array with latest version of each comment)
 ```
 
 **Known Limitations:**
@@ -658,6 +778,10 @@ All scripts follow strict error handling practices:
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
 │   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
 │   ├── UpdateAzDoUserStory.ps1              (Update User Story fields)
+│   ├── NewAzDoComment.ps1                   (Add comment to work item)
+│   ├── RemoveAzDoComment.ps1                (Remove comment from work item)
+│   ├── NewAzDoCommentReaction.ps1           (Add reaction to comment)
+│   ├── GetAzDoCommentReactions.ps1          (Retrieve comment reactions)
 │   ├── GetAzDoHierarchyForEpic.ps1          (Retrieve Epic hierarchy with Features and Stories)
 │   ├── SetAzDoWorkItemDescription.ps1       (Set description)
 │   ├── SetAzDoAcceptanceCriteria.ps1        (Set acceptance criteria)
@@ -673,6 +797,10 @@ All scripts follow strict error handling practices:
 │   ├── GetAzDoUserStoryTest.ps1             (GetAzDoUserStory tests)
 │   ├── UpdateAzDoUserStoryTest.ps1          (UpdateAzDoUserStory tests)
 │   ├── GetAzDoHierarchyForEpicTest.ps1      (GetAzDoHierarchyForEpic tests)
+│   ├── NewAzDoCommentTest.ps1               (NewAzDoComment tests)
+│   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)
+│   ├── NewAzDoCommentReactionTest.ps1       (NewAzDoCommentReaction tests)
+│   ├── GetAzDoCommentReactionsTest.ps1      (GetAzDoCommentReactions tests)
 │   └── RunAllTests.ps1                      (Master test runner)
 └── README.md                                 (This file)
 ```

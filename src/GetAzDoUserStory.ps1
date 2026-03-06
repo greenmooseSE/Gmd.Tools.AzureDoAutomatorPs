@@ -12,8 +12,8 @@ Without -Full, returns a structured object with key story properties:
 - Id, State, Title
 - Description, AcceptanceCriteria, ACScenarios, StoryPoints, ExtraInformation
 - Tags
-- Comments: Array of latest comments (one per comment ID) with createdDate, lastModifiedDate, 
-  text, createdBy.displayName, and reactions array
+- Comments: Array of latest comments (one per comment ID) with id, createdDate, lastModifiedDate, 
+  text, and createdBy.displayName
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -46,7 +46,6 @@ Get complete User Story JSON:
 - Requires Azure DevOps REST API access
 - Requires PAT token with work items read scope
 - Returns $null if work item not found
-- Comment reactions API call may be slower with many comments
 #>
 
 #Requires -Version 7.0
@@ -98,14 +97,14 @@ try {
 
     if ($null -eq $workItem) {
         $null = & ssLogIt.ps1 -Level Error -Message "Work item not found (ID: $WorkItemId)"
-        Write-Error "Work item with ID $WorkItemId not found."
+        throw [System.InvalidOperationException]"Work item with ID $WorkItemId not found."
     }
 
     # Verify it's a User Story
     $workItemType = $workItem.fields.'System.WorkItemType'
     if ($workItemType -ne $script:WORKITEM_TYPE_STORY) {
         $null = & ssLogIt.ps1 -Level Error -Message "Work item is not a User Story (Type: $workItemType, ID: $WorkItemId)"
-        Write-Error "Work item with ID $WorkItemId is not a User Story (Type: $workItemType)."
+        throw [System.InvalidOperationException]"Work item with ID $WorkItemId is not a User Story (Type: $workItemType)."
     }
 
     # If -Full switch is used, return complete work item
@@ -142,15 +141,28 @@ try {
         $null = & ssLogIt.ps1 -Level Debug -Message "Fetching comments for User Story (CommentCount: $commentCount)"
         
         try {
-            $commentsUrl = "$($workItem.url)/comments?api-version=7.1-preview.1"
+            $commentsUrl = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments?api-version=7.1-preview.3"
             $authHeader = New-AzDoAuthHeader -PatToken $PatToken
-            
+
             $commentsResponse = Invoke-RestMethod -Uri $commentsUrl -Method Get -Headers $authHeader -TimeoutSec 30 -ErrorAction Stop
-            
-            if ($null -ne $commentsResponse.value) {
+
+            # Normalize response to an items array (API may return wrapper with 'value' or different shapes)
+            $items = $null
+            if ($commentsResponse -is [array]) { $items = $commentsResponse }
+            else {
+                if ($commentsResponse.PSObject.Properties.Name -contains 'value') { $items = $commentsResponse.value }
+                elseif ($commentsResponse.PSObject.Properties.Name -contains 'comments') { $items = $commentsResponse.comments }
+                else {
+                    foreach ($p in $commentsResponse.PSObject.Properties) {
+                        if ($p.Value -is [array]) { $items = $p.Value; break }
+                    }
+                }
+            }
+
+            if ($null -ne $items) {
                 # Group by commentId to get only the latest version of each comment
-                $latestComments = @{}
-                foreach ($comment in $commentsResponse.value) {
+                $latestComments = @{ }
+                foreach ($comment in $items) {
                     $commentId = $comment.id
                     # Keep track of the latest version (highest version number)
                     if (-not $latestComments.ContainsKey($commentId) -or $latestComments[$commentId].version -lt $comment.version) {
@@ -158,22 +170,9 @@ try {
                     }
                 }
                 
-                # Fetch reactions for each comment
+                # Build comment objects for each latest comment
                 foreach ($commentId in $latestComments.Keys) {
                     $comment = $latestComments[$commentId]
-                    $reactions = @()
-                    
-                    try {
-                        $reactionsUrl = "$($workItem.url)/comments/$commentId/reactions?api-version=7.1-preview.1"
-                        $reactionsResponse = Invoke-RestMethod -Uri $reactionsUrl -Method Get -Headers $authHeader -TimeoutSec 30 -ErrorAction Stop
-                        
-                        if ($null -ne $reactionsResponse.value) {
-                            $reactions = @($reactionsResponse.value)
-                        }
-                    }
-                    catch {
-                        $null = & ssLogIt.ps1 -Level Debug -Message "Could not fetch reactions for comment $commentId : $_"
-                    }
                     
                     # Build comment object - text property may have different names (text, content, body, etc.)
                     $commentText = $comment.text
@@ -185,11 +184,11 @@ try {
                     }
                     
                     $commentObject = @{
+                        Id = $comment.id
                         CreatedDate = $comment.createdDate
                         LastModifiedDate = $comment.modifiedDate
                         Text = $commentText
                         CreatedBy = $comment.createdBy.displayName
-                        Reactions = $reactions
                     }
                     
                     $storyObject.Comments += $commentObject
@@ -197,7 +196,10 @@ try {
             }
         }
         catch {
-            $null = & ssLogIt.ps1 -Level Debug -Message "Error fetching comments: $_"
+            $errMsg = if ($_.Exception) { $_.Exception.Message } else { $_.ToString() }
+            $msg = 'Error fetching comments for work item ' + $WorkItemId + ': ' + $errMsg
+            $null = & ssLogIt.ps1 -Level Error -Message $msg
+            throw [System.InvalidOperationException]('Failed to fetch comments for work item ' + $WorkItemId + ': ' + $errMsg)
         }
     }
 

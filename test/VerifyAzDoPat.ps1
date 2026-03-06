@@ -43,9 +43,9 @@ $ErrorActionPreference = 'Stop'
 
 [string]$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-. "$SCRIPT_DIR/AzDoAutomatorConstants.ps1"
-. "$SCRIPT_DIR/AzDoPatTokenHelper.ps1"
-. "$SCRIPT_DIR/AzDoApiWrapper.ps1"
+. "$SCRIPT_DIR/../src/AzDoAutomatorConstants.ps1"
+. "$SCRIPT_DIR/../src/AzDoPatTokenHelper.ps1"
+. "$SCRIPT_DIR/../src/AzDoApiWrapper.ps1"
 
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
     Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH. Ensure helper scripts are available."
