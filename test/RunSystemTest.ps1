@@ -239,7 +239,7 @@ try {
 
     try {
         $storyTitle = "$EpicTitle - Story"
-        $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id `
+        $story = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id `
             -Description "Test story description" -AcceptanceCriteria "Test AC" -StoryPoints 3 -PatToken $PatToken
 
         if ($null -eq $story -or $null -eq $story.id) {
@@ -415,8 +415,8 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 12: Updating existing Story..."
 
     try {
-        $updated = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title "$EpicTitle - Story" `
-            -ParentFeatureId $feature.id -Description "Updated via UpdateExisting" -StoryPoints 5 -UpdateExisting -PatToken $PatToken
+        $updated = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project -Title "$EpicTitle - Story" `
+            -ParentFeatureId $feature.id -Description "Updated via UPSERT" -StoryPoints 5 -PatToken $PatToken
 
         if ($null -eq $updated -or $updated.id -ne $story.id) {
             throw "Failed to update existing Story or ID mismatch"

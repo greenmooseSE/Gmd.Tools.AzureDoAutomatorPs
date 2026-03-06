@@ -106,7 +106,7 @@ try {
 
     $storyTitle = "🧪 UpdateAzDoUserStory Test Story $(Get-Random)"
     Write-Host "Creating test Story: $storyTitle"
-    $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id
+    $story = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id
     Write-Host "Created Story (ID: $($story.id))" -ForegroundColor Green
 
     # Run tests
@@ -114,8 +114,8 @@ try {
 
     Invoke-Test "UpdateAzDoUserStory updates title" {
         $newTitle = "Updated Title $(Get-Random)"
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -Title $newTitle
+        $result = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
+            -Id $story.id -Title $newTitle
         
         if ($result.fields.'System.Title' -ne $newTitle) {
             throw "Title not updated: expected '$newTitle', got '$($result.fields.'System.Title')'"
@@ -124,8 +124,8 @@ try {
 
     Invoke-Test "UpdateAzDoUserStory updates description" {
         $newDescription = "Updated description $(Get-Random)"
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -Description $newDescription
+        $result = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
+            -Id $story.id -Description $newDescription
         
         if ($result.fields.'System.Description' -ne $newDescription) {
             throw "Description not updated"
@@ -133,8 +133,8 @@ try {
     }
 
     Invoke-Test "UpdateAzDoUserStory updates story points" {
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -StoryPoints 8
+        $result = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
+            -Id $story.id -StoryPoints 8
         
         if ($result.fields.'Microsoft.VSTS.Scheduling.StoryPoints' -ne 8) {
             throw "StoryPoints not updated: expected 8, got $($result.fields.'Microsoft.VSTS.Scheduling.StoryPoints')"
@@ -143,29 +143,19 @@ try {
 
     Invoke-Test "UpdateAzDoUserStory updates acceptance criteria" {
         $newAC = "New AC1`nNew AC2`nNew AC3"
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -AcceptanceCriteria $newAC
+        $result = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
+            -Id $story.id -AcceptanceCriteria $newAC
         
         if ($result.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' -ne $newAC) {
             throw "AcceptanceCriteria not updated"
         }
     }
 
-    Invoke-Test "UpdateAzDoUserStory updates tags" {
-        $newTags = "updated; tag; list"
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -Tags $newTags
-        
-        if ($result.fields.'System.Tags' -ne $newTags) {
-            throw "Tags not updated: expected '$newTags', got '$($result.fields.'System.Tags')'"
-        }
-    }
-
     Invoke-Test "UpdateAzDoUserStory updates multiple fields at once" {
         $newTitle = "Multi-update Title $(Get-Random)"
         $newPoints = 13
-        $result = & "$SRC_DIR/UpdateAzDoUserStory.ps1" -Organization $Organization -Project $Project `
-            -WorkItemId $story.id -Title $newTitle -StoryPoints $newPoints -Tags "multi; update"
+        $result = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
+            -Id $story.id -Title $newTitle -StoryPoints $newPoints
         
         if ($result.fields.'System.Title' -ne $newTitle) {
             throw "Title not updated in multi-update"

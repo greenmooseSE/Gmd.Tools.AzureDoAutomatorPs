@@ -537,19 +537,16 @@ try {
                     }
 
                     $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
-                    $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+                    $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
                     $storyId = $createdStory.id
                 }
                 else {
                     # Update existing story if found
                     $storyParams = @{
-                        Organization    = $Organization
-                        Project         = $Project
-                        Title           = $story.title
-                        ParentFeatureId = $featureId
-                        UpdateExisting  = $true
-                        WorkItemId      = $storyId
-                        PatToken        = $PatToken
+                        Organization = $Organization
+                        Project      = $Project
+                        Id           = $storyId
+                        PatToken     = $PatToken
                     }
 
                     if ($story.description) {
@@ -569,7 +566,7 @@ try {
                     }
 
                     $null = & ssLogIt.ps1 -Level Debug -Message "Updating Story: $($story.title) (ID: $storyId)"
-                    $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+                    $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
                 }
                 
                 $createdItems[$storyId] = $createdStory
@@ -644,19 +641,16 @@ try {
                 }
 
                 $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
-                $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+                $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
                 $storyId = $createdStory.id
             }
             else {
                 # Update existing story if found
                 $storyParams = @{
-                    Organization    = $Organization
-                    Project         = $Project
-                    Title           = $story.title
-                    ParentFeatureId = $featureId
-                    UpdateExisting  = $true
-                    WorkItemId      = $storyId
-                    PatToken        = $PatToken
+                    Organization = $Organization
+                    Project      = $Project
+                    Id           = $storyId
+                    PatToken     = $PatToken
                 }
 
                 if ($story.description) {
@@ -676,7 +670,7 @@ try {
                 }
 
                 $null = & ssLogIt.ps1 -Level Debug -Message "Updating Story: $($story.title) (ID: $storyId)"
-                $createdStory = & "$PSScriptRoot\NewAzDoStory.ps1" @storyParams -ErrorAction Stop
+                $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
             }
             
             $createdItems[$storyId] = $createdStory

@@ -106,7 +106,7 @@ try {
 
     $storyTitle = "🧪 GetAzDoUserStory Test Story $(Get-Random)"
     Write-Host "Creating test Story: $storyTitle"
-    $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id
+    $story = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project -Title $storyTitle -ParentFeatureId $feature.id
     Write-Host "Created Story (ID: $($story.id))" -ForegroundColor Green
 
     # Update the story with additional properties

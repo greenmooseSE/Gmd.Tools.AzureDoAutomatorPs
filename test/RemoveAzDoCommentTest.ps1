@@ -43,7 +43,7 @@ try {
     $epic = & "$SRC_DIR/UpsertAzDoEpic.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Epic $(Get-Date -Format o)"
     $created += $epic.id
     $feature = & "$SRC_DIR/UpsertAzDoFeature.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Feature" -ParentEpicId $epic.id
-    $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Story" -ParentFeatureId $feature.id
+    $story = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Story" -ParentFeatureId $feature.id
 }
 catch { Write-Host "Setup failed: $_"; Cleanup; exit 1 }
 

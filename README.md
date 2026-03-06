@@ -155,16 +155,15 @@ $feature = .\UpsertAzDoFeature.ps1 `
   - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
 
 
-#### `NewAzDoStory.ps1`
-Create or update Stories under a Feature.
+#### `UpsertAzDoStory.ps1`
+Create or update Stories under a Feature using unified UPSERT operation.
 
 ```powershell
-# Create Story with full details
-$story = .\NewAzDoStory.ps1 `
+# Create or update Story by title (standard UPSERT)
+$story = .\UpsertAzDoStory.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -Title "Build Login Form" `
-    -ParentFeatureId 123 `
     -Description "Create login form UI" `
     -AcceptanceCriteria @"
 - Must support email/password login
@@ -173,26 +172,50 @@ $story = .\NewAzDoStory.ps1 `
 "@ `
     -StoryPoints 5
 
-# Update existing Story
-$story = .\NewAzDoStory.ps1 `
+# Create Story only if title doesn't exist
+$story = .\UpsertAzDoStory.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
-    -Title "Existing Story" `
+    -Title "New Story" `
     -ParentFeatureId 123 `
-    -StoryPoints 8 `
-    -UpdateExisting
+    -FailIfExist
+
+# Update existing Story by ID directly
+$story = .\UpsertAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id 456 `
+    -Title "New Title" `
+    -StoryPoints 8
+
+# Create Story under a Feature
+$story = .\UpsertAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Feature Story" `
+    -ParentFeatureId 123 `
+    -Description "Story under Feature" `
+    -StoryPoints 5
 ```
 
 **Parameters:**
 - `Organization` (required): Azure DevOps organization
 - `Project` (required): Project name
-- `Title` (required): Story title
-- `ParentFeatureId` (required): Parent Feature ID
+- `Title` (required for create, optional for ID-based update): Story title
+- `Id` (optional): Story ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Story description
 - `AcceptanceCriteria` (optional): Acceptance criteria text
+- `AcScenarios` (optional): Acceptance criteria scenarios
+- `ExtraInformation` (optional): Extra information text
 - `StoryPoints` (optional): Story points (non-negative integer)
-- `UpdateExisting` (switch): Update if story exists
+- `ParentFeatureId` (optional): Parent Feature ID (for creation only)
+- `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- If `-Id` provided: Updates Story by ID directly (no title-based lookup)
+- If `-Id` not provided: UPSERT by Title (updates if exists, creates if not)
+  - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
 
 #### `GetAzDoWorkItem.ps1`
 Retrieve complete work item information.
@@ -280,20 +303,6 @@ Must do Y
 Must validate Z
 "@
 ```
-
-**Parameters:**
-- `Organization` (required): Azure DevOps organization
-- `Project` (required): Project name
-- `WorkItemId` (required): User Story ID
-- `Title` (optional): New story title
-- `Description` (optional): New description
-- `State` (optional): New state (e.g., "New", "Under Development", "Done")
-- `AcceptanceCriteria` (optional): New acceptance criteria text
-- `ACScenarios` (optional): New AC Scenarios text
-- `ExtraInformation` (optional): New extra information text
-- `StoryPoints` (optional): New story points value
-- `Tags` (optional): Comma-separated tags (replaces existing tags)
-- `PatToken` (optional): Override default PAT token
 
 **Note:** Only specified fields are updated; others remain unchanged. At least one field must be specified.
 
@@ -691,7 +700,6 @@ Execute all tests with a single command:
 # Skip specific test suites
 .\test\RunAllTests.ps1 -SkipBasicTests
 .\test\RunAllTests.ps1 -SkipGetAzDoUserStoryTests
-.\test\RunAllTests.ps1 -SkipUpdateAzDoUserStoryTests
 .\test\RunAllTests.ps1 -SkipGetAzDoHierarchyTests
 
 # Run against different organization/project
@@ -720,8 +728,8 @@ $env:GMD_AZDO_PROJECT = "your-project"
 # Run GetAzDoUserStory tests
 .\test\GetAzDoUserStoryTest.ps1
 
-# Run UpdateAzDoUserStory tests
-.\test\UpdateAzDoUserStoryTest.ps1
+# Run UpsertAzDoStory BDD scenario tests
+.\test\Scenario1581Test.ps1
 
 # Run GetAzDoHierarchyForEpic tests
 .\test\GetAzDoHierarchyForEpicTest.ps1
@@ -757,10 +765,9 @@ All scripts follow strict error handling practices:
 │   ├── AzDoWorkItemHelper.ps1               (Helper functions)
 │   ├── UpsertAzDoEpic.ps1                   (Create/update Epics)
 │   ├── UpsertAzDoFeature.ps1                (Create/update Features)
-│   ├── NewAzDoStory.ps1                     (Create/update Stories)
+│   ├── UpsertAzDoStory.ps1                  (Create/update Stories)
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
 │   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
-│   ├── UpdateAzDoUserStory.ps1              (Update User Story fields)
 │   ├── NewAzDoComment.ps1                   (Add comment to work item)
 │   ├── RemoveAzDoComment.ps1                (Remove comment from work item)
 │   ├── NewAzDoCommentReaction.ps1           (Add reaction to comment)
@@ -778,7 +785,7 @@ All scripts follow strict error handling practices:
 ├── test/
 │   ├── BasicIntegrationTest.ps1             (Integration tests)
 │   ├── GetAzDoUserStoryTest.ps1             (GetAzDoUserStory tests)
-│   ├── UpdateAzDoUserStoryTest.ps1          (UpdateAzDoUserStory tests)
+│   ├── Scenario1581Test.ps1                 (UpsertAzDoStory scenario tests)
 │   ├── GetAzDoHierarchyForEpicTest.ps1      (GetAzDoHierarchyForEpic tests)
 │   ├── NewAzDoCommentTest.ps1               (NewAzDoComment tests)
 │   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)

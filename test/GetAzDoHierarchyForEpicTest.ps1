@@ -126,7 +126,7 @@ try {
         for ($i = 1; $i -le 2; $i++) {
             $storyTitle = "🧪 Story $i for Feature $($feature.id) $(Get-Random)"
             Write-Host "Creating Story under Feature $($feature.id): $storyTitle"
-            $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project `
+            $story = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
                 -Title $storyTitle -ParentFeatureId $feature.id
             & "$SRC_DIR/SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project `
                 -WorkItemId $story.id -Description "Story description"

@@ -122,7 +122,7 @@ try {
         Title          = "Test Story for Comments"
         ParentFeatureId = $feature.id
     }
-    $story = & "$SRC_DIR/NewAzDoStory.ps1" @storyScript
+    $story = & "$SRC_DIR/UpsertAzDoStory.ps1" @storyScript
     Write-Host "Created test Story (ID: $($story.id))" -ForegroundColor Green
 }
 catch {
