@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+    <RunConfiguration>
+        <!-- Note that we currently cannot have multiple conditions due to NUnit bug https://github.com/nunit/nunit/issues/4589 (when an explicit test exists in project). -->
+        <!-- Current workaround would be to have multiple categories instead and always use NoCi for e.g. SqlServer etc.-->
+        <TestCaseFilter>TestCategory!=NoCi</TestCaseFilter>
+    </RunConfiguration>
+</RunSettings>

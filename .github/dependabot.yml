@@ -1,0 +1,83 @@
+version: 2
+updates:
+  # - package-ecosystem: "npm"
+  #   directories:
+  #     - "/"
+  #   exclude-paths:
+  #     - "submodules/**"
+  #   schedule:
+  #     interval: "monthly"
+  #   open-pull-requests-limit: 5
+  #   registries:
+  #     - "github-private-repos"
+  #   labels:
+  #     - "deps"
+
+  - package-ecosystem: "nuget"
+    directories:
+      - "/"
+    exclude-paths:
+      - "submodules/**"
+    schedule:
+      interval: "daily" # daily, weekly, or monthly
+    open-pull-requests-limit: 10
+    registries:
+      - "nuget-public"
+      - "nuget-tiny-internal"
+      # Required for Dependabot to successfully checkout submodules referencing private repositories (if any)
+      - "github-private-repos"
+    labels:
+      - "deps"
+      
+  - package-ecosystem: "gitsubmodule"
+    directories:
+      - "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    registries:
+      - "github-private-repos"
+    labels:
+      - "deps"
+registries:
+  # Git registry for accessing private GitHub repositories (e.g., submodules)
+  # To configure:
+  # Option 1: Personal Access Token (classic)
+  # 1. Create a Personal Access Token (classic) from https://github.com/settings/tokens
+  #    - Select the user account that owns the private repositories (same as this repo's owner)
+  #    - Grant 'repo' scope to allow access to private repositories
+  # 2. Add the PAT as a repository secret named DEPENDABOT_ACCESS_TOKEN
+  #    - Go to repository Settings > Secrets > Dependabot > New repository secret
+  #      (Note: Use "Secrets > Dependabot" for Dependabot-specific secrets, not "Secrets > Actions" which is for GitHub Actions workflows)
+  #    - Name: DEPENDABOT_ACCESS_TOKEN, Value: your_PAT_here
+  #
+  # Option 2: Fine-grained Personal Access Token
+  # 1. Create a Fine-grained Personal Access Token from https://github.com/settings/tokens?type=beta
+  #    - Select the user account that owns the private repositories (same as this repo's owner)
+  #    - Under "Repository access", select "Only select repositories" and choose the private repos (e.g., Gmd.Chassi.DotNet)
+  #    - Grant the following permissions:
+  #      - Contents: Read (to access repository contents and clone)
+  #      - Metadata: Read (to access repository metadata)
+  # 2. Add the token as a repository secret named DEPENDABOT_ACCESS_TOKEN
+  #    - Go to repository Settings > Secrets > Dependabot > New repository secret
+  #      (Note: Use "Secrets > Dependabot" for Dependabot-specific secrets, not "Secrets > Actions" which is for GitHub Actions workflows)
+  #    - Name: DEPENDABOT_ACCESS_TOKEN, Value: your_fine_grained_token_here
+  #
+  # This allows Dependabot to authenticate when accessing private submodules.
+
+
+  github-private-repos:
+    type: git
+    url: https://github.com
+    username: x-access-token
+    password: ${{ secrets.DEPENDABOT_ACCESS_TOKEN }}
+
+  nuget-tiny-internal:
+    type: nuget-feed
+    url: https://nuget.tiny.nu/nuget
+    username: ${{ secrets.NUGET_TINY_INTERNAL_USERNAME }}
+    password: ${{ secrets.NUGET_TINY_INTERNAL_PASSWORD }}
+
+  nuget-public:
+    type: nuget-feed
+    url: https://api.nuget.org/v3/index.json

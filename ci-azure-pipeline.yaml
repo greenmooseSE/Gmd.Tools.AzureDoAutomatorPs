@@ -1,0 +1,64 @@
+resources:
+  repositories:
+    - repository: buildTemplates
+      type: github
+      name: greenmooseSE/Gmd.Tools.AzureDO.BuildTemplates
+      ref: "refs/heads/develop"
+      endpoint: greenmooseSE
+
+parameters:
+  - name: paramDoCleanCheckout
+    displayName: Clean checkout.
+    type: boolean
+    default: false
+
+trigger:
+  #Batch commits if a build is queued
+  batch: true
+
+  branches:
+    include:
+      - refs/heads/feat/*
+      - refs/heads/bug/*
+      - refs/heads/release/*
+      - refs/heads/develop
+      - refs/heads/master
+
+  #Note that paths are not considered for tags, no matter if they are part of branches: or tags: sections.
+  paths:
+    include:
+      - "*"
+    exclude:
+      - "**/cd-*.yaml"
+      - "/cd-*.yaml"
+
+name: $(BuildName)$(Rev:rr)
+
+extends:
+  template: templates/base-ci-dotnet-web.yaml@buildTemplates
+  parameters:
+    paramDoCleanCheckout: ${{ parameters.paramDoCleanCheckout }}
+    paramTemplatesRepoName: buildTemplates
+    paramWorkingDirectory: ""
+
+    #paramNodeAppType: For node apps.
+    # paramNodeAppType: nextJs
+    # paramNodeVersion: 20
+
+    # paramSlnFile: For net apps.
+    paramSlnFile: TheSln.sln
+
+    # If we are going to deploy something, we need to publish the build artifacts for CD pipeline.
+    paramPublishBuildArtifacts: true
+
+    # For NuGet
+    # paramProjectsToPack:
+    #  - src/NuGetProj/*.csproj
+
+    # For net web projects
+    # paramWebProjectToPublish: src/MyWebApi
+    # paramWebProjectPublishRuntime: win-x86
+
+    # Task group names to use, with optional <env>
+    paramVariableGroupNames:
+      - "mygroup-<env>"

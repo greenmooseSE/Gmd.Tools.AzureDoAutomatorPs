@@ -1,0 +1,90 @@
+<Project>
+    <!-- Root Directory.Build.props , to include another further down in chain, use below
+        <PropertyGroup>
+            <ParentDirectoryBuildPropsPath>$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..\'))</ParentDirectoryBuildPropsPath>
+        </PropertyGroup>
+        <ImportGroup>
+            <Import Project="$(ParentDirectoryBuildPropsPath)" />
+        </ImportGroup>
+    -->
+
+    <PropertyGroup Label="Compile" Condition="'$(Configuration)'=='Release'">
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- Debug data -->
+        <DebugType>embedded</DebugType>
+        <EmbedAllSources>false</EmbedAllSources>
+    </PropertyGroup>
+
+    <PropertyGroup Label="Package Restore">
+        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    </PropertyGroup>
+
+    <!--
+    YAML Contracts Copy Configuration (override in test projects as needed)
+    By default, these are empty and the copy target will be skipped.
+
+    Example configuration for ChassiWebApi test project:
+      <PropertyGroup Label="YamlContractsPaths" Condition="'$(MSBuildProjectName)' == 'Gmd.CsCommon.AspNet.Test.ChassiWebApi'">
+        <YamlContractsSourceDirRelativeToSln>submodules/Gmd.Chassi.Node.WebApiYamlContractsSrc/generated/</YamlContractsSourceDirRelativeToSln>
+        <YamlContractsDestDirRelativeToProj>StaticFiles/</YamlContractsDestDirRelativeToProj>
+      </PropertyGroup>
+    -->
+
+    <PropertyGroup Label="YamlContractsPaths">
+    <!-- 
+      Path to source YAML contracts directory (relative to SolutionDir).
+      Leave empty to disable copying.
+    -->
+    <YamlContractsSourceDirRelativeToSln></YamlContractsSourceDirRelativeToSln>
+
+    <!-- 
+      Path to destination for YAML contracts (relative to ProjectDir).
+      Leave empty to disable copying.
+    -->
+    <YamlContractsDestDirRelativeToProj></YamlContractsDestDirRelativeToProj>
+    </PropertyGroup>
+
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <!--10: .net 6-->
+        <!--12: .net 8-->
+        <Langversion>12</Langversion>
+        <!-- By default generate documentation so we don't miss out on it (for test projects we set it to false). -->
+        <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <!-- Version data -->
+    <PropertyGroup>
+        <Company>Falco IT AB</Company>
+        <Authors>$(Company)</Authors>
+        <Copyright>Copyright © $(Company) $([System.DateTime]::Now.Year)</Copyright>
+        <Product>My Product Name</Product>
+        <Description>My Product description</Description>
+        <!-- For som reason this ends up as file descripton -->
+        <AssemblyTitle>My Product Description 2</AssemblyTitle>
+
+        <AssemblyVersion Condition="'$(MajorMinorVer)' != ''">$(MajorMinorVer).$(PatchVer)</AssemblyVersion>
+        <FileVersion Condition="'$(MajorMinorVer)' != ''">$(MajorMinorVer).$(PatchVer)</FileVersion>
+        <InformationalVersion Condition="'$(Build_BuildNumber)' != ''">$(Build_BuildNumber)</InformationalVersion>
+
+        <AssemblyVersion Condition="'$(MajorMinorVer)' == ''">0.0.0</AssemblyVersion>
+        <FileVersion Condition="'$(MajorMinorVer)' == ''">0.0.0</FileVersion>
+        <InformationalVersion Condition="'$(Build_BuildNumber)' == ''">0.0.0</InformationalVersion>
+        <!-- Disable .NET 5+ SDK vcs suffix since we do that ourselves -->
+        <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    </PropertyGroup>
+    <Target Name="LogVersionInfo" BeforeTargets="Build">
+        <Message Importance="high" Condition="'$(MajorMinorVer)' != ''"
+            Text="MajorMinorVer: $(MajorMinorVer)" />
+        <Message Importance="high" Condition="'$(PatchVer)' != ''" Text="PatchVer: $(PatchVer)" />
+        <Message Importance="high" Condition="'$(Build_BuildNumber)' != ''"
+            Text="Build_BuildNumber: $(Build_BuildNumber)" />
+        <Message Importance="high" Text="AssemblyVersion: $(AssemblyVersion)" />
+        <Message Importance="high" Text="FileVersion: $(FileVersion)" />
+        <Message Importance="high" Text="InformationalVersion: $(InformationalVersion)" />
+    </Target>
+</Project>
