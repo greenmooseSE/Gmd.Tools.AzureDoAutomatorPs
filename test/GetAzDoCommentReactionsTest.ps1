@@ -101,7 +101,7 @@ try {
         Project      = $Project
         Title        = "Test Epic for Get Reactions $(Get-Date -Format 'yyyyMMddHHmmss')"
     }
-    $epic = & "$SRC_DIR/NewAzDoEpic.ps1" @epicScript
+    $epic = & "$SRC_DIR/UpsertAzDoEpic.ps1" @epicScript
     $script:createdItems += $epic.id
     Write-Host "Created test Epic (ID: $($epic.id))" -ForegroundColor Green
 

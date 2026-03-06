@@ -40,7 +40,7 @@ Write-Host "\n=== RemoveAzDoComment Tests ===\n"
 
 # Setup: create epic->feature->story (reuse existing scripts)
 try {
-    $epic = & "$SRC_DIR/NewAzDoEpic.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Epic $(Get-Date -Format o)"
+    $epic = & "$SRC_DIR/UpsertAzDoEpic.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Epic $(Get-Date -Format o)"
     $created += $epic.id
     $feature = & "$SRC_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Feature" -ParentEpicId $epic.id
     $story = & "$SRC_DIR/NewAzDoStory.ps1" -Organization $Organization -Project $Project -Title "RemoveComment Story" -ParentFeatureId $feature.id

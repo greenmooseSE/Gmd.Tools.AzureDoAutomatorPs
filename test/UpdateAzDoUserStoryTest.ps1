@@ -95,7 +95,7 @@ try {
     
     $epicTitle = "UpdateAzDoUserStory Test Epic $(Get-Random)"
     Write-Host "Creating test Epic: $epicTitle"
-    $epic = & "$SRC_DIR/NewAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $epicTitle
+    $epic = & "$SRC_DIR/UpsertAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $epicTitle
     $script:createdItems += $epic.id
     Write-Host "Created Epic (ID: $($epic.id))" -ForegroundColor Green
 

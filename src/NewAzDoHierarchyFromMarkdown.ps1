@@ -438,7 +438,7 @@ try {
             }
 
             $null = & ssLogIt.ps1 -Level Debug -Message "Creating Epic: $($epic.title)"
-            $createdEpic = & "$PSScriptRoot\NewAzDoEpic.ps1" @epicParams -ErrorAction Stop
+            $createdEpic = & "$PSScriptRoot\UpsertAzDoEpic.ps1" @epicParams -ErrorAction Stop
             $epicId = $createdEpic.id
         }
         else {

@@ -197,7 +197,7 @@ try {
     $null = & ssLogIt.ps1 -Level Info -Message "Test 2: Creating Epic..."
 
     try {
-        $epic = & "$SRC_DIR/NewAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Description "Automated system test epic" -PatToken $PatToken
+        $epic = & "$SRC_DIR/UpsertAzDoEpic.ps1" -Organization $Organization -Project $Project -Title $EpicTitle -Description "Automated system test epic" -PatToken $PatToken
 
         if ($null -eq $epic -or $null -eq $epic.id) {
             throw "Failed to create Epic"

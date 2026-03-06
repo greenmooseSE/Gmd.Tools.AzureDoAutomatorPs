@@ -102,37 +102,6 @@ High-level work item operations:
 
 ### Feature/Story Management
 
-#### `NewAzDoEpic.ps1`
-Create new Epics (top-level work items).
-
-```powershell
-# Create Epic
-$epic = .\NewAzDoEpic.ps1 `
-    -Organization "myorg" `
-    -Project "myproj" `
-    -Title "Q1 2024 Roadmap" `
-    -Description "All features planned for Q1 2024"
-
-# Create Epic with effort
-$epic = .\NewAzDoEpic.ps1 `
-    -Organization "myorg" `
-    -Project "myproj" `
-    -Title "Q1 2024 Roadmap" `
-    -Description "All features planned for Q1 2024" `
-    -Effort 21
-
-# Returned object has full work item details
-Write-Host "Created Epic ID: $($epic.id)"
-```
-
-**Parameters:**
-- `Organization` (required): Azure DevOps organization
-- `Project` (required): Project name
-- `Title` (required): Epic title
-- `Description` (optional): Epic description
-- `Effort` (optional): Effort value in story points (non-negative integer)
-- `PatToken` (optional): Override default PAT token
-
 #### `NewAzDoFeature.ps1`
 Create or update Features with optional parent Epic.
 
@@ -772,7 +741,7 @@ All scripts follow strict error handling practices:
 │   ├── AzDoPatTokenHelper.ps1               (PAT token management)
 │   ├── AzDoApiWrapper.ps1                   (REST API wrapper)
 │   ├── AzDoWorkItemHelper.ps1               (Helper functions)
-│   ├── NewAzDoEpic.ps1                      (Create Epic)
+│   ├── UpsertAzDoEpic.ps1                   (Create/update Epics)
 │   ├── NewAzDoFeature.ps1                   (Create/update Features)
 │   ├── NewAzDoStory.ps1                     (Create/update Stories)
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)

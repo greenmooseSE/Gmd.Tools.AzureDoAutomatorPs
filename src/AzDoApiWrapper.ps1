@@ -668,7 +668,7 @@ function New-AzDoComment {
         $headers['Content-Type'] = 'application/json'
 
         # Use the specific preview version with comment create support
-        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments?api-version=7.1-preview.3"
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments?format=markdown&api-version=7.1-preview.4"
 
         # The comments API expects a 'text' property for the comment body
         $body = @{
