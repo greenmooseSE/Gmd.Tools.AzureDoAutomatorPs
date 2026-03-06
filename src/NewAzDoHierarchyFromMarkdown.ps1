@@ -442,7 +442,20 @@ try {
             $epicId = $createdEpic.id
         }
         else {
-            # Fetch existing epic for use as reference
+            # Existing epic found - update description and effort if provided
+            $null = & ssLogIt.ps1 -Level Debug -Message "Updating existing Epic: $($epic.title) (ID: $epicId)"
+            
+            if ($epic.description) {
+                $null = & "$PSScriptRoot\SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $epicId -Description $epic.description -PatToken $PatToken -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Epic description for ID: $epicId"
+            }
+            
+            if ($epic.effort) {
+                $null = & "$PSScriptRoot\SetAzDoEffort.ps1" -Organization $Organization -Project $Project -WorkItemId $epicId -Effort $epic.effort -PatToken $PatToken -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Epic effort for ID: $epicId"
+            }
+            
+            # Fetch updated epic for use as reference
             $createdEpic = & "$PSScriptRoot\GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $epicId -PatToken $PatToken -ErrorAction Stop
         }
         
@@ -483,7 +496,20 @@ try {
                 $featureId = $createdFeature.id
             }
             else {
-                # Fetch existing feature for use as reference
+                # Existing feature found - update description and effort if provided
+                $null = & ssLogIt.ps1 -Level Debug -Message "Updating existing Feature: $($feature.title) (ID: $featureId)"
+                
+                if ($feature.description) {
+                    $null = & "$PSScriptRoot\SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Description $feature.description -PatToken $PatToken -ErrorAction Stop
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature description for ID: $featureId"
+                }
+                
+                if ($feature.effort) {
+                    $null = & "$PSScriptRoot\SetAzDoEffort.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Effort $feature.effort -PatToken $PatToken -ErrorAction Stop
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature effort for ID: $featureId"
+                }
+                
+                # Fetch updated feature for use as reference
                 $createdFeature = & "$PSScriptRoot\GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -PatToken $PatToken -ErrorAction Stop
             }
             
@@ -609,7 +635,20 @@ try {
             $featureId = $createdFeature.id
         }
         else {
-            # Fetch existing feature for use as reference
+            # Existing feature found - update description and effort if provided
+            $null = & ssLogIt.ps1 -Level Debug -Message "Updating existing Feature: $($feature.title) (ID: $featureId)"
+            
+            if ($feature.description) {
+                $null = & "$PSScriptRoot\SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Description $feature.description -PatToken $PatToken -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature description for ID: $featureId"
+            }
+            
+            if ($feature.effort) {
+                $null = & "$PSScriptRoot\SetAzDoEffort.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Effort $feature.effort -PatToken $PatToken -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature effort for ID: $featureId"
+            }
+            
+            # Fetch updated feature for use as reference
             $createdFeature = & "$PSScriptRoot\GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -PatToken $PatToken -ErrorAction Stop
         }
         
