@@ -101,7 +101,7 @@ try {
 
     $featureTitle = "UpdateAzDoUserStory Test Feature $(Get-Random)"
     Write-Host "Creating test Feature: $featureTitle"
-    $feature = & "$SRC_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id
+    $feature = & "$SRC_DIR/UpsertAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id
     Write-Host "Created Feature (ID: $($feature.id))" -ForegroundColor Green
 
     $storyTitle = "🧪 UpdateAzDoUserStory Test Story $(Get-Random)"

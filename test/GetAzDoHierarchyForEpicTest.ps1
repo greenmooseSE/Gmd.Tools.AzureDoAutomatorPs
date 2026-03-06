@@ -110,7 +110,7 @@ try {
     for ($i = 1; $i -le 2; $i++) {
         $featureTitle = "Test Feature $i $(Get-Random)"
         Write-Host "Creating Feature: $featureTitle"
-        $feature = & "$SRC_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project `
+        $feature = & "$SRC_DIR/UpsertAzDoFeature.ps1" -Organization $Organization -Project $Project `
             -Title $featureTitle -ParentEpicId $epic.id
         & "$SRC_DIR/SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project `
             -WorkItemId $feature.id -Description "Feature $i description"

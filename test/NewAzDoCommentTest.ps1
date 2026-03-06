@@ -112,7 +112,7 @@ try {
         Title        = "Test Feature for Comments"
         ParentEpicId = $epic.id
     }
-    $feature = & "$SRC_DIR/NewAzDoFeature.ps1" @featureScript
+    $feature = & "$SRC_DIR/UpsertAzDoFeature.ps1" @featureScript
     Write-Host "Created test Feature (ID: $($feature.id))" -ForegroundColor Green
 
     # Create test Story

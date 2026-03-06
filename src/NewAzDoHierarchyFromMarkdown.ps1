@@ -473,45 +473,26 @@ try {
                 }
             }
             
-            # If no existing feature found, create new one
-            if ($null -eq $featureId) {
-                $featureParams = @{
-                    Organization    = $Organization
-                    Project         = $Project
-                    Title           = $feature.title
-                    ParentEpicId    = $epicId
-                    PatToken        = $PatToken
-                }
-
-                if ($feature.description) {
-                    $featureParams['Description'] = $feature.description
-                }
-
-                if ($feature.effort) {
-                    $featureParams['Effort'] = $feature.effort
-                }
-
-                $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.title) under Epic"
-                $createdFeature = & "$PSScriptRoot\NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
-                $featureId = $createdFeature.id
+            # UPSERT feature - creates if doesn't exist, updates if exists
+            $featureParams = @{
+                Organization    = $Organization
+                Project         = $Project
+                Title           = $feature.title
+                ParentEpicId    = $epicId
+                PatToken        = $PatToken
             }
-            else {
-                # Existing feature found - update description and effort if provided
-                $null = & ssLogIt.ps1 -Level Debug -Message "Updating existing Feature: $($feature.title) (ID: $featureId)"
-                
-                if ($feature.description) {
-                    $null = & "$PSScriptRoot\SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Description $feature.description -PatToken $PatToken -ErrorAction Stop
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature description for ID: $featureId"
-                }
-                
-                if ($feature.effort) {
-                    $null = & "$PSScriptRoot\SetAzDoEffort.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Effort $feature.effort -PatToken $PatToken -ErrorAction Stop
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature effort for ID: $featureId"
-                }
-                
-                # Fetch updated feature for use as reference
-                $createdFeature = & "$PSScriptRoot\GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -PatToken $PatToken -ErrorAction Stop
+
+            if ($feature.description) {
+                $featureParams['Description'] = $feature.description
             }
+
+            if ($feature.effort) {
+                $featureParams['Effort'] = $feature.effort
+            }
+
+            $null = & ssLogIt.ps1 -Level Debug -Message "UPSERT Feature: $($feature.title) under Epic"
+            $createdFeature = & "$PSScriptRoot\UpsertAzDoFeature.ps1" @featureParams -ErrorAction Stop
+            $featureId = $createdFeature.id
             
             $createdItems[$featureId] = $createdFeature
 
@@ -598,59 +579,29 @@ try {
 
     # Create top-level Features
     foreach ($feature in $features) {
-        $featureId = $null
-        
-        # Check for existing feature if UpdateExisting is specified
-        if ($UpdateExisting) {
-            $existingFeatureId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $feature.title -Type $script:WORKITEM_TYPE_FEATURE -ParentId $epicId -NormalizeTitle -PatToken $PatToken
-            if ($null -ne $existingFeatureId) {
-                $featureId = $existingFeatureId
-                $null = & ssLogIt.ps1 -Level Debug -Message "Found existing Feature with title: $($feature.title) (ID: $featureId), will update instead of create"
-            }
+        # UPSERT feature - creates if doesn't exist, updates if exists
+        $featureParams = @{
+            Organization = $Organization
+            Project      = $Project
+            Title        = $feature.title
+            PatToken     = $PatToken
         }
-        
-        # If no existing feature found, create new one
-        if ($null -eq $featureId) {
-            $featureParams = @{
-                Organization = $Organization
-                Project      = $Project
-                Title        = $feature.title
-                PatToken     = $PatToken
-            }
 
-            if ($feature.description) {
-                $featureParams['Description'] = $feature.description
-            }
-
-            if ($feature.effort) {
-                $featureParams['Effort'] = $feature.effort
-            }
-
-            if ($PSBoundParameters.ContainsKey('EpicId')) {
-                $featureParams['ParentEpicId'] = $EpicId
-            }
-
-            $null = & ssLogIt.ps1 -Level Debug -Message "Creating Feature: $($feature.title)"
-            $createdFeature = & "$PSScriptRoot\NewAzDoFeature.ps1" @featureParams -ErrorAction Stop
-            $featureId = $createdFeature.id
+        if ($feature.description) {
+            $featureParams['Description'] = $feature.description
         }
-        else {
-            # Existing feature found - update description and effort if provided
-            $null = & ssLogIt.ps1 -Level Debug -Message "Updating existing Feature: $($feature.title) (ID: $featureId)"
-            
-            if ($feature.description) {
-                $null = & "$PSScriptRoot\SetAzDoWorkItemDescription.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Description $feature.description -PatToken $PatToken -ErrorAction Stop
-                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature description for ID: $featureId"
-            }
-            
-            if ($feature.effort) {
-                $null = & "$PSScriptRoot\SetAzDoEffort.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -Effort $feature.effort -PatToken $PatToken -ErrorAction Stop
-                $null = & ssLogIt.ps1 -Level Debug -Message "Updated Feature effort for ID: $featureId"
-            }
-            
-            # Fetch updated feature for use as reference
-            $createdFeature = & "$PSScriptRoot\GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $featureId -PatToken $PatToken -ErrorAction Stop
+
+        if ($feature.effort) {
+            $featureParams['Effort'] = $feature.effort
         }
+
+        if ($PSBoundParameters.ContainsKey('EpicId')) {
+            $featureParams['ParentEpicId'] = $EpicId
+        }
+
+        $null = & ssLogIt.ps1 -Level Debug -Message "UPSERT Feature: $($feature.title)"
+        $createdFeature = & "$PSScriptRoot\UpsertAzDoFeature.ps1" @featureParams -ErrorAction Stop
+        $featureId = $createdFeature.id
         
         $createdItems[$featureId] = $createdFeature
 

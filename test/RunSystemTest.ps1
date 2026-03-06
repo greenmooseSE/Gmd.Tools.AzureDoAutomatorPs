@@ -218,7 +218,7 @@ try {
 
     try {
         $featureTitle = "$EpicTitle - Feature"
-        $feature = & "$SRC_DIR/NewAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id -Description "Test feature" -PatToken $PatToken
+        $feature = & "$SRC_DIR/UpsertAzDoFeature.ps1" -Organization $Organization -Project $Project -Title $featureTitle -ParentEpicId $epic.id -Description "Test feature" -PatToken $PatToken
 
         if ($null -eq $feature -or $null -eq $feature.id) {
             throw "Failed to create Feature"

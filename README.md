@@ -102,44 +102,58 @@ High-level work item operations:
 
 ### Feature/Story Management
 
-#### `NewAzDoFeature.ps1`
-Create or update Features with optional parent Epic.
+#### `UpsertAzDoFeature.ps1`
+Create or update Features (UPSERT operation) with optional parent Epic.
 
 ```powershell
-# Create new Feature
-$feature = .\NewAzDoFeature.ps1 `
+# Create or update Feature by title (standard UPSERT)
+$feature = .\UpsertAzDoFeature.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -Title "User Authentication System" `
     -Description "Implement OAuth 2.0 authentication" `
-    -ParentEpicId 42
-
-# Create Feature with effort
-$feature = .\NewAzDoFeature.ps1 `
-    -Organization "myorg" `
-    -Project "myproj" `
-    -Title "Search System" `
-    -Description "Implement search functionality" `
     -Effort 13
 
-# Update existing Feature
-$feature = .\NewAzDoFeature.ps1 `
+# Create Feature under an Epic
+$feature = .\UpsertAzDoFeature.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
-    -Title "Existing Feature" `
+    -Title "Search Feature" `
+    -Description "Implement search functionality" `
+    -ParentEpicId 42
+
+# Create Feature only if title doesn't exist (create-only mode)
+$feature = .\UpsertAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "New Feature" `
+    -FailIfExist
+
+# Update existing Feature by ID directly
+$feature = .\UpsertAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id 123 `
     -Description "Updated description" `
-    -UpdateExisting
+    -Effort 21
 ```
 
 **Parameters:**
 - `Organization` (required): Azure DevOps organization
 - `Project` (required): Project name
-- `Title` (required): Feature title
+- `Title` (required for create): Feature title
+- `Id` (optional): Feature ID for direct update. Cannot be used with -FailIfExist
 - `Description` (optional): Feature description
-- `ParentEpicId` (optional): Parent Epic ID
-- `UpdateExisting` (switch): Update if feature exists
+- `ParentEpicId` (optional): Parent Epic ID (used only when creating)
 - `Effort` (optional): Effort value in story points (non-negative integer)
+- `FailIfExist` (switch): Create-only mode; fails if feature exists. Cannot be used with -Id
 - `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- If `-Id` provided: Updates Feature by ID directly (no title-based lookup)
+- If `-Id` not provided: UPSERT by Title (updates if exists, creates if not)
+  - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
+
 
 #### `NewAzDoStory.ps1`
 Create or update Stories under a Feature.
@@ -725,7 +739,7 @@ All scripts follow strict error handling practices:
 
 ## Quality Standards
 
-- **PascalCase naming**: All scripts follow `NewAzDoFeature` pattern
+- **PascalCase naming**: All scripts follow `UpsertAzDoFeature` pattern (CRUD operations as unified UPSERT where applicable)
 - **Strict mode v3**: Prevents uninitialized variable usage
 - **Fail fast**: `$ErrorActionPreference = 'Stop'`
 - **No null-forgiving**: No `!` operator without explanation
@@ -742,7 +756,7 @@ All scripts follow strict error handling practices:
 │   ├── AzDoApiWrapper.ps1                   (REST API wrapper)
 │   ├── AzDoWorkItemHelper.ps1               (Helper functions)
 │   ├── UpsertAzDoEpic.ps1                   (Create/update Epics)
-│   ├── NewAzDoFeature.ps1                   (Create/update Features)
+│   ├── UpsertAzDoFeature.ps1                (Create/update Features)
 │   ├── NewAzDoStory.ps1                     (Create/update Stories)
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
 │   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
