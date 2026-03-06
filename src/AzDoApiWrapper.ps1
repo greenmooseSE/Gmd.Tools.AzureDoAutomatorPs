@@ -140,8 +140,12 @@ function Invoke-AzDoApiRequest {
                 $null = & ssLogIt.ps1 -Level Error -Message "$logMessage"
                 
                 # Log response body for debugging 400/401/403 errors
-                if ($statusCode -in @(400, 401, 403) -and $responseBody) {
-                    $null = & ssLogIt.ps1 -Level Error -Message "Response body: $responseBody"
+                if ($statusCode -in @(400, 401, 403)) {
+                    if ($responseBody) {
+                        $null = & ssLogIt.ps1 -Level Error -Message "Response body: $responseBody"
+                    } else {
+                        $null = & ssLogIt.ps1 -Level Error -Message "Response body: (empty)"
+                    }
                 }
 
                 # Try to parse structured error response
@@ -159,7 +163,13 @@ function Invoke-AzDoApiRequest {
                 }
 
                 ssLogIt.ps1 -Level Error -Message "Azure DevOps API request failed ($Method $Uri): $errorMessage" -Exception $_;
-                throw;
+
+                # Include response body and status code in the thrown exception so callers can inspect it
+                $detailedMessage = $errorMessage
+                if ($statusCode -ne 0) { $detailedMessage = "$detailedMessage (HTTP $statusCode)" }
+                if (-not [string]::IsNullOrWhiteSpace($responseBody)) { $detailedMessage = "$detailedMessage`nResponseBody: $responseBody" }
+
+                throw (New-Object System.Exception($detailedMessage))
             }
         }
 
@@ -227,7 +237,18 @@ function Invoke-AzDoWiql {
         }
 
         try {
-            $result = Invoke-AzDoApiRequest -Uri $uri -Method 'Post' -Headers $headers -Body $body -ContentType 'application/json'
+            # Try direct HTTP call first to capture 404s without full error logging
+            $invokeParams = @{
+                Uri         = $uri
+                Method      = 'Post'
+                Headers     = $headers
+                TimeoutSec  = 30
+                ErrorAction = 'Stop'
+                ContentType = 'application/json'
+                Body        = $body | ConvertTo-Json -Depth 10
+            }
+            
+            $result = Invoke-RestMethod @invokeParams
 
             if ($result.workItems) {
                 return $result.workItems
@@ -235,7 +256,18 @@ function Invoke-AzDoWiql {
 
             return @()
         }
+        catch [System.Net.Http.HttpRequestException] {
+            # Check if it's a 404 (endpoint not available - known limitation)
+            if ($_.Exception.Response.StatusCode -eq 'NotFound') {
+                $null = & ssLogIt.ps1 -Level Debug -Message "WIQL endpoint not available (404) - child work items query will return empty"
+                return @()
+            }
+            
+            # For other HTTP errors, log and re-throw
+            Write-Error "Failed to execute WIQL query: $($_.Exception.Message)"
+        }
         catch {
+            # Catch other exceptions (like timeouts) and re-throw
             Write-Error "Failed to execute WIQL query: $($_.Exception.Message)"
         }
     }
@@ -576,6 +608,93 @@ function Remove-AzDoWorkItem {
         }
         catch {
             Write-Error "Failed to delete work item $WorkItemId : $($_.Exception.Message)"
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Add a comment to an existing work item
+
+.DESCRIPTION
+Add a new comment to a work item in Azure DevOps. Comments support markdown formatting.
+
+.PARAMETER Organization
+The Azure DevOps organization name
+
+.PARAMETER Project
+The project name
+
+.PARAMETER WorkItemId
+The work item ID to add comment to
+
+.PARAMETER Content
+The comment content (supports markdown)
+
+.PARAMETER PatToken
+Optional PAT token. If not provided, retrieves from environment.
+
+.OUTPUTS
+Comment object with metadata
+
+.EXAMPLE
+$comment = New-AzDoComment -Organization "myorg" -Project "myproject" -WorkItemId 123 -Content "This is a comment"
+#>
+function New-AzDoComment {
+    [CmdletBinding()]
+    [OutputType([object])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Organization,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Project,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WorkItemId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Content,
+
+        [string]$PatToken
+    )
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($PatToken)) {
+            $PatToken = Get-AzDoPatToken -Decrypt
+        }
+
+        $headers = New-AzDoAuthHeader -PatToken $PatToken
+        $headers['Content-Type'] = 'application/json'
+
+        # Use the specific preview version with comment create support
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments?api-version=7.1-preview.3"
+
+        # The comments API expects a 'text' property for the comment body
+        $body = @{
+            text = $Content
+        }
+
+        # Convert to JSON string to prevent array wrapping by Invoke-AzDoApiRequest
+        # The comments API expects {"content":"..."} not [{"content":"..."}]
+        [string]$bodyJson = $body | ConvertTo-Json -Depth 10
+
+        try {
+            return Invoke-AzDoApiRequest -Uri $uri -Method 'Post' -Headers $headers -Body $bodyJson
+        }
+        catch {
+            # Surface API error details (including response body) so callers can inspect and fail visibly
+            $exMsg = $_.Exception.Message
+            $null = & ssLogIt.ps1 -Level Error -Message "New-AzDoComment failed: $exMsg" -Exception $_
+
+            # If the exception message contains a response body (added by Invoke-AzDoApiRequest), log it explicitly
+            if ($exMsg -match 'ResponseBody:\s*(.+)$') {
+                $responseBody = $Matches[1]
+                $null = & ssLogIt.ps1 -Level Error -Message "New-AzDoComment - API response body: $responseBody"
+            }
+
+            # Do not swallow the error or return a simulated object; rethrow to make failure visible to callers
+            throw
         }
     }
 }

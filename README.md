@@ -85,6 +85,8 @@ Low-level REST API wrapper with retry logic:
 - `New-AzDoWorkItem`: Create new work items
 - `Update-AzDoWorkItem`: Update existing work items
 - `Remove-AzDoWorkItem`: Delete work items
+- `Remove-AzDoWorkItem`: Delete work items
+- `RemoveAzDoComment.ps1`: Remove a comment from a work item (uses comments API, preview.3). Supports `-TextMatchRegex` to delete comments whose latest text matches a provided regular expression.
 - Built-in retry logic for transient failures
 - Comprehensive error logging
 
@@ -226,6 +228,93 @@ $description = $workItem.fields['System.Description']
 $storyPoints = $workItem.fields['Microsoft.VSTS.Scheduling.StoryPoints']
 ```
 
+#### `GetAzDoUserStory.ps1`
+Retrieve a User Story with full details or key properties only.
+
+```powershell
+# Get User Story with default subset of fields
+$story = .\GetAzDoUserStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123
+
+# Access story properties
+Write-Host "Title: $($story.Title)"
+Write-Host "State: $($story.State)"
+Write-Host "StoryPoints: $($story.StoryPoints)"
+Write-Host "Comments: $($story.Comments.Count)"
+
+# Get complete work item JSON (identical to GetAzDoWorkItem)
+$fullStory = .\GetAzDoUserStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Full
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): User Story ID
+- `Full` (switch): Return complete work item JSON (equivalent to GetAzDoWorkItem)
+- `PatToken` (optional): Override default PAT token
+
+**Output Fields (without -Full):**
+- Id, State, Title
+- Description, AcceptanceCriteria, ACScenarios
+- StoryPoints, ExtraInformation, Tags
+- Comments (array with latest version of each comment including createdDate, lastModifiedDate, text, createdBy.displayName, and reactions)
+
+#### `UpdateAzDoUserStory.ps1`
+Update one or more fields of a User Story via PATCH operation.
+
+```powershell
+# Update title
+$story = .\UpdateAzDoUserStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Title "Updated Story Title"
+
+# Update multiple fields
+$story = .\UpdateAzDoUserStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Title "New Title" `
+    -Description "Updated description" `
+    -StoryPoints 8 `
+    -State "Under Development" `
+    -Tags "feature; important"
+
+# Update acceptance criteria
+$story = .\UpdateAzDoUserStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -AcceptanceCriteria @"
+Must do X
+Must do Y
+Must validate Z
+"@
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): User Story ID
+- `Title` (optional): New story title
+- `Description` (optional): New description
+- `State` (optional): New state (e.g., "New", "Under Development", "Done")
+- `AcceptanceCriteria` (optional): New acceptance criteria text
+- `ACScenarios` (optional): New AC Scenarios text
+- `ExtraInformation` (optional): New extra information text
+- `StoryPoints` (optional): New story points value
+- `Tags` (optional): Comma-separated tags (replaces existing tags)
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Only specified fields are updated; others remain unchanged. At least one field must be specified.
+
 ### Field Setters
 
 #### `SetAzDoWorkItemDescription.ps1`
@@ -312,6 +401,59 @@ $updated = .\SetAzDoWorkItemTags.ps1 `
 - `PatToken` (optional): Override default PAT token
 
 ### Advanced Operations
+
+#### `GetAzDoHierarchyForEpic.ps1`
+Retrieve an Epic with all its Features and their Stories in a hierarchical structure.
+
+```powershell
+# Get hierarchy by Epic ID
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -EpicId 100
+
+# Get hierarchy by Epic title (searches for exact match)
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -EpicTitle "Platform Modernization"
+
+# Access hierarchy data
+Write-Host "Epic: $($hierarchy.Title)"
+Write-Host "Effort: $($hierarchy.Effort)"
+foreach ($feature in $hierarchy.Features) {
+    Write-Host "  Feature: $($feature.Title)"
+    foreach ($story in $feature.Stories) {
+        Write-Host "    Story: $($story.Title) ($($story.StoryPoints) pts)"
+    }
+}
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `EpicId` (optional): Epic work item ID
+- `EpicTitle` (optional): Epic title to search for
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Either `EpicId` or `EpicTitle` must be provided. If both are provided, `EpicId` takes precedence.
+
+**Output Structure:**
+```
+Epic
+├── Id, Title, Description, Effort
+└── Features (array)
+    ├── Id, Title, Description, Effort
+    └── Stories (array)
+        ├── Id, State, Title, Description
+        ├── AcceptanceCriteria, ACScenarios
+        ├── StoryPoints, ExtraInformation, Tags
+        └── Comments (array with reactions)
+```
+
+**Known Limitations:**
+- Comments retrieval is optional and may fail gracefully if the API endpoint is unavailable (returns empty array)
+- Getting child work items requires a properly configured WIQL endpoint
 
 #### `NewAzDoHierarchyFromMarkdown.ps1`
 Create complete work item hierarchy from markdown file.
@@ -418,6 +560,8 @@ See the full example in [example-hierarchy.md](example-hierarchy.md).
 
 ## Testing
 
+### Unit and Module Tests
+
 Run basic integration tests to verify setup:
 
 ```powershell
@@ -429,6 +573,58 @@ Tests verify:
 - All functions are defined
 - Constants are properly initialized
 - Required scripts exist and are accessible
+
+### Run All Tests - Master Test Runner
+
+Execute all tests with a single command:
+
+```powershell
+# Run all tests
+.\test\RunAllTests.ps1
+
+# Run with verbose output for debugging
+.\test\RunAllTests.ps1 -Verbose
+
+# Skip specific test suites
+.\test\RunAllTests.ps1 -SkipBasicTests
+.\test\RunAllTests.ps1 -SkipGetAzDoUserStoryTests
+.\test\RunAllTests.ps1 -SkipUpdateAzDoUserStoryTests
+.\test\RunAllTests.ps1 -SkipGetAzDoHierarchyTests
+
+# Run against different organization/project
+.\test\RunAllTests.ps1 -Organization "my-org" -Project "my-project"
+```
+
+**Master Test Runner Output:**
+- Colored output showing test pass/fail status
+- Detailed execution times for each test suite
+- Summary with pass rate percentage
+- Detailed error information for failed tests
+
+**Exit Codes:**
+- 0: All tests passed
+- 1: One or more tests failed
+
+### Integration Tests for New Scripts
+
+Test individual script suites against a live Azure DevOps instance:
+
+```powershell
+# Set environment variables
+$env:GMD_AZDO_ORGANIZATION = "your-org"
+$env:GMD_AZDO_PROJECT = "your-project"
+
+# Run GetAzDoUserStory tests
+.\test\GetAzDoUserStoryTest.ps1
+
+# Run UpdateAzDoUserStory tests
+.\test\UpdateAzDoUserStoryTest.ps1
+
+# Run GetAzDoHierarchyForEpic tests
+.\test\GetAzDoHierarchyForEpicTest.ps1
+```
+
+**Note:** Integration tests create temporary test data (Epic, Features, Stories) and automatically clean up by deleting the test Epic at the end.
 
 ## Error Handling
 
@@ -460,6 +656,9 @@ All scripts follow strict error handling practices:
 │   ├── NewAzDoFeature.ps1                   (Create/update Features)
 │   ├── NewAzDoStory.ps1                     (Create/update Stories)
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
+│   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
+│   ├── UpdateAzDoUserStory.ps1              (Update User Story fields)
+│   ├── GetAzDoHierarchyForEpic.ps1          (Retrieve Epic hierarchy with Features and Stories)
 │   ├── SetAzDoWorkItemDescription.ps1       (Set description)
 │   ├── SetAzDoAcceptanceCriteria.ps1        (Set acceptance criteria)
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
@@ -470,7 +669,11 @@ All scripts follow strict error handling practices:
 │   ├── RunSystemTest.ps1                    (System test suite)
 │   └── VerifyAzDoPat.ps1                    (Verify PAT read access)
 ├── test/
-│   └── BasicIntegrationTest.ps1             (Integration tests)
+│   ├── BasicIntegrationTest.ps1             (Integration tests)
+│   ├── GetAzDoUserStoryTest.ps1             (GetAzDoUserStory tests)
+│   ├── UpdateAzDoUserStoryTest.ps1          (UpdateAzDoUserStory tests)
+│   ├── GetAzDoHierarchyForEpicTest.ps1      (GetAzDoHierarchyForEpic tests)
+│   └── RunAllTests.ps1                      (Master test runner)
 └── README.md                                 (This file)
 ```
 
