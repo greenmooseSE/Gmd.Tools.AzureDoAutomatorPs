@@ -20,7 +20,7 @@ Title for the test Epic to create. Script fails if Epic with this title already 
 Default: "WIP System Test Epic"
 
 .PARAMETER PatToken
-Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW
 environment variable (expected to be encrypted).
 
 .OUTPUTS

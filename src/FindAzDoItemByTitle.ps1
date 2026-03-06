@@ -24,7 +24,7 @@ Optional parent work item ID to filter by (e.g. find Feature under specific Epic
 
 .PARAMETER PatToken
 Optional PAT token for authentication. If not provided, retrieves from
-`FALCOIT_AZDO_PAT_WORKITEMSREADWRITE` environment variable (expected to be encrypted).
+`GMD_AZDO_MACHINE_WORKITEMSRW` environment variable (expected to be encrypted).
 
 .OUTPUTS
 PSObject representing the found work item, or $null if not found. Throws error on unexpected failures.

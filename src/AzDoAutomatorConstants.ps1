@@ -109,7 +109,7 @@ $ErrorActionPreference = 'Stop'
 [string]$script:ERROR_INVALID_PARENT_ID = 'Invalid parent work item ID: {0}'
 [string]$script:ERROR_MISSING_REQUIRED_PARAM = 'Required parameter "{0}" is missing or empty.'
 [string]$script:ERROR_INVALID_STORY_POINTS = 'Story points must be a non-negative integer. Provided: {0}'
-[string]$script:ERROR_PAT_TOKEN_MISSING = 'PAT token not available. Set FALCOIT_AZDO_PAT_WORKITEMSREADWRITE environment variable or use -PatToken parameter.'
+[string]$script:ERROR_PAT_TOKEN_MISSING = 'PAT token not available. Set GMD_AZDO_MACHINE_WORKITEMSRW environment variable or use -PatToken parameter.'
 
 # ============================================================================
 # Regex Patterns

@@ -21,7 +21,7 @@ The Epic work item ID to delete (required)
 Switch: If specified, skips confirmation prompt. Use with caution!
 
 .PARAMETER PatToken
-Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW
 environment variable (expected to be encrypted).
 
 .OUTPUTS

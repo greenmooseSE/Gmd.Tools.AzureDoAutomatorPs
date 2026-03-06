@@ -24,7 +24,7 @@ Array of tags to add/replace/remove (required)
 Tag operation mode: 'Add', 'Replace', or 'Remove' (default: 'Replace')
 
 .PARAMETER PatToken
-Optional PAT token for authentication. If not provided, retrieves from FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW
 environment variable (expected to be encrypted).
 
 .OUTPUTS
@@ -106,8 +106,8 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
         $PatToken = Get-AzDoPatToken -Decrypt
     }
     catch {
-        & "$PSScriptRoot/ssLogIt.ps1" -Level Error -Message "PAT token retrieval failed. Provide -PatToken or set FALCOIT_AZDO_PAT_WORKITEMSREADWRITE environment variable (encrypted) or set `$pat variable in session."
-        throw "PAT token retrieval failed. Provide -PatToken or set FALCOIT_AZDO_PAT_WORKITEMSREADWRITE environment variable (encrypted) or set `$pat variable in session."
+        & "$PSScriptRoot/ssLogIt.ps1" -Level Error -Message "PAT token retrieval failed. Provide -PatToken or set GMD_AZDO_MACHINE_WORKITEMSRW environment variable (encrypted) or set `$pat variable in session."
+        throw "PAT token retrieval failed. Provide -PatToken or set GMD_AZDO_MACHINE_WORKITEMSRW environment variable (encrypted) or set `$pat variable in session."
     }
 }
 
@@ -223,8 +223,8 @@ try {
         $headers = New-AzDoAuthHeader -PatToken $PatToken
     }
     catch {
-        & "$PSScriptRoot/ssLogIt.ps1" -Level Error -Message "Failed to create authentication header. Provide -PatToken or set FALCOIT_AZDO_PAT_WORKITEMSREADWRITE environment variable or set `$pat in session."
-        throw "Failed to create authentication header. Provide -PatToken or set FALCOIT_AZDO_PAT_WORKITEMSREADWRITE environment variable or set `$pat in session."
+        & "$PSScriptRoot/ssLogIt.ps1" -Level Error -Message "Failed to create authentication header. Provide -PatToken or set GMD_AZDO_MACHINE_WORKITEMSRW environment variable or set `$pat in session."
+        throw "Failed to create authentication header. Provide -PatToken or set GMD_AZDO_MACHINE_WORKITEMSRW environment variable or set `$pat in session."
     }
 
     $headers['Content-Type'] = 'application/json-patch+json'

@@ -12,7 +12,7 @@ Supports:
 
 .NOTES
 Uses ssEncryptDecrypt.ps1 for token decryption when needed.
-Default environment variable: FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+Default environment variable: GMD_AZDO_MACHINE_WORKITEMSRW
 #>
 
 #Requires -Version 7.0
@@ -55,7 +55,7 @@ Get the Azure DevOps PAT token from environment
 
 .DESCRIPTION
 Retrieves the PAT token from environment variable, with optional decryption.
-Defaults to FALCOIT_AZDO_PAT_WORKITEMSREADWRITE which is expected to be encrypted.
+Defaults to GMD_AZDO_MACHINE_WORKITEMSRW which is expected to be encrypted.
 
 .PARAMETER PatToken
 Optional: Provide explicit PAT token. If not provided, retrieves from environment.
@@ -80,7 +80,7 @@ function Get-AzDoPatToken {
         [Parameter(ValueFromPipeline = $true)]
         [string]$PatToken,
 
-        [string]$EnvironmentVariableName = 'FALCOIT_AZDO_PAT_WORKITEMSREADWRITE',
+        [string]$EnvironmentVariableName = 'GMD_AZDO_MACHINE_WORKITEMSRW',
 
         [switch]$Decrypt
     )

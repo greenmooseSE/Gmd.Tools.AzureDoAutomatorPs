@@ -13,7 +13,7 @@ Azure DevOps organization name (required)
 Azure DevOps project name (required)
 
 .PARAMETER PatToken
-Optional PAT token. If not provided, uses FALCOIT_AZDO_PAT_WORKITEMSREADWRITE
+Optional PAT token. If not provided, uses GMD_AZDO_MACHINE_WORKITEMSRW
 from the environment (encrypted) and decrypts it.
 
 .OUTPUTS

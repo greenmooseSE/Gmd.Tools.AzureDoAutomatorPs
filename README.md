@@ -42,7 +42,7 @@ Store your Azure DevOps Personal Access Token securely:
 # Option A: Set encrypted environment variable (recommended)
 $token = "your-pat-token-here"
 $encrypted = $token | ssEncryptDecrypt.ps1 -Encrypt
-[Environment]::SetEnvironmentVariable('FALCOIT_AZDO_PAT_WORKITEMSREADWRITE', $encrypted, 'User')
+[Environment]::SetEnvironmentVariable('GMD_AZDO_MACHINE_WORKITEMSRW', $encrypted, 'User')
 
 # Option B: Pass token directly to scripts (less secure)
 $script = ".\New-AzDoFeature.ps1 -Organization myorg -Project myproj -Title 'Feature' -PatToken $token"
@@ -393,7 +393,7 @@ $result.Cancelled      # Whether user cancelled operation
 ## Environment Variables
 
 ### Required
-- **FALCOIT_AZDO_PAT_WORKITEMSREADWRITE**: Personal Access Token (recommended: encrypted)
+- **GMD_AZDO_MACHINE_WORKITEMSRW**: Personal Access Token (recommended: encrypted)
 
 ## Logging Output
 
@@ -831,8 +831,8 @@ $result.CreatedItems | ForEach-Object {
 - Check: `Get-Command ssLogIt.ps1`
 
 ### PAT token errors
-- Verify `FALCOIT_AZDO_PAT_WORKITEMSREADWRITE` is set
-- Test decryption: `$env:FALCOIT_AZDO_PAT_WORKITEMSREADWRITE | ssEncryptDecrypt.ps1 -Decrypt`
+- Verify `GMD_AZDO_MACHINE_WORKITEMSRW` is set
+- Test decryption: `$env:GMD_AZDO_MACHINE_WORKITEMSRW | ssEncryptDecrypt.ps1 -Decrypt`
 - Ensure PAT token has "Work Items (Read & Write)" scope
 - Check token hasn't expired in Azure DevOps
 

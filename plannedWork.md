@@ -31,7 +31,7 @@ Build a comprehensive PowerShell script collection for automating Azure DevOps w
 - Function to get PAT token (with optional decryption fallback)
 - Function to create basic auth header for AzDO API calls
 - Validate PAT token is not empty
-- Default: `($env:FALCOIT_AZDO_PAT_WORKITEMSREADWRITE | ssEncryptDecrypt.ps1 -Decrypt)`
+- Default: `($env:GMD_AZDO_MACHINE_WORKITEMSRW | ssEncryptDecrypt.ps1 -Decrypt)`
 
 **Verification Checklist:**
 - [x] File created with stop error preference
