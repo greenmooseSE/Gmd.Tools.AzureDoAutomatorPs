@@ -125,20 +125,31 @@ try {
     $null = & ssLogIt.ps1 -Level Debug -Message "Fetching Tasks for Story (ID: $StoryId)"
     
     $taskIds = @()
+    $bugIds = @()
     
-    # Extract child Task IDs from relations array (System.LinkTypes.Hierarchy-Forward links)
+    # Extract child Task IDs and Bug IDs from relations array (System.LinkTypes.Hierarchy-Forward links)
     if ($null -ne $storyWorkItem.relations) {
         $childRelations = $storyWorkItem.relations | Where-Object { $_.rel -eq 'System.LinkTypes.Hierarchy-Forward' }
         foreach ($relation in $childRelations) {
             # Extract work item ID from URL (e.g., .../workItems/1322)
             $childId = [int]($relation.url -split '/' | Select-Object -Last 1)
             if ($childId -gt 0 -and $childId -ne $StoryId) {  # Exclude self-references
-                $taskIds += $childId
+                # Get the work item type to determine if it's a Task or Bug
+                $childWorkItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $childId -PatToken $PatToken
+                if ($null -ne $childWorkItem) {
+                    $workItemType = $childWorkItem.fields.'System.WorkItemType'
+                    if ($workItemType -eq 'Task') {
+                        $taskIds += $childId
+                    }
+                    elseif ($workItemType -eq 'Bug') {
+                        $bugIds += $childId
+                    }
+                }
             }
         }
     }
     
-    $null = & ssLogIt.ps1 -Level Debug -Message "Found $($taskIds.Count) child Task IDs from relations"
+    $null = & ssLogIt.ps1 -Level Debug -Message "Found $($taskIds.Count) Task(s) and $($bugIds.Count) Bug(s) from relations"
     
     # Build Tasks array
     $tasksArray = @()
@@ -171,10 +182,48 @@ try {
         $null = & ssLogIt.ps1 -Level Info -Message "No Tasks found for Story"
     }
 
-    # Add Tasks to story details
-    $storyDetails | Add-Member -NotePropertyName Tasks -NotePropertyValue $tasksArray
+    # Build Bugs array
+    $bugsArray = @()
 
-    $null = & ssLogIt.ps1 -Level Info -Message "Successfully built Story hierarchy with $($tasksArray.Count) Task(s)"
+    if ($bugIds.Count -gt 0) {
+        foreach ($bugId in $bugIds) {
+            try {
+                $null = & ssLogIt.ps1 -Level Debug -Message "Processing Bug (ID: $bugId)"
+
+                # Get full bug details
+                $bug = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $bugId -PatToken $PatToken
+
+                if ($null -ne $bug) {
+                    $bugObject = @{
+                        Id = $bug.id
+                        State = $bug.fields.'System.State'
+                        Title = $bug.fields.'System.Title'
+                        Description = if ($bug.fields.PSObject.Properties.Name -contains 'System.Description') { $bug.fields.'System.Description' } else { $null }
+                        Priority = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.Priority') { $bug.fields.'Microsoft.VSTS.Common.Priority' } else { $null }
+                        ReproSteps = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.TCM.ReproSteps') { $bug.fields.'Microsoft.VSTS.TCM.ReproSteps' } else { $null }
+                        SystemInfo = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.TCM.SystemInfo') { $bug.fields.'Microsoft.VSTS.TCM.SystemInfo' } else { $null }
+                        StoryPoints = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $bug.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
+                        FoundInBuild = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.FoundInBuild') { $bug.fields.'Microsoft.VSTS.Build.FoundInBuild' } else { $null }
+                        IntegratedInBuild = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.IntegratedInBuild') { $bug.fields.'Microsoft.VSTS.Build.IntegratedInBuild' } else { $null }
+                        Tags = if ($bug.fields.PSObject.Properties.Name -contains 'System.Tags') { $bug.fields.'System.Tags' } else { $null }
+                    }
+                    $bugsArray += [PSCustomObject]$bugObject
+                }
+            }
+            catch {
+                $null = & ssLogIt.ps1 -Level Warn -Message "Could not fetch Bug $bugId : $_"
+            }
+        }
+    }
+    else {
+        $null = & ssLogIt.ps1 -Level Debug -Message "No Bugs found for Story"
+    }
+
+    # Add Tasks and Bugs to story details
+    $storyDetails | Add-Member -NotePropertyName Tasks -NotePropertyValue $tasksArray
+    $storyDetails | Add-Member -NotePropertyName Bugs -NotePropertyValue $bugsArray
+
+    $null = & ssLogIt.ps1 -Level Info -Message "Successfully built Story hierarchy with $($tasksArray.Count) Task(s) and $($bugsArray.Count) Bug(s)"
 
     return $storyDetails
 }

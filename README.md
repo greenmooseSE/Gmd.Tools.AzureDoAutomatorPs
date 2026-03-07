@@ -22,6 +22,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Automation Scripts](#automation-scripts)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
+- [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -302,6 +303,128 @@ $result = .\RemoveAzDoTask.ps1 `
 - Without `-Force`: Displays task details and prompts for confirmation (requires "YES" response)
 - With `-Force`: Deletes immediately without confirmation
 - Returns summary with deletion status
+
+### Bug Management
+
+#### `UpsertAzDoBug.ps1`
+Create or update Bugs (UPSERT operation) with full field support. Bugs support priority levels, reproduction steps, system information, and integration build tracking.
+
+```powershell
+# Create or update Bug by title (standard UPSERT)
+$bug = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Login screen crashes on invalid input" `
+    -Description "When entering special characters in password field, app crashes" `
+    -Priority 1 `
+    -ReproSteps "1. Open login page 2. Enter special characters in password 3. Click submit" `
+    -SystemInfo "Windows 11, Chrome 120" `
+    -StoryPoints 5
+
+# Create Bug under a Story
+$bug = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "API returns 500 error" `
+    -Priority 2 `
+    -ParentStoryId 456 `
+    -FoundInBuild "Build 2026.3.1" `
+    -IntegratedInBuild "Build 2026.3.2"
+
+# Create Bug only if title doesn't exist
+$bug = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "New Bug" `
+    -Priority 3 `
+    -FailIfExist
+
+# Update existing Bug by ID directly
+$bug = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id 789 `
+    -Priority 1 `
+    -ReproSteps "Updated reproduction steps"
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `Title` (required for create, optional for ID-based update): Bug title
+- `Id` (optional): Bug ID for direct update (cannot be used with `-FailIfExist`)
+- `Description` (optional): Bug description
+- `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
+- `ReproSteps` (optional): Steps to reproduce the bug
+- `SystemInfo` (optional): System/environment information
+- `StoryPoints` (optional): Story points (non-negative integer)
+- `FoundInBuild` (optional): Build where bug was found
+- `IntegratedInBuild` (optional): Build where fix was integrated
+- `ParentStoryId` (optional): Parent Story ID (for creation only)
+- `FailIfExist` (switch): Create-only mode; fails if bug exists (cannot be used with `-Id`)
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- If `-Id` provided: Updates Bug by ID directly (no title-based lookup)
+- If `-Id` not provided: UPSERT by Title (updates if exists, creates if not)
+  - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
+- Returns complete Bug object as JSON
+
+#### `GetAzDoBug.ps1`
+Retrieve a Bug work item with all metadata including comments and tags.
+
+```powershell
+# Get Bug by ID
+$bug = .\GetAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId 789
+
+# Access bug properties
+Write-Host "Title: $($bug.fields.'System.Title')"
+Write-Host "Priority: $($bug.fields.'Microsoft.VSTS.Common.Priority')"
+Write-Host "Repro Steps: $($bug.fields.'Microsoft.VSTS.TCM.ReproSteps')"
+Write-Host "System Info: $($bug.fields.'Microsoft.VSTS.TCM.SystemInfo')"
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `BugId` (required): Bug ID to retrieve
+- `PatToken` (optional): Override default PAT token
+
+**Output:**
+- Complete Bug work item object as JSON with all fields including Priority, ReproSteps, SystemInfo, StoryPoints, FoundInBuild, IntegratedInBuild, comments, and tags
+
+#### `RemoveAzDoBug.ps1`
+Delete a Bug work item with optional confirmation prompt.
+
+```powershell
+# Delete Bug with confirmation prompt (safe default)
+$result = .\RemoveAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId 789
+
+# Delete Bug without confirmation prompt
+$result = .\RemoveAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId 789 `
+    -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `BugId` (required): Bug ID to delete
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Force`: Displays bug details and prompts for confirmation
+- With `-Force`: Deletes immediately without confirmation
+- Returns summary with deletion status as JSON
 
 #### `GetAzDoWorkItem.ps1`
 Retrieve complete work item information.
@@ -1271,6 +1394,8 @@ All work item titles must include a type prefix to avoid confusion with header l
 - **Epic** titles must start with `Epic: ` (e.g., `# Epic: Customer Portal Redesign`)
 - **Feature** titles must start with `Feature: ` (e.g., `## Feature: User Authentication`)
 - **Story** titles must start with `Story: ` (e.g., `### Story: OAuth 2.0 Implementation`)
+- **Task** titles must start with `Task: ` (e.g., `#### Task: Setup database schema`) - Level 4 headers under Stories
+- **Bug** titles must start with `Bug: ` (e.g., `#### Bug: Login crashes on special characters`) - Level 4 headers under Stories
 
 #### Header Level Requirements
 
@@ -1283,6 +1408,10 @@ To prevent headers in descriptions from being confused with hierarchy markers:
 - **Story descriptions**: Must use headers at level 4 (####) or higher
   - Avoid using `#`, `##`, or `###` in descriptions
   - Example: `#### Scenarios` ✅ (allowed), `### Implementation` ❌ (not allowed)
+
+- **Task and Bug descriptions**: Must use headers at level 5 (#####) or higher
+  - Avoid using `#`, `##`, `###`, or `####` in descriptions
+  - Example: `##### Details` ✅ (allowed), `#### Context` ❌ (not allowed)
 
 #### Basic Structure
 
@@ -1496,6 +1625,117 @@ $updated = .\UpsertAzDoTask.ps1 `
 
 # Delete a Task
 .\RemoveAzDoTask.ps1 -Organization "myorg" -Project "myproj" -TaskId $task.id -Force
+```
+
+### Creating Bugs Within Stories
+
+Bugs are work items designed to track reported issues and defects within a Story. Bugs support priority levels, reproduction steps, system information, and integration build tracking. Bugs can be created automatically with their parent Story as part of the hierarchy markdown processing using `NewAzDoHierarchyFromMarkdown.ps1`.
+
+**Bug Field Reference:**
+
+Bugs support the following fields in markdown:
+- **Description** - Bug description (required)
+- **Priority** - Priority level 1-4 (1=Critical, 2=High, 3=Medium, 4=Low) (required)
+- **ReproSteps** - Steps to reproduce the bug (optional)
+- **SystemInfo** - System and environment information (optional)
+- **StoryPoints** - Story points for estimation (optional)
+- **FoundInBuild** - Build version where bug was found (optional)
+- **IntegratedInBuild** - Build version where fix was integrated (optional)
+- **Tags** - Comma-separated tags (optional)
+
+**Markdown Format for Bugs:**
+
+Bugs are defined as level 4 headers (####) under Stories (level 3 headers ###) using "Bug: " prefix:
+
+```markdown
+### Story: Authentication System
+
+**tags**: authentication, security
+**SP**: 8
+**Description**
+Story description...
+
+#### Bug: Login fails with special characters in password
+
+**Priority**: 1
+
+**Description**: When entering special characters in the password field, the login form crashes.
+
+**ReproSteps**: 1. Open login page
+2. Enter special characters in password field (@#$%^&*)
+3. Click submit
+
+**SystemInfo**: Windows 11, Chrome 120, Firefox 121
+
+**FoundInBuild**: Build 2026.3.0
+
+**IntegratedInBuild**: Build 2026.3.1
+
+#### Bug: API returns 500 error intermittently
+
+**Priority**: 2
+
+**Description**: API endpoint returns 500 error intermittently when under load.
+
+**ReproSteps**: 1. Send 100 concurrent requests to API endpoint
+2. Observe response codes
+
+**StoryPoints**: 3
+```
+
+**Workflow:**
+
+1. **Define hierarchy with Bugs in markdown** - Include Bug sections under Stories with 4-level headers (####) and "Bug: " prefix
+2. **Run hierarchy creation** - `NewAzDoHierarchyFromMarkdown.ps1` automatically creates Bugs under their Stories
+3. **Manage Bugs** - Use `UpsertAzDoBug.ps1` for individual Bug creation/updates; `RemoveAzDoBug.ps1` for deletion; `GetAzDoBug.ps1` for retrieval
+
+**Example: Complete Hierarchy with Bugs**
+
+```powershell
+# Create hierarchy from markdown (automatically handles Bugs)
+$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -MarkdownFilePath ".\hierarchy.md"
+
+# Inspect created items including Bugs
+$result.CreatedItems | Where-Object { $_.fields.'System.WorkItemType' -eq 'Bug' } | ForEach-Object {
+    Write-Host "Bug: $($_.fields.'System.Title') (ID: $($_.id), Priority: $($_.fields.'Microsoft.VSTS.Common.Priority'))"
+}
+```
+
+**Programmatic Bug Management:**
+
+If you need to create or update Bugs outside of markdown hierarchy:
+
+```powershell
+# Create a Bug under a Story
+$bug = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "User interface freeze on profile load" `
+    -ParentStoryId 789 `
+    -Priority 1 `
+    -ReproSteps "1. Open profile page 2. Wait 5 seconds" `
+    -SystemInfo "MacOS, Safari 17" `
+    -StoryPoints 5
+
+# Update Bug priority and add reproduction steps
+$updated = .\UpsertAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id $bug.id `
+    -Priority 2 `
+    -IntegratedInBuild "Build 2026.3.2"
+
+# Retrieve Bug details
+$bugDetails = .\GetAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId $bug.id
+
+# Delete a Bug
+.\RemoveAzDoBug.ps1 -Organization "myorg" -Project "myproj" -BugId $bug.id -Force
 ```
 
 ### Usage
