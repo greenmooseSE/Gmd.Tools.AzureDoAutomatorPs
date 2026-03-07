@@ -239,8 +239,8 @@ try {
                 if ($story.PSObject.Properties.Name -notcontains "StoryPoints") {
                     throw "Story missing StoryPoints property"
                 }
-                if ($story.PSObject.Properties.Name -notcontains "Comments") {
-                    throw "Story missing Comments property"
+                if ($story.PSObject.Properties.Name -contains "Comments") {
+                    throw "Story should not have Comments property"
                 }
             }
         }
