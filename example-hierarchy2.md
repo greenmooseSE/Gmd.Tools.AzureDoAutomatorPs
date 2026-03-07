@@ -1,6 +1,6 @@
 # Epic: 🚀 Customer Portal Redesign - Q1 2024
 
-**tags**: customerPortal, frontend, testWi\
+**tags**: customer-portal, redesign, high-priority, frontend\
 **Effort**: 40
 **Description**\
 Complete overhaul of the customer support portal to provide a modern, intuitive interface\
@@ -46,7 +46,7 @@ to enable faster iteration and better scalability.
 
 ## Feature: 🎨 User Authentication & Profile Management
 
-**tags**: authentication, security, testWi\
+**tags**: authentication, user-management, security, auth-v2\
 **Effort**: 13
 **Description**\
 Implement modern OAuth 2.0 authentication with Microsoft Entra ID and allow users\
@@ -63,7 +63,7 @@ communication preferences. All changes are audited and logged for compliance.
 
 ### Story: 🔐 Implement OAuth 2.0 with Microsoft Entra ID
 
-**tags**: authentication, entraId, testWi\
+**tags**: authentication, security, entra-id, oauth\
 **SP**: 8\
 **Description**\
 As a developer, I need to implement OAuth 2.0 authentication integration with Microsoft\
@@ -105,7 +105,7 @@ Entra ID so that users can securely log in with their organizational credentials
 
 ### Story: 👤 User Profile Page & Preferences
 
-**tags**: userProfile, ux, testWi\
+**tags**: user-profile, preferences, ux, user-management\
 **SP**: 5\
 **Description**\
 As a user, I want to view and manage my profile information and preferences so that\
@@ -144,8 +144,6 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 #### Task: Setup User Profile Database Schema
 
-**tags**: testWi  
-
 **Priority**: 2
 
 **Description**: Create database tables and indexes for storing user profile information including name, email, phone, preferences, and audit trail.
@@ -158,7 +156,6 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 #### Task: Implement Profile API Endpoints
 
-**tags**: testWi  
 **Priority**: 1
 
 **Description**: Develop RESTful API endpoints for profile CRUD operations with proper validation and error handling.
@@ -171,7 +168,6 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 #### Task: Build Profile UI Components
 
-**tags**: testWi  
 **Priority**: 2
 
 **Description**: Implement React components for profile page with forms for editing name, email, and preferences.
@@ -184,7 +180,6 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 #### Task: Add Profile Audit Logging
 
-**tags**: testWi  
 **Priority**: 3
 
 **Description**: Implement comprehensive audit trail for all profile changes with UI to display history.
@@ -197,7 +192,6 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 #### Task: Write Profile Integration Tests
 
-**tags**: testWi  
 **Priority**: 2
 
 **Description**: Create comprehensive test suite for profile functionality covering happy path and edge cases.
@@ -210,7 +204,7 @@ These tasks are created as part of the hierarchy under their parent Story:
 
 ## Feature: 📊 Support Ticket Management System
 
-**tags**: ticketing, support, testWi\
+**tags**: ticketing, support, customer-support, workflow\
 **Effort**: 11
 **Description**\
 Complete overhaul of the support ticket system with real-time updates, intelligent\
@@ -227,7 +221,7 @@ with attachments, screen captures, and video call capabilities.
 
 ### Story: 🎫 Create Support Ticket Form
 
-**tags**: ticketing, ui, testWi\
+**tags**: ticketing, ui, forms, customer-support\
 **SP**: 3\
 **Description**\
 As a customer, I want to easily create a support ticket by filling out a simple form\
@@ -262,7 +256,7 @@ so that I can quickly request help from the support team.
 
 ### Story: 🔔 Real-time Ticket Status Updates
 
-**tags**: realTime, notifications, testWi\
+**tags**: real-time, notifications, ticketing, websocket\
 **SP**: 8\
 **Description**\
 As a customer, I want to receive real-time notifications when my support ticket status\
@@ -298,7 +292,7 @@ changes so I'm always informed about the progress of my issue resolution.
 
 ## Feature: 📚 Knowledge Base & Self-Service
 
-**tags**: knowledgeBase, ai, testWi\
+**tags**: knowledge-base, documentation, self-service, ai\
 **Effort**: 8
 **Description**\
 Build an intelligent knowledge base system with full-text search, AI-powered suggestions,\
@@ -307,7 +301,7 @@ and contribute their own solutions to help other users.
 
 ### Story: 🔍 Full-Text Search with AI Suggestions
 
-**tags**: search, ai, testWi\
+**tags**: search, ai, knowledge-base, elasticsearch\
 **SP**: 5\
 **Description**\
 Implement a full-text search engine that returns relevant knowledge base articles\
@@ -343,7 +337,7 @@ with AI-suggested related articles based on semantic similarity.
 
 ### Story: 👥 Community-Contributed Solutions
 
-**tags**: community, crowdsourcing
+**tags**: community, crowdsourcing, user-generated-content\
 **SP**: 3\
 **Description**\
 Allow users to contribute their own solutions to common issues, with community voting\

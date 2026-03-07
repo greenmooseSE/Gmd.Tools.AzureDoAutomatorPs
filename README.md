@@ -6,11 +6,11 @@ Comprehensive PowerShell script collection for automating Azure DevOps work item
 
 This project provides a complete automation toolkit for Azure DevOps work item lifecycle management including:
 
-- **Creating/Updating** Features and Stories
-- **Getting/Setting** work item properties (description, acceptance criteria, story points)
+- **Creating/Updating** Epics, Features, Stories, and Tasks
+- **Getting/Setting** work item properties (description, acceptance criteria, story points, effort)
 - **Managing Tags** (add, replace, remove)
 - **Generating hierarchies** from markdown files
-- **Deleting** Epic and all children with safety confirmations
+- **Deleting** work items (Epics with cascading children, or individual Tasks) with safety confirmations
 
 ## Table of Contents
 
@@ -21,6 +21,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Module Architecture](#module-architecture)
 - [Automation Scripts](#automation-scripts)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
+- [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Example Hierarchy](#example-hierarchy)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -216,6 +217,91 @@ $story = .\UpsertAzDoStory.ps1 `
 - If `-Id` provided: Updates Story by ID directly (no title-based lookup)
 - If `-Id` not provided: UPSERT by Title (updates if exists, creates if not)
   - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
+
+#### `UpsertAzDoTask.ps1`
+Create or update Tasks under a Story using unified UPSERT operation. Tasks are leaf-level work items used to track individual work.
+
+```powershell
+# Create or update Task by title (standard UPSERT)
+$task = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Write unit tests" `
+    -Description "Implement unit tests for login module" `
+    -Effort 3
+
+# Create Task under a Story
+$task = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Implement login validation" `
+    -ParentStoryId 456 `
+    -Description "Validate email format and password strength" `
+    -Effort 5
+
+# Create Task only if title doesn't exist
+$task = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "New Task" `
+    -ParentStoryId 456 `
+    -FailIfExist
+
+# Update existing Task by ID directly
+$task = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id 789 `
+    -State "In Progress" `
+    -Effort 2
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `Title` (required for create, optional for ID-based update): Task title
+- `Id` (optional): Task ID for direct update (cannot be used with `-FailIfExist`)
+- `Description` (optional): Task description
+- `Effort` (optional): Effort value (non-negative integer)
+- `State` (optional): Task state (e.g., "To Do", "In Progress", "Done")
+- `ParentStoryId` (optional): Parent Story ID (for creation only)
+- `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- If `-Id` provided: Updates Task by ID directly (no title-based lookup)
+- If `-Id` not provided: UPSERT by Title (updates if exists, creates if not)
+  - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
+
+#### `RemoveAzDoTask.ps1`
+Delete a Task work item with optional confirmation prompt.
+
+```powershell
+# Delete Task with confirmation prompt (safe default)
+$result = .\RemoveAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -TaskId 789
+
+# Delete Task without confirmation prompt
+$result = .\RemoveAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -TaskId 789 `
+    -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `TaskId` (required): Task ID to delete
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Force`: Displays task details and prompts for confirmation (requires "YES" response)
+- With `-Force`: Deletes immediately without confirmation
+- Returns summary with deletion status
 
 #### `GetAzDoWorkItem.ps1`
 Retrieve complete work item information.
@@ -1096,6 +1182,106 @@ See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-re
 - Story points estimation
 - Real-world use cases (Customer Portal Redesign with authentication, ticketing, and knowledge base features)
 - Trailing backslashes for enforcing newlines in markdown
+- **Tasks under Stories** - Examples of leaf-level work items
+
+### Creating Tasks Within Stories
+
+Tasks are leaf-level work items designed to track individual work items within a Story. Tasks are created automatically with their parent Story as part of the hierarchy markdown processing using `NewAzDoHierarchyFromMarkdown.ps1`.
+
+**Task Field Reference:**
+
+Tasks support the following fields in markdown (no Effort or Acceptance Criteria):
+- **Description** - Task description (required)
+- **Priority** - Priority level 1-4 (1=Critical, 2=High, 3=Medium, 4=Low)
+- **Original Estimate** - Estimated hours to complete (hours)
+- **Remaining** - Remaining hours of work (hours)
+- **Completed** - Hours of work completed (hours)
+- **Tags** - Comma-separated tags (optional)
+
+**Markdown Format for Tasks:**
+
+Tasks are defined as level 4 headers (####) under Stories (level 3 headers ###):
+
+```markdown
+### Story: User Profile Page & Preferences
+
+**tags**: user-profile, preferences
+**SP**: 5
+**Description**
+Story description...
+
+#### Task: Setup User Profile Database Schema
+
+**Priority**: 2
+
+**Description**: Create database tables for storing user profile information.
+
+**Original Estimate**: 8
+
+**Remaining**: 8
+
+**Completed**: 0
+
+#### Task: Implement Profile API Endpoints
+
+**Priority**: 1
+
+**Description**: Develop API endpoints for profile CRUD operations.
+
+**Original Estimate**: 13
+
+**Remaining**: 13
+
+**Completed**: 0
+```
+
+**Workflow:**
+
+1. **Define hierarchy with Tasks in markdown** - Include Task sections under Stories with 4-level headers (####)
+2. **Run hierarchy creation** - `NewAzDoHierarchyFromMarkdown.ps1` automatically creates Tasks under their Stories
+3. **Manage Tasks** - Use `UpsertAzDoTask.ps1` for individual Task creation/updates; `RemoveAzDoTask.ps1` for deletion
+
+**Example: Complete Hierarchy with Tasks**
+
+```powershell
+# Create hierarchy from markdown (automatically handles Tasks)
+$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -MarkdownFilePath ".\hierarchy.md"
+
+# Inspect created items including Tasks
+$result.CreatedItems | Where-Object { $_.fields.'System.WorkItemType' -eq 'Task' } | ForEach-Object {
+    Write-Host "Task: $($_.fields.'System.Title') (ID: $($_.id))"
+}
+```
+
+**Programmatic Task Management:**
+
+If you need to create or update Tasks outside of markdown hierarchy:
+
+```powershell
+# Create a Task under a Story
+$task = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Implement authentication" `
+    -ParentStoryId 789 `
+    -Priority 1 `
+    -OriginalEstimate 13 `
+    -RemainingWork 13
+
+# Update Task progress
+$updated = .\UpsertAzDoTask.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id $task.id `
+    -RemainingWork 8 `
+    -State "In Progress"
+
+# Delete a Task
+.\RemoveAzDoTask.ps1 -Organization "myorg" -Project "myproj" -TaskId $task.id -Force
+```
 
 ### Usage
 

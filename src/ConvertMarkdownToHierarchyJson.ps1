@@ -87,20 +87,106 @@ $ErrorActionPreference = 'Stop'
 
 <#
 .SYNOPSIS
+Builds error message with file context
+#>
+function Build-ErrorMessageWithContext {
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyCollection()]
+        [object[]]$FileLines,
+        [Parameter(Mandatory = $true)]
+        [int]$ErrorFileLineNum,      # 0-based line number in file where error occurred
+        [Parameter(Mandatory = $true)]
+        [string]$ErrorMessage
+    )
+    
+    # If file lines not available, return simple message
+    if ($null -eq $FileLines -or $FileLines.Count -eq 0) {
+        return $ErrorMessage
+    }
+    
+    [int]$contextBefore = 3
+    [int]$contextAfter = 3
+    [int]$startLine = [Math]::Max(0, $ErrorFileLineNum - $contextBefore)
+    [int]$endLine = [Math]::Min($FileLines.Count - 1, $ErrorFileLineNum + $contextAfter)
+    
+    [string]$context = "`n`nFile context around error (lines $($startLine+1)-$($endLine+1)):`n"
+    $context += "=" * 70 + "`n"
+    
+    for ($i = $startLine; $i -le $endLine; $i++) {
+        [string]$lineNum = ($i + 1).ToString()
+        [string]$marker = ($i -eq $ErrorFileLineNum) ? ">>> " : "    "
+        [string]$line = $FileLines[$i]
+        if ($line.Length -gt 100) {
+            $line = $line.Substring(0, 100) + "..."
+        }
+        $context += "$marker$($lineNum.PadLeft(4)): $line`n"
+    }
+    $context += "=" * 70
+    
+    return "$ErrorMessage$context"
+}
+
+<#
+.SYNOPSIS
+Checks if a line is a structural header (work item or section marker)
+Structural headers should be skipped when validating content headers in descriptions
+#>
+function Test-IsStructuralHeader {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Line
+    )
+    
+    # Match work item headers: "# Epic:", "## Feature:", "### Story:", "#### Task:", "#### Bug:"
+    if ($Line -match '^\#+\s+(Epic|Feature|Story|Task|Bug):\s') {
+        return $true
+    }
+    
+    # Match section headers
+    if ($Line -match '^\#+\s+(Acceptance Criteria|AC Scenarios|Extra Information|Repro Steps|System Info|Found in Build|Integrated in Build)') {
+        return $true
+    }
+    
+    return $false
+}
+
+<#
+.SYNOPSIS
 Validates that epic and feature descriptions don't have headers at levels 1-2
+(excluding structural headers for work items and sections)
 #>
 function Test-DescriptionHeaderLevelsForEpicFeature {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Description,
         [Parameter(Mandatory = $true)]
-        [string]$ItemType  # 'Epic' or 'Feature'
+        [string]$ItemType,  # 'Epic' or 'Feature'
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyCollection()]
+        [object[]]$FileLines,
+        [Parameter(Mandatory = $false)]
+        [int]$DescriptionStartFileLineNum = -1  # 0-based, where description started in file
     )
     
     [string[]]$lines = $Description -split "`n"
     for ($i = 0; $i -lt $lines.Count; $i++) {
+        # Skip if this is a structural header (work item or section)
+        if (Test-IsStructuralHeader -Line $lines[$i]) {
+            continue
+        }
+        
         if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2) {
-            throw "$ItemType description at line $i contains level 1/2 header (# or ##). Headers in $ItemType descriptions must start at level 3 (###) or higher to distinguish from hierarchy headers."
+            [string]$basicMsg = "$ItemType description contains level 1/2 header (# or ##) at relative line $($i+1). Headers in $ItemType descriptions must start at level 3 (###) or higher to distinguish from hierarchy headers."
+            
+            if ($null -ne $FileLines -and $FileLines.Count -gt 0 -and $DescriptionStartFileLineNum -ge 0) {
+                [int]$errorFileLineNum = $DescriptionStartFileLineNum + $i
+                [string]$fullMsg = Build-ErrorMessageWithContext -FileLines $FileLines -ErrorFileLineNum $errorFileLineNum -ErrorMessage $basicMsg
+                throw $fullMsg
+            }
+            else {
+                throw $basicMsg
+            }
         }
     }
 }
@@ -108,17 +194,37 @@ function Test-DescriptionHeaderLevelsForEpicFeature {
 <#
 .SYNOPSIS
 Validates that story descriptions don't have headers at levels 1-3
+(excluding structural headers for work items and sections)
 #>
 function Test-DescriptionHeaderLevelsForStory {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Description
+        [string]$Description,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyCollection()]
+        [object[]]$FileLines,
+        [Parameter(Mandatory = $false)]
+        [int]$DescriptionStartFileLineNum = -1  # 0-based, where description started in file
     )
     
     [string[]]$lines = $Description -split "`n"
     for ($i = 0; $i -lt $lines.Count; $i++) {
+        # Skip if this is a structural header (work item or section)
+        if (Test-IsStructuralHeader -Line $lines[$i]) {
+            continue
+        }
+        
         if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3) {
-            throw "Story description at line $i contains level 1/2/3 header (#, ##, or ###). Headers in story descriptions must start at level 4 (####) or higher to distinguish from hierarchy headers."
+            [string]$basicMsg = "Story description contains level 1/2/3 header (#, ##, or ###) at relative line $($i+1). Headers in story descriptions must start at level 4 (####) or higher to distinguish from hierarchy headers."
+            
+            if ($null -ne $FileLines -and $FileLines.Count -gt 0 -and $DescriptionStartFileLineNum -ge 0) {
+                [int]$errorFileLineNum = $DescriptionStartFileLineNum + $i
+                [string]$fullMsg = Build-ErrorMessageWithContext -FileLines $FileLines -ErrorFileLineNum $errorFileLineNum -ErrorMessage $basicMsg
+                throw $fullMsg
+            }
+            else {
+                throw $basicMsg
+            }
         }
     }
 }
@@ -126,17 +232,75 @@ function Test-DescriptionHeaderLevelsForStory {
 <#
 .SYNOPSIS
 Validates that bug descriptions don't have headers at levels 1-4
+(excluding structural headers for work items and sections)
 #>
 function Test-DescriptionHeaderLevelsForBug {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Description
+        [string]$Description,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyCollection()]
+        [object[]]$FileLines,
+        [Parameter(Mandatory = $false)]
+        [int]$DescriptionStartFileLineNum = -1  # 0-based, where description started in file
     )
     
     [string[]]$lines = $Description -split "`n"
     for ($i = 0; $i -lt $lines.Count; $i++) {
+        # Skip if this is a structural header (work item or section)
+        if (Test-IsStructuralHeader -Line $lines[$i]) {
+            continue
+        }
+        
         if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3_4) {
-            throw "Bug description at line $i contains level 1/2/3/4 header (#, ##, ###, or ####). Headers in bug descriptions must start at level 5 (#####) or higher to distinguish from hierarchy headers."
+            [string]$basicMsg = "Bug description contains level 1/2/3/4 header (#, ##, ###, or ####) at relative line $($i+1). Headers in bug descriptions must start at level 5 (#####) or higher to distinguish from hierarchy headers."
+            
+            if ($null -ne $FileLines -and $FileLines.Count -gt 0 -and $DescriptionStartFileLineNum -ge 0) {
+                [int]$errorFileLineNum = $DescriptionStartFileLineNum + $i
+                [string]$fullMsg = Build-ErrorMessageWithContext -FileLines $FileLines -ErrorFileLineNum $errorFileLineNum -ErrorMessage $basicMsg
+                throw $fullMsg
+            }
+            else {
+                throw $basicMsg
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Validates that task descriptions don't have headers at levels 1-4
+(excluding structural headers for work items and sections)
+#>
+function Test-DescriptionHeaderLevelsForTask {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Description,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyCollection()]
+        [object[]]$FileLines,
+        [Parameter(Mandatory = $false)]
+        [int]$DescriptionStartFileLineNum = -1  # 0-based, where description started in file
+    )
+    
+    [string[]]$lines = $Description -split "`n"
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        # Skip if this is a structural header (work item or section)
+        if (Test-IsStructuralHeader -Line $lines[$i]) {
+            continue
+        }
+        
+        if ($lines[$i] -match $script:REGEX_MARKDOWN_HEADER_LEVEL_1_2_3_4) {
+            [string]$basicMsg = "Task description contains level 1/2/3/4 header (#, ##, ###, or ####) at relative line $($i+1). Headers in task descriptions must start at level 5 (#####) or higher to distinguish from hierarchy headers."
+            
+            if ($null -ne $FileLines -and $FileLines.Count -gt 0 -and $DescriptionStartFileLineNum -ge 0) {
+                [int]$errorFileLineNum = $DescriptionStartFileLineNum + $i
+                [string]$fullMsg = Build-ErrorMessageWithContext -FileLines $FileLines -ErrorFileLineNum $errorFileLineNum -ErrorMessage $basicMsg
+                throw $fullMsg
+            }
+            else {
+                throw $basicMsg
+            }
         }
     }
 }
@@ -158,12 +322,14 @@ Write-Debug "Parsing markdown file: $MarkdownFilePath"
 [hashtable]$currentFeature = $null
 [hashtable]$currentStory = $null
 [hashtable]$currentBug = $null
+[hashtable]$currentTask = $null
 
 # State machine for parsing
-[string]$currentLineType = $null # 'epic', 'feature', 'story', 'bug', 'epic_desc', 'feature_desc', 'story_desc', 'bug_desc', 'section'
+[string]$currentLineType = $null # 'epic', 'feature', 'story', 'bug', 'task', 'epic_desc', 'feature_desc', 'story_desc', 'bug_desc', 'task_desc', 'section'
 [string]$currentSectionType = $null # 'AC', 'ACS', 'EI', 'RS', 'SI', 'FIB', 'IIB'
 [string[]]$descriptionLines = @()
 [string[]]$sectionLines = @()
+[int]$descriptionStartFileLineNum = -1  # Track where description started in file (for error context)
 
 Write-Debug "Starting markdown parse..."
 
@@ -192,13 +358,17 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 elseif ($currentLineType -eq 'feature_desc') {
                     $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC)
                 }
-                # For Story descriptions: stop at ### Story: or #### Bug: or ## Feature: or # Epic: or #### SectionHeader
+                # For Story descriptions: stop at ### Story: or #### Task: or #### Bug: or ## Feature: or # Epic: or #### SectionHeader
                 elseif ($currentLineType -eq 'story_desc') {
-                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_TASK) -or ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match $script:REGEX_MARKDOWN_SECTION_HEADER)
                 }
-                # For Bug descriptions: stop at #### Bug: or ### Story: or ## Feature: or # Epic: or ##### SectionHeader
+                # For Task descriptions: stop at #### Task: or #### Bug: or ### Story: or ## Feature: or # Epic: or ##### SectionHeader
+                elseif ($currentLineType -eq 'task_desc') {
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_TASK) -or ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match '^\#\#\#\#\#\s')
+                }
+                # For Bug descriptions: stop at #### Bug: or #### Task: or ### Story: or ## Feature: or # Epic: or ##### SectionHeader
                 elseif ($currentLineType -eq 'bug_desc') {
-                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match '^\#\#\#\#\#\s')
+                    $isHierarchyBoundary = ($nextLine -match $script:REGEX_MARKDOWN_BUG) -or ($nextLine -match $script:REGEX_MARKDOWN_TASK) -or ($nextLine -match $script:REGEX_MARKDOWN_STORY) -or ($nextLine -match $script:REGEX_MARKDOWN_FEATURE) -or ($nextLine -match $script:REGEX_MARKDOWN_EPIC) -or ($nextLine -match '^\#\#\#\#\#\s')
                 }
                 
                 if (-not $isHierarchyBoundary) {
@@ -211,23 +381,24 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentEpic['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentFeature['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-                    Test-DescriptionHeaderLevelsForStory -Description $desc
+                    Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentStory['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentBug['description'] = $desc
                 }
                 Write-Debug "Finalized description from empty line(s)"
                 $descriptionLines = @()
+                $descriptionStartFileLineNum = -1
                 $currentLineType = $null
             }
         }
@@ -235,29 +406,31 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
     }
 
     # Section headers (#### ...) - but only finalize description if we're in a story or bug
-    if ($line -match $script:REGEX_MARKDOWN_SECTION_HEADER) {
+    # Important: Check for Task/Bug headers first to avoid matching them as generic section headers
+    if ($line -match $script:REGEX_MARKDOWN_SECTION_HEADER -and -not ($line -match $script:REGEX_MARKDOWN_TASK) -and -not ($line -match $script:REGEX_MARKDOWN_BUG)) {
         # Only treat as section header if we're collecting story description, in section mode, or have an active story
         if ($currentLineType -eq 'story_desc' -or $currentLineType -eq 'section' -or ($null -ne $currentStory -and [string]::IsNullOrWhiteSpace($currentLineType))) {
             # Finalize any active description first
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentEpic['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                    Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentFeature['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-                    Test-DescriptionHeaderLevelsForStory -Description $desc
+                    Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentStory['description'] = $desc
                 }
                 elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentBug['description'] = $desc
                 }
                 $descriptionLines = @()
+                $descriptionStartFileLineNum = -1
             }
             
             # Finalize any active section before starting a new one
@@ -316,10 +489,11 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             if ($descriptionLines.Count -gt 0) {
                 [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
                 if ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-                    Test-DescriptionHeaderLevelsForBug -Description $desc
+                    Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentBug['description'] = $desc
                 }
                 $descriptionLines = @()
+                $descriptionStartFileLineNum = -1
             }
             
             # Finalize any active section before starting a new one
@@ -390,10 +564,11 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
             if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentEpic['description'] = $desc
             }
             $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
         }
         
         [string]$epicTitle = $matches[1].Trim()
@@ -420,14 +595,15 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
             if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentEpic['description'] = $desc
             }
             elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentFeature['description'] = $desc
             }
             $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
         }
         
         [string]$featureTitle = $matches[1].Trim()
@@ -458,22 +634,23 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
             if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentEpic['description'] = $desc
             }
             elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentFeature['description'] = $desc
             }
             elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-                Test-DescriptionHeaderLevelsForStory -Description $desc
+                Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentStory['description'] = $desc
             }
             elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-                Test-DescriptionHeaderLevelsForBug -Description $desc
+                Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentBug['description'] = $desc
             }
             $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
         }
         
         [string]$storyTitle = $matches[1].Trim()
@@ -492,6 +669,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             acScenarios          = $null
             extraInformation     = $null
             bugs                 = @()
+            tasks                = @()
         }
         $currentFeature.stories += $currentStory
         $currentBug = $null
@@ -500,27 +678,79 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         continue
     }
 
+    if ($line -match $script:REGEX_MARKDOWN_TASK) {
+        # Finalize any pending description
+        if ($descriptionLines.Count -gt 0) {
+            [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
+            if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentEpic['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentFeature['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
+                Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentStory['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
+                Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentBug['description'] = $desc
+            }
+            elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+                Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentTask['description'] = $desc
+            }
+            $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
+        }
+        
+        [string]$taskTitle = $matches[1].Trim()
+        if ([string]::IsNullOrWhiteSpace($taskTitle)) {
+            throw "Invalid Task title at line $($lineNum+1) : Title cannot be empty"
+        }
+        if ($null -eq $currentStory) {
+            throw "Task found at line $($lineNum+1) but no parent Story: $taskTitle"
+        }
+        $currentTask = @{
+            title                = $taskTitle
+            tags                 = @()
+            description          = $null
+            priority             = $null
+            originalEstimate     = $null
+            remainingWork        = $null
+            completedWork        = $null
+        }
+        $currentStory.tasks += $currentTask
+        $currentBug = $null
+        $currentLineType = 'task'
+        Write-Debug "Found Task: $taskTitle"
+        continue
+    }
+
     if ($line -match $script:REGEX_MARKDOWN_BUG) {
         # Finalize any pending description
         if ($descriptionLines.Count -gt 0) {
             [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
             if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentEpic['description'] = $desc
             }
             elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+                Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentFeature['description'] = $desc
             }
             elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-                Test-DescriptionHeaderLevelsForStory -Description $desc
+                Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentStory['description'] = $desc
             }
             elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-                Test-DescriptionHeaderLevelsForBug -Description $desc
+                Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentBug['description'] = $desc
             }
             $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
         }
         
         [string]$bugTitle = $matches[1].Trim()
@@ -566,7 +796,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         
         if (-not [string]::IsNullOrWhiteSpace($tagsStr)) {
             [string[]]$tagsList = @($tagsStr -split ',' | ForEach-Object { $_.Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-            if ($null -ne $currentStory) {
+            if ($null -ne $currentTask) {
+                $currentTask['tags'] = $tagsList
+            }
+            elseif ($null -ne $currentStory) {
                 $currentStory['tags'] = $tagsList
             }
             elseif ($null -ne $currentFeature) {
@@ -601,10 +834,51 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         if ($priority -lt 1 -or $priority -gt 4) {
             throw "Invalid Priority at line $($lineNum+1) : Must be between 1 and 4. Found: $priority"
         }
-        if ($null -eq $currentBug) {
-            throw "Priority found at line $($lineNum+1) but no parent Bug"
+        if ($null -ne $currentTask) {
+            $currentTask['priority'] = $priority
         }
-        $currentBug['priority'] = $priority
+        elseif ($null -eq $currentBug) {
+            throw "Priority found at line $($lineNum+1) but no parent Task or Bug"
+        }
+        else {
+            $currentBug['priority'] = $priority
+        }
+        continue
+    }
+
+    if ($line -match $script:REGEX_MARKDOWN_ORIGINAL_ESTIMATE) {
+        [double]$estimate = [double]$matches[1]
+        if ($estimate -lt 0) {
+            throw "Invalid Original Estimate at line $($lineNum+1) : Must be non-negative. Found: $estimate"
+        }
+        if ($null -eq $currentTask) {
+            throw "Original Estimate found at line $($lineNum+1) but no parent Task"
+        }
+        $currentTask['originalEstimate'] = $estimate
+        continue
+    }
+
+    if ($line -match $script:REGEX_MARKDOWN_REMAINING) {
+        [double]$remaining = [double]$matches[1]
+        if ($remaining -lt 0) {
+            throw "Invalid Remaining Work at line $($lineNum+1) : Must be non-negative. Found: $remaining"
+        }
+        if ($null -eq $currentTask) {
+            throw "Remaining Work found at line $($lineNum+1) but no parent Task"
+        }
+        $currentTask['remainingWork'] = $remaining
+        continue
+    }
+
+    if ($line -match $script:REGEX_MARKDOWN_COMPLETED) {
+        [double]$completed = [double]$matches[1]
+        if ($completed -lt 0) {
+            throw "Invalid Completed Work at line $($lineNum+1) : Must be non-negative. Found: $completed"
+        }
+        if ($null -eq $currentTask) {
+            throw "Completed Work found at line $($lineNum+1) but no parent Task"
+        }
+        $currentTask['completedWork'] = $completed
         continue
     }
 
@@ -628,16 +902,58 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         continue
     }
 
-    # Description start marker
+    # Description start marker (with optional inline content)
     if ($line -match $script:REGEX_MARKDOWN_DESCRIPTION_START) {
-        $currentLineType = if ($null -ne $currentBug) { 'bug_desc' } elseif ($null -ne $currentStory) { 'story_desc' } elseif ($null -ne $currentFeature) { 'feature_desc' } else { 'epic_desc' }
-        $descriptionLines = @()
-        Write-Debug "Started collecting description for $currentLineType"
+        [string]$inlineContent = $matches[1].Trim()
+        
+        # Only set description mode if NO inline content (description follows on next lines)
+        if ([string]::IsNullOrWhiteSpace($inlineContent)) {
+            # Description starts on next line(s)
+            $currentLineType = if ($null -ne $currentTask) { 'task_desc' } elseif ($null -ne $currentBug) { 'bug_desc' } elseif ($null -ne $currentStory) { 'story_desc' } elseif ($null -ne $currentFeature) { 'feature_desc' } else { 'epic_desc' }
+            $descriptionLines = @()
+            $descriptionStartFileLineNum = -1  # Will be set when first content line is added
+            Write-Debug "Started collecting multi-line description for $currentLineType"
+        }
+        else {
+            # Inline description - set it immediately without collecting more lines
+            # Remove trailing backslash if present
+            $inlineContent = $inlineContent -replace '\\$', ''
+            
+            if ($null -ne $currentTask) {
+                $currentTask['description'] = $inlineContent
+                Write-Debug "Set Task description (inline): $($inlineContent.Substring(0, [Math]::Min(50, $inlineContent.Length)))..."
+            }
+            elseif ($null -ne $currentBug) {
+                $currentBug['description'] = $inlineContent
+                Write-Debug "Set Bug description (inline): $($inlineContent.Substring(0, [Math]::Min(50, $inlineContent.Length)))..."
+            }
+            elseif ($null -ne $currentStory) {
+                $currentStory['description'] = $inlineContent
+                Write-Debug "Set Story description (inline): $($inlineContent.Substring(0, [Math]::Min(50, $inlineContent.Length)))..."
+            }
+            elseif ($null -ne $currentFeature) {
+                $currentFeature['description'] = $inlineContent
+                Write-Debug "Set Feature description (inline): $($inlineContent.Substring(0, [Math]::Min(50, $inlineContent.Length)))..."
+            }
+            else {
+                $currentEpic['description'] = $inlineContent
+                Write-Debug "Set Epic description (inline): $($inlineContent.Substring(0, [Math]::Min(50, $inlineContent.Length)))..."
+            }
+            
+            # Reset currentLineType so subsequent metadata lines are processed normally
+            $currentLineType = $null
+            $descriptionLines = @()
+            $descriptionStartFileLineNum = -1
+        }
         continue
     }
 
     # If we're collecting a description, add to it
     if ($currentLineType -match '_desc$') {
+        # Set description start line when we add first line (if not already set)
+        if ($descriptionStartFileLineNum -lt 0) {
+            $descriptionStartFileLineNum = $lineNum
+        }
         $descriptionLines += $line
         continue
     }
@@ -647,20 +963,24 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
 if ($descriptionLines.Count -gt 0) {
     [string]$desc = ($descriptionLines | Join-String -Separator "`n").Trim()
     if ($currentLineType -eq 'epic_desc' -and $null -ne $currentEpic) {
-        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic'
+        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Epic' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
         $currentEpic['description'] = $desc
     }
     elseif ($currentLineType -eq 'feature_desc' -and $null -ne $currentFeature) {
-        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature'
+        Test-DescriptionHeaderLevelsForEpicFeature -Description $desc -ItemType 'Feature' -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
         $currentFeature['description'] = $desc
     }
     elseif ($currentLineType -eq 'story_desc' -and $null -ne $currentStory) {
-        Test-DescriptionHeaderLevelsForStory -Description $desc
+        Test-DescriptionHeaderLevelsForStory -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
         $currentStory['description'] = $desc
     }
     elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
-        Test-DescriptionHeaderLevelsForBug -Description $desc
+        Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
         $currentBug['description'] = $desc
+    }
+    elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+        Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+        $currentTask['description'] = $desc
     }
 }
 
@@ -695,6 +1015,11 @@ foreach ($epic in $epics) {
                     $bug.tags += 'autoGen'
                 }
             }
+            foreach ($task in $story.tasks) {
+                if ($task.tags -notcontains 'autoGen') {
+                    $task.tags += 'autoGen'
+                }
+            }
         }
     }
 }
@@ -709,6 +1034,11 @@ foreach ($feature in $topLevelFeatures) {
         foreach ($bug in $story.bugs) {
             if ($bug.tags -notcontains 'autoGen') {
                 $bug.tags += 'autoGen'
+            }
+        }
+        foreach ($task in $story.tasks) {
+            if ($task.tags -notcontains 'autoGen') {
+                $task.tags += 'autoGen'
             }
         }
     }

@@ -38,6 +38,7 @@ Rules:
 
 ## General Rules
 
+- Do not duplicate code code that contains logic, create it once and reuse instead.
 - Generated code should compile without errors.
 - Generated tests should pass when run with NUnit.
 - Keep the codebase clean; remove unused files and code

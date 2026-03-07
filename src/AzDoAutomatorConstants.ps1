@@ -71,6 +71,11 @@ $ErrorActionPreference = 'Stop'
 # Effort field (for epics and features)
 [string]$script:FIELD_EFFORT = 'Microsoft.VSTS.Scheduling.Effort'
 
+# Task-specific time tracking fields
+[string]$script:FIELD_ORIGINAL_ESTIMATE = 'Microsoft.VSTS.Scheduling.OriginalEstimate'
+[string]$script:FIELD_REMAINING_WORK = 'Microsoft.VSTS.Scheduling.RemainingWork'
+[string]$script:FIELD_COMPLETED_WORK = 'Microsoft.VSTS.Scheduling.CompletedWork'
+
 # Parent/Link field
 [string]$script:FIELD_PARENT = 'System.Parent'
 
@@ -132,16 +137,20 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_EPIC = '^\#\s+Epic:\s*(.+)$'           # # Epic: Title
 [regex]$script:REGEX_MARKDOWN_FEATURE = '^\#\#\s+Feature:\s*(.+)$'      # ## Feature: Title
 [regex]$script:REGEX_MARKDOWN_STORY = '^\#\#\#\s+Story:\s*(.+)$'      # ### Story: Title
+[regex]$script:REGEX_MARKDOWN_TASK = '^\#\#\#\#\s+Task:\s*(.+)$'       # #### Task: Title
 [regex]$script:REGEX_MARKDOWN_BUG = '^\#\#\#\#\s+Bug:\s*(.+)$'       # #### Bug: Title
 [regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI, Repro Steps, etc.)
 [regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1, tag2
-[regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*(:\s*)?\\?$'     # **Description** or **Description**: or with trailing backslash
+[regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*:\s*(.*)$'     # **Description**: optional inline content
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
 [regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
 [regex]$script:REGEX_MARKDOWN_EFFORT = '^\*\*Effort\*\*:\s*(\d+)$'    # **Effort**: 21
 [regex]$script:REGEX_MARKDOWN_PRIORITY = '^\*\*Priority\*\*:\s*([1-4])$'    # **Priority**: 1-4
+[regex]$script:REGEX_MARKDOWN_ORIGINAL_ESTIMATE = '^\*\*Original Estimate\*\*:\s*(\d+(?:\.\d+)?)$'    # **Original Estimate**: 8
+[regex]$script:REGEX_MARKDOWN_REMAINING = '^\*\*Remaining\*\*:\s*(\d+(?:\.\d+)?)$'    # **Remaining**: 5
+[regex]$script:REGEX_MARKDOWN_COMPLETED = '^\*\*Completed\*\*:\s*(\d+(?:\.\d+)?)$'    # **Completed**: 3
 
 # Header level validation patterns  
 [regex]$script:REGEX_MARKDOWN_HEADER_LEVEL_1_2 = '^\s*#{1,2}\s'     # # or ##
