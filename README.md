@@ -469,6 +469,41 @@ $updated = .\SetAzDoWorkItemTags.ps1 `
     -Mode Remove
 ```
 
+#### `UpdateAzDoWorkItemTags.ps1`
+Unified CRUD operations for managing work item tags. Replace, add, or remove tags with intuitive parameter names.
+
+```powershell
+# Add tags to existing (default when -Replace not specified)
+$updated = .\UpdateAzDoWorkItemTags.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Tags @("bug", "urgent")
+
+# Replace all tags with new ones
+$updated = .\UpdateAzDoWorkItemTags.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Tags @("backend", "api") `
+    -Replace
+
+# Remove all tags
+$updated = .\UpdateAzDoWorkItemTags.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -Replace
+
+# Remove specific tags (keep others)
+$updated = .\UpdateAzDoWorkItemTags.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -NotTags @("urgent", "temp")
+```
+**Note:** `UpdateAzDoWorkItemTags.ps1` is the modern replacement for `SetAzDoWorkItemTags.ps1`, offering cleaner parameter patterns aligned with CRUD naming conventions (Update* for all modification operations).
+
 **Parameters:**
 - `Organization` (required): Azure DevOps organization
 - `Project` (required): Project name
@@ -939,6 +974,7 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
 │   ├── SetAzDoEffort.ps1                    (Set effort for Epic/Feature)
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
+│   ├── UpdateAzDoWorkItemTags.ps1           (Update/add/remove tags - modern replacement)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)
 │   ├── RemoveAzDoEpic.ps1                   (Delete Epic and children)
 │   ├── RunSystemTest.ps1                    (System test suite)
