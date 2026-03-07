@@ -136,8 +136,8 @@ try {
         if ([string]::IsNullOrWhiteSpace($result.State)) {
             throw "State is empty"
         }
-        if ($result.PSObject.Properties.Name -notcontains "Comments") {
-            throw "Comments property missing"
+        if ($result.PSObject.Properties.Name -contains "Comments") {
+            throw "Comments property should not be present"
         }
     }
 

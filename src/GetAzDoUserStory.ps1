@@ -12,8 +12,6 @@ Without -Full, returns a structured object with key story properties:
 - Id, State, Title
 - Description, AcceptanceCriteria, ACScenarios, StoryPoints, ExtraInformation
 - Tags
-- Comments: Array of latest comments (one per comment ID) with id, createdDate, lastModifiedDate, 
-  text, and createdBy.displayName
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -128,79 +126,6 @@ try {
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
-        Comments = @()
-    }
-
-    # Fetch comments if work item has any (optional - API may not exist)
-    [int]$commentCount = 0
-    if ($null -ne $workItem.fields.'System.CommentCount') {
-        $commentCount = [int]$workItem.fields.'System.CommentCount'
-    }
-
-    if ($commentCount -gt 0) {
-        $null = & ssLogIt.ps1 -Level Debug -Message "Fetching comments for User Story (CommentCount: $commentCount)"
-        
-        try {
-            $commentsUrl = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments?api-version=7.1-preview.3"
-            $authHeader = New-AzDoAuthHeader -PatToken $PatToken
-
-            $commentsResponse = Invoke-RestMethod -Uri $commentsUrl -Method Get -Headers $authHeader -TimeoutSec 30 -ErrorAction Stop
-
-            # Normalize response to an items array (API may return wrapper with 'value' or different shapes)
-            $items = $null
-            if ($commentsResponse -is [array]) { $items = $commentsResponse }
-            else {
-                if ($commentsResponse.PSObject.Properties.Name -contains 'value') { $items = $commentsResponse.value }
-                elseif ($commentsResponse.PSObject.Properties.Name -contains 'comments') { $items = $commentsResponse.comments }
-                else {
-                    foreach ($p in $commentsResponse.PSObject.Properties) {
-                        if ($p.Value -is [array]) { $items = $p.Value; break }
-                    }
-                }
-            }
-
-            if ($null -ne $items) {
-                # Group by commentId to get only the latest version of each comment
-                $latestComments = @{ }
-                foreach ($comment in $items) {
-                    $commentId = $comment.id
-                    # Keep track of the latest version (highest version number)
-                    if (-not $latestComments.ContainsKey($commentId) -or $latestComments[$commentId].version -lt $comment.version) {
-                        $latestComments[$commentId] = $comment
-                    }
-                }
-                
-                # Build comment objects for each latest comment
-                foreach ($commentId in $latestComments.Keys) {
-                    $comment = $latestComments[$commentId]
-                    
-                    # Build comment object - text property may have different names (text, content, body, etc.)
-                    $commentText = $comment.text
-                    if ([string]::IsNullOrWhiteSpace($commentText) -and $null -ne $comment.content) {
-                        $commentText = $comment.content
-                    }
-                    if ([string]::IsNullOrWhiteSpace($commentText) -and $null -ne $comment.body) {
-                        $commentText = $comment.body
-                    }
-                    
-                    $commentObject = @{
-                        Id = $comment.id
-                        CreatedDate = $comment.createdDate
-                        LastModifiedDate = $comment.modifiedDate
-                        Text = $commentText
-                        CreatedBy = $comment.createdBy.displayName
-                    }
-                    
-                    $storyObject.Comments += $commentObject
-                }
-            }
-        }
-        catch {
-            $errMsg = if ($_.Exception) { $_.Exception.Message } else { $_.ToString() }
-            $msg = 'Error fetching comments for work item ' + $WorkItemId + ': ' + $errMsg
-            $null = & ssLogIt.ps1 -Level Error -Message $msg
-            throw [System.InvalidOperationException]('Failed to fetch comments for work item ' + $WorkItemId + ': ' + $errMsg)
-        }
     }
 
     # Convert to PSCustomObject with proper NoteProperties

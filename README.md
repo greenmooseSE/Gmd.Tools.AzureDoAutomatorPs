@@ -763,6 +763,98 @@ Epic
 - Comments retrieval is optional and may fail gracefully if the API endpoint is unavailable (returns empty array)
 - Getting child work items requires a properly configured WIQL endpoint
 
+#### `GetAzDoHierarchyForFeature.ps1`
+Retrieve a Feature with all its Stories and their Tasks in a hierarchical structure.
+
+```powershell
+# Get hierarchy by Feature ID
+$hierarchy = .\GetAzDoHierarchyForFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureId 200
+
+# Get hierarchy by Feature title (searches for exact match)
+$hierarchy = .\GetAzDoHierarchyForFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureTitle "User Authentication"
+
+# Access hierarchy data
+Write-Host "Feature: $($hierarchy.Title)"
+Write-Host "Effort: $($hierarchy.Effort)"
+foreach ($story in $hierarchy.Stories) {
+    Write-Host "  Story: $($story.Title) ($($story.StoryPoints) pts)"
+    foreach ($task in $story.Tasks) {
+        Write-Host "    Task: $($task.Title) [$($task.State)]"
+    }
+}
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `FeatureId` (optional): Feature work item ID
+- `FeatureTitle` (optional): Feature title to search for
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Either `FeatureId` or `FeatureTitle` must be provided. If both are provided, `FeatureId` takes precedence.
+
+**Output Structure:**
+```
+Feature
+├── Id, Title, Description, Effort, Tags
+└── Stories (array)
+    ├── Id, State, Title, Description
+    ├── AcceptanceCriteria, ACScenarios
+    ├── StoryPoints, ExtraInformation, Tags
+    └── Tasks (array)
+        ├── Id, State, Title, Description, Tags
+```
+
+#### `GetAzDoHierarchyForStory.ps1`
+Retrieve a User Story with all its Tasks in a hierarchical structure.
+
+```powershell
+# Get hierarchy by Story ID
+$hierarchy = .\GetAzDoHierarchyForStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryId 300
+
+# Get hierarchy by Story title (searches for exact match)
+$hierarchy = .\GetAzDoHierarchyForStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryTitle "User Login Form"
+
+# Access hierarchy data
+Write-Host "Story: $($hierarchy.Title)"
+Write-Host "Story Points: $($hierarchy.StoryPoints)"
+Write-Host "Tasks: $($hierarchy.Tasks.Count)"
+foreach ($task in $hierarchy.Tasks) {
+    Write-Host "  Task: $($task.Title) [$($task.State)]"
+}
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `StoryId` (optional): Story work item ID
+- `StoryTitle` (optional): Story title to search for
+- `PatToken` (optional): Override default PAT token
+
+**Note:** Either `StoryId` or `StoryTitle` must be provided. If both are provided, `StoryId` takes precedence.
+
+**Output Structure:**
+```
+Story
+├── Id, State, Title, Description
+├── AcceptanceCriteria, ACScenarios
+├── StoryPoints, ExtraInformation, Tags
+└── Tasks (array)
+    ├── Id, State, Title, Description, Tags
+```
+
 #### `NewAzDoHierarchyFromMarkdown.ps1`
 Create complete work item hierarchy from markdown file.
 
@@ -924,11 +1016,14 @@ $env:GMD_AZDO_PROJECT = "your-project"
 # Run GetAzDoUserStory tests
 .\test\GetAzDoUserStoryTest.ps1
 
-# Run UpsertAzDoStory BDD scenario tests
-.\test\Scenario1581Test.ps1
-
 # Run GetAzDoHierarchyForEpic tests
 .\test\GetAzDoHierarchyForEpicTest.ps1
+
+# Run GetAzDoHierarchyForFeature tests
+.\test\GetAzDoHierarchyForFeatureTest.ps1
+
+# Run GetAzDoHierarchyForStory tests
+.\test\GetAzDoHierarchyForStoryTest.ps1
 ```
 
 **Note:** Integration tests create temporary test data (Epic, Features, Stories) and automatically clean up by deleting the test Epic at the end.
@@ -971,6 +1066,8 @@ All scripts follow strict error handling practices:
 │   ├── NewAzDoCommentReaction.ps1           (Add reaction to comment)
 │   ├── GetAzDoCommentReactions.ps1          (Retrieve comment reactions)
 │   ├── GetAzDoHierarchyForEpic.ps1          (Retrieve Epic hierarchy with Features and Stories)
+│   ├── GetAzDoHierarchyForFeature.ps1       (Retrieve Feature hierarchy with Stories and Tasks)
+│   ├── GetAzDoHierarchyForStory.ps1         (Retrieve Story hierarchy with Tasks)
 │   ├── SetAzDoWorkItemDescription.ps1       (Set description)
 │   ├── SetAzDoAcceptanceCriteria.ps1        (Set acceptance criteria)
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
@@ -986,6 +1083,8 @@ All scripts follow strict error handling practices:
 │   ├── GetAzDoUserStoryTest.ps1             (GetAzDoUserStory tests)
 │   ├── Scenario1581Test.ps1                 (UpsertAzDoStory scenario tests)
 │   ├── GetAzDoHierarchyForEpicTest.ps1      (GetAzDoHierarchyForEpic tests)
+│   ├── GetAzDoHierarchyForFeatureTest.ps1   (GetAzDoHierarchyForFeature tests)
+│   ├── GetAzDoHierarchyForStoryTest.ps1     (GetAzDoHierarchyForStory tests)
 │   ├── NewAzDoCommentTest.ps1               (NewAzDoComment tests)
 │   ├── GetAzDoCommentReactionsTest.ps1      (GetAzDoCommentReactions tests)
 │   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)
