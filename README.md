@@ -540,6 +540,44 @@ foreach ($comment in $comments) {
 - `modifiedBy`: User object with displayName and descriptor
 - `reactions`: Array of reaction objects (if available)
 
+#### `UpdateAzDoComment.ps1`
+Update the content of an existing comment on a work item. Useful for fixing typos or revising notes.
+
+```powershell
+# Update a comment with plain text
+$comment = .\UpdateAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456 `
+    -Content "Fixed typo in previous comment"
+
+# Update a comment with markdown formatting
+$comment = .\UpdateAzDoComment.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123 `
+    -CommentId 456 `
+    -Content "**Updated note**: Please review this change carefully"
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `CommentId` (required): Comment ID to update
+- `Content` (required): New comment content (supports markdown)
+- `PatToken` (optional): Override default PAT token
+
+**Returns:** Updated comment object with:
+- `id`: Comment identifier (unchanged)
+- `text`: Updated comment content
+- `version`: Incremented version number
+- `createdDate`: Original creation timestamp
+- `modifiedDate`: New modification timestamp
+- `createdBy`: Original author information
+- `modifiedBy`: Updated user who made this change
+
 #### `RemoveAzDoComment.ps1`
 Remove a comment from a work item.
 
@@ -890,6 +928,8 @@ All scripts follow strict error handling practices:
 │   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
 │   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
 │   ├── NewAzDoComment.ps1                   (Add comment to work item)
+│   ├── GetAzDoComments.ps1                  (Retrieve all comments from work item)
+│   ├── UpdateAzDoComment.ps1                (Update comment content)
 │   ├── RemoveAzDoComment.ps1                (Remove comment from work item)
 │   ├── NewAzDoCommentReaction.ps1           (Add reaction to comment)
 │   ├── GetAzDoCommentReactions.ps1          (Retrieve comment reactions)
@@ -909,9 +949,12 @@ All scripts follow strict error handling practices:
 │   ├── Scenario1581Test.ps1                 (UpsertAzDoStory scenario tests)
 │   ├── GetAzDoHierarchyForEpicTest.ps1      (GetAzDoHierarchyForEpic tests)
 │   ├── NewAzDoCommentTest.ps1               (NewAzDoComment tests)
+│   ├── GetAzDoCommentReactionsTest.ps1      (GetAzDoCommentReactions tests)
 │   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)
 │   ├── NewAzDoCommentReactionTest.ps1       (NewAzDoCommentReaction tests)
-│   ├── GetAzDoCommentReactionsTest.ps1      (GetAzDoCommentReactions tests)
+│   ├── storyAcTests/
+│   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments AC scenario tests)
+│   │   └── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment AC scenario tests)
 │   └── RunAllTests.ps1                      (Master test runner)
 └── README.md                                 (This file)
 ```

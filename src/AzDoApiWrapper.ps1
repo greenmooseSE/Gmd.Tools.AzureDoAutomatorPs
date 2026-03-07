@@ -701,3 +701,95 @@ function New-AzDoComment {
         }
     }
 }
+
+function Update-AzDoComment {
+    <#
+    .SYNOPSIS
+    Update an existing comment in Azure DevOps
+
+    .DESCRIPTION
+    Updates an existing comment on a work item.
+    Returns the updated comment object.
+
+    .PARAMETER Organization
+    The Azure DevOps organization name (required)
+
+    .PARAMETER Project
+    The Azure DevOps project name (required)
+
+    .PARAMETER WorkItemId
+    The work item ID containing the comment (required)
+
+    .PARAMETER CommentId
+    The ID of the comment to update (required)
+
+    .PARAMETER Content
+    The new comment content, supports markdown formatting (required)
+
+    .PARAMETER PatToken
+    Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW environment variable.
+
+    .OUTPUTS
+    PSObject representing the updated comment with all metadata
+
+    .EXAMPLE
+    $comment = Update-AzDoComment -Organization "myorg" -Project "myproj" -WorkItemId 123 -CommentId 456 -Content "Updated comment text"
+    #>
+    [CmdletBinding()]
+    [OutputType([object])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Organization,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Project,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WorkItemId,
+
+        [Parameter(Mandatory = $true)]
+        [int]$CommentId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Content,
+
+        [string]$PatToken
+    )
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($PatToken)) {
+            $PatToken = Get-AzDoPatToken -Decrypt
+        }
+
+        $headers = New-AzDoAuthHeader -PatToken $PatToken
+        $headers['Content-Type'] = 'application/json'
+
+        # Use PATCH method with the specific preview version for updating comment content
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId/comments/$($CommentId)?format=markdown&api-version=7.1-preview.3"
+
+        # The comments API expects a 'text' property for the comment body
+        $body = @{
+            text = $Content
+        }
+
+        [string]$bodyJson = $body | ConvertTo-Json -Depth 10
+
+        try {
+            return Invoke-AzDoApiRequest -Uri $uri -Method 'Patch' -Headers $headers -Body $bodyJson
+        }
+        catch {
+            # Surface API error details (including response body) so callers can inspect and fail visibly
+            $exMsg = $_.Exception.Message
+            $null = & ssLogIt.ps1 -Level Error -Message "Update-AzDoComment failed: $exMsg" -Exception $_
+
+            # If the exception message contains a response body (added by Invoke-AzDoApiRequest), log it explicitly
+            if ($exMsg -match 'ResponseBody:\s*(.+)$') {
+                $responseBody = $Matches[1]
+                $null = & ssLogIt.ps1 -Level Error -Message "Update-AzDoComment - API response body: $responseBody"
+            }
+
+            # Do not swallow the error or return a simulated object; rethrow to make failure visible to callers
+            throw
+        }
+    }
+}

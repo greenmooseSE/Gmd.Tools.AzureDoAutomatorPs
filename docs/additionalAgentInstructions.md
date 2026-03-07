@@ -1,5 +1,6 @@
 # General rules
 * If current branch is develop, start with creating a new branch via helper e.g. `ssNewFeatBranch.ps1 -Ticket 1580 -StoryDesc "Consolidate Feature Create/Update to UpsertAzDoFeature" -NoFetch -BaseBranch develop` , this will properly crate a new feature branch for tracking purposes (helper it exists in path, can be found via Get-Command)
+* Do NOT commit anything, this should be manually done by user.
 * Check for the parent feature and parent epic to better understand the context.
 * When implementing a story, try to do TDD cycle as much as possible.
 * Don't forget to update Readme.md when needed.
