@@ -328,6 +328,7 @@ function Get-AzDoWorkItemById {
         }
         catch {
             Write-Error "Failed to retrieve work item $WorkItemId : $($_.Exception.Message)"
+            throw
         }
     }
 }
@@ -551,6 +552,7 @@ function Update-AzDoWorkItem {
         }
         catch {
             Write-Error "Failed to update work item $WorkItemId : $($_.Exception.Message)"
+            throw
         }
     }
 }
@@ -608,6 +610,7 @@ function Remove-AzDoWorkItem {
         }
         catch {
             Write-Error "Failed to delete work item $WorkItemId : $($_.Exception.Message)"
+            throw
         }
     }
 }
