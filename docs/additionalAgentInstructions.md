@@ -1,6 +1,9 @@
+# Org/Proj/PAT
+* Use `$env:GMD_AZDO_ORGANIZATION`, `$env:GMD_AZDO_PROJECT`, and `$env:GMD_AZDO_MACHINE_WORKITEMSRW | ssEncryptDecrypt.ps1 -Decrypt`.
+
 # General rules
 * If current branch is develop, start with creating a new branch via helper e.g. `ssNewFeatBranch.ps1 -Ticket <workItemId> -StoryDesc "<story title>" -NoFetch -BaseBranch develop` , this will properly crate a new feature branch for tracking purposes (helper it exists in path, can be found via Get-Command)
-* Do NOT commit anything, this should be manually done by user.
+* Do NOT commit anything, this should be manually done by user, unless explicitly instructed to do commits. 
 * Check for the parent feature and parent epic to better understand the context.
 * When implementing a story, try to do TDD cycle as much as possible.
 * Don't forget to update Readme.md when needed.
