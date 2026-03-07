@@ -205,12 +205,13 @@ try {
             $featureObject = @{
                 Id = $featureId
                 Title = $featureTitle
-                Description = $feature.fields.'System.Description'
-                Effort = $feature.fields.'Microsoft.VSTS.Scheduling.Effort'
+                Description = if ($feature.fields.PSObject.Properties.Name -contains 'System.Description') { $feature.fields.'System.Description' } else { $null }
+                Effort = if ($feature.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $feature.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
+                Tags = if ($feature.fields.PSObject.Properties.Name -contains 'System.Tags') { $feature.fields.'System.Tags' } else { $null }
                 Stories = $storiesArray
             }
 
-            $featuresArray += [PSObject]$featureObject
+            $featuresArray += [PSCustomObject]$featureObject
         }
     }
     else {
@@ -221,12 +222,13 @@ try {
     $hierarchyObject = @{
         Id = $epicWorkItem.id
         Title = $epicTitle
-        Description = $epicWorkItem.fields.'System.Description'
-        Effort = $epicWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort'
+        Description = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $epicWorkItem.fields.'System.Description' } else { $null }
+        Effort = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $epicWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
+        Tags = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $epicWorkItem.fields.'System.Tags' } else { $null }
         Features = $featuresArray
     }
 
-    $result = [PSObject]$hierarchyObject
+    $result = [PSCustomObject]$hierarchyObject
     $null = & ssLogIt.ps1 -Level Info -Message "Successfully built Epic hierarchy with $(@($featuresArray).Count) Feature(s)"
 
     return $result

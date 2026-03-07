@@ -747,15 +747,17 @@ foreach ($feature in $hierarchy.Features) {
 **Output Structure:**
 ```
 Epic
-├── Id, Title, Description, Effort
+├── Id, Title, Description, Effort, Tags
 └── Features (array)
-    ├── Id, Title, Description, Effort
+    ├── Id, Title, Description, Effort, Tags
     └── Stories (array)
         ├── Id, State, Title, Description
         ├── AcceptanceCriteria, ACScenarios
         ├── StoryPoints, ExtraInformation, Tags
         └── Comments (array with latest version of each comment)
 ```
+
+**Tags Availability:** All work items in the hierarchy (Epic, Features, Stories) include Tags, ensuring consistent tag retrieval across all hierarchy levels (Story 1588).
 
 **Known Limitations:**
 - Comments retrieval is optional and may fail gracefully if the API endpoint is unavailable (returns empty array)

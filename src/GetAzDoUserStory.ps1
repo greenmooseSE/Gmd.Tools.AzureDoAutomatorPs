@@ -122,12 +122,12 @@ try {
         Id = $workItem.id
         State = $workItem.fields.'System.State'
         Title = $workItem.fields.'System.Title'
-        Description = $workItem.fields.'System.Description'
-        AcceptanceCriteria = $workItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria'
+        Description = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Description') { $workItem.fields.'System.Description' } else { $null }
+        AcceptanceCriteria = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.AcceptanceCriteria') { $workItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' } else { $null }
         ACScenarios = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ACScenarios') { $workItem.fields.'Custom.ACScenarios' } else { $null }
-        StoryPoints = $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints'
+        StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
-        Tags = $workItem.fields.'System.Tags'
+        Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
         Comments = @()
     }
 
@@ -203,8 +203,8 @@ try {
         }
     }
 
-    # Convert to PSObject
-    $result = [PSObject]$storyObject
+    # Convert to PSCustomObject with proper NoteProperties
+    $result = [PSCustomObject]$storyObject
     
     $title = $workItem.fields.'System.Title'
     $null = & ssLogIt.ps1 -Level Info -Message "Successfully retrieved User Story subset: ::FgGreen::$title::FgDefault:: (ID: $($workItem.id))"
