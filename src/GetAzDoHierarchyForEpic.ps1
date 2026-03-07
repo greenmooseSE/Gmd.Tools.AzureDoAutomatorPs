@@ -8,7 +8,7 @@ Fetches an Epic and builds a complete hierarchy showing:
 - All Features under the Epic with Description and Effort
 - All Stories under each Feature with full User Story details:
   Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
-  StoryPoints, ExtraInformation, Tags, Comments
+  StoryPoints, ExtraInformation, Tags
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
