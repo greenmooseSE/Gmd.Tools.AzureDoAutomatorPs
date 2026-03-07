@@ -505,6 +505,41 @@ $comment = .\NewAzDoComment.ps1 `
 - `Content` (required): Comment content (supports markdown)
 - `PatToken` (optional): Override default PAT token
 
+#### `GetAzDoComments.ps1`
+Retrieve all comments from a work item. Useful for auditing, searching discussion history, or verifying comment content.
+
+```powershell
+# Get all comments from a work item
+$comments = .\GetAzDoComments.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 123
+
+# Filter comments by author
+$myComments = $comments | Where-Object { $_.createdBy.displayName -eq "John Doe" }
+
+# Check comment count and content
+Write-Host "Total comments: $($comments.Count)"
+foreach ($comment in $comments) {
+    Write-Host "[$($comment.createdDate)] $($comment.text | Truncate -Length 50)"
+}
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `WorkItemId` (required): Work item ID
+- `PatToken` (optional): Override default PAT token
+
+**Returns:** Array of comment objects (empty array if no comments exist):
+- `id`: Comment identifier
+- `text`: Comment content (HTML entities decoded)
+- `createdDate`: Creation timestamp (ISO 8601 format)
+- `modifiedDate`: Last modification timestamp
+- `createdBy`: User object with displayName and descriptor
+- `modifiedBy`: User object with displayName and descriptor
+- `reactions`: Array of reaction objects (if available)
+
 #### `RemoveAzDoComment.ps1`
 Remove a comment from a work item.
 

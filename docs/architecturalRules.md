@@ -1,0 +1,2 @@
+* Prefer full stack, simple stories.
+* Avoid "DB model" stories: when an AI agent proposes work-items, prefer the smallest, simplest database model needed to enable the feature. Each story should add the minimal schema and be verifiable via integration tests (API) and BDD scenarios.
