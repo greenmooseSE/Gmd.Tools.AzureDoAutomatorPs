@@ -20,10 +20,13 @@ This project provides a complete automation toolkit for Azure DevOps work item l
   - [Verify Helper Scripts](#2-verify-helper-scripts)
 - [Module Architecture](#module-architecture)
 - [Automation Scripts](#automation-scripts)
+- [Markdown Hierarchy Workflow](#markdown-hierarchy-workflow)
+- [Markdown Hierarchy Template Generation](#markdown-hierarchy-template-generation)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
+- [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
 - [Contributing](#contributing)
 
@@ -999,23 +1002,27 @@ Markdown format:
 
 Usage:
 ```powershell
-# Dry run preview
+# Read markdown content
+$content = Get-Content ".\hierarchy.md" -Raw
+
+# Dry run preview (uses environment variables for org/project)
 $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -Organization "myorg" `
-    -Project "myproj" `
-    -MarkdownFilePath ".\hierarchy.md" `
+    -MarkdownContent $content `
     -DryRun
 
 # Create hierarchy with validation
 $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -Organization "myorg" `
-    -Project "myproj" `
-    -MarkdownFilePath ".\hierarchy.md" `
+    -MarkdownContent $content `
     -EpicId 100
 
 # Access results
 Write-Host "Created: $($result.CreatedItems.Count) items"
 ```
+
+**Environment Variables Required:**
+- `$env:GMD_AZDO_ORGANIZATION`: Azure DevOps organization name
+- `$env:GMD_AZDO_PROJECT`: Azure DevOps project name
+- `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token (optional, uses encryption if set)
 
 **Features:**
 - Pre-validates entire structure before creating items (fail-fast)
@@ -1080,6 +1087,113 @@ Example output:
 The repository includes an example hierarchy file that matches the parser format used by `NewAzDoHierarchyFromMarkdown.ps1` and demonstrates how to structure Epics, Features, Stories, Acceptance Criteria, AC Scenarios, tags and story points.
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
+
+## MCP Server Integration
+
+The Azure DevOps Automator project includes full Model Context Protocol (MCP) support, enabling all tools to be consumed by AI assistants and automation frameworks over HTTP.
+
+### What is MCP?
+
+Model Context Protocol (MCP) is a standard for AI agents to interact with external tools through a standardized interface. The MCP server exposes all PowerShell scripts as tools that can be:
+- Called by AI agents (ChatGPT, Claude, etc.)
+- Used in automation workflows
+- Integrated with other systems
+- Access controlled via HTTP
+
+### MCP Configuration
+
+The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All tools automatically retrieve organization, project, and authentication details from environment variables:
+
+- `$env:GMD_AZDO_ORGANIZATION`: Azure DevOps organization name
+- `$env:GMD_AZDO_PROJECT`: Azure DevOps project name  
+- `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token for authentication
+
+**Tool Categories:**
+- **Get Operations** (8): Retrieve work items, comments, hierarchies
+- **Set Operations** (6): Update properties (story points, effort, tags, description)
+- **New Operations** (2): Create comments and reactions
+- **Upsert Operations** (5): Create/update Epics, Features, Stories, Tasks, Bugs
+- **Remove Operations** (5): Delete work items and comments
+- **Update Operations** (2): Modify existing comments and tags
+- **Find Operations** (1): Search for work items by title
+- **Generate/Validate** (3):
+  - `generate-markdown-hierarchy-template`: Create template with rules
+  - `convert-markdown-to-hierarchy-json`: Validate structure
+  - `create-workitems-from-markdown`: Create items in Azure DevOps
+
+### Starting the MCP Server
+
+The `tools/runMcpServerHttp.ps1` script starts the MCP server with HTTP configuration:
+
+```powershell
+# Start on default port 8081
+.\tools\runMcpServerHttp.ps1
+
+# Start on custom port
+.\tools\runMcpServerHttp.ps1 -HttpPort 3000
+
+# Start with verbose logging
+.\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
+```
+
+The server will be accessible at:
+```
+http://localhost:8081
+```
+
+### MCP Server Files
+
+- **Config**: `src/mcpConfig.yaml` - Tool definitions and mappings
+- **Launcher**: `tools/runMcpServerHttp.ps1` - Start server script
+- **Validator**: `test/ValidateMcpConfigTest.ps1` - Validate config
+- **MCP Runtime**: `submodules/Gmd.Tools.McpServerPs/` - MCP server engine
+
+### Validation
+
+The MCP configuration is automatically validated to ensure:
+- All tools have unique IDs
+- All referenced scripts exist in `src/`
+- Tool names follow lowercase verb-noun pattern
+- All parameters are properly mapped
+- No orphaned configurations
+
+Validate the configuration:
+
+```powershell
+.\test\ValidateMcpConfigTest.ps1 -Verbose
+```
+
+### Using Tools via MCP
+
+Once the MCP server is running, AI agents and clients can invoke tools:
+
+**Example: Generate markdown template**
+```
+Tool: generate-markdown-hierarchy-template
+Parameters: { IncludeExample: true }
+Output: Markdown template with rules and examples
+```
+
+**Example: Create work items**
+```
+Tool: create-workitems-from-markdown
+Parameters: {
+  Organization: "myorg",
+  Project: "myproject",
+  MarkdownFilePath: "hierarchy.md",
+  DryRun: true
+}
+Output: Preview of work items to be created
+```
+
+### AI Agent Workflow (via MCP)
+
+1. **Agent requests template**: AI calls `generate-markdown-hierarchy-template`
+2. **Agent generates plan**: AI creates markdown with rules
+3. **Agent validates plan**: AI calls `convert-markdown-to-hierarchy-json`
+4. **Agent previews**: AI calls `create-workitems-from-markdown` with `DryRun: true`
+5. **Agent creates**: AI calls `create-workitems-from-markdown` (without DryRun)
+6. **Agent manages**: AI uses get/set/update tools to manage created items
 
 ## Testing
 
@@ -1349,6 +1463,140 @@ foreach ($id in $storyIds) {
         -WorkItemId $id -StoryPoints 5
 }
 ```
+
+## Markdown Hierarchy Workflow
+
+This project provides a complete workflow for planning and executing work item hierarchies through markdown files:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ 1. GENERATE MARKDOWN TEMPLATE                                │
+│    GenerateAzDoMarkdownHierarchyTemplate.ps1                │
+│    → Creates template with embedded rules and examples       │
+│    → Helps AI agents create valid markdown                   │
+└────────────────┬─────────────────────────────────────────────┘
+                 │ (edit and customize markdown)
+┌────────────────▼─────────────────────────────────────────────┐
+│ 2. VALIDATE MARKDOWN STRUCTURE                               │
+│    ConvertMarkdownToHierarchyJson.ps1                        │
+│    → Converts markdown to JSON for validation                │
+│    → Preview structure before creating work items            │
+└────────────────┬─────────────────────────────────────────────┘
+                 │ (verify structure is correct)
+┌────────────────▼─────────────────────────────────────────────┐
+│ 3. CREATE WORK ITEMS IN AZURE DEVOPS                         │
+│    NewAzDoHierarchyFromMarkdown.ps1 (create-workitems...)   │
+│    → Creates/updates work items from markdown                │
+│    → Creates entire hierarchy atomically                     │
+│    → Supports DryRun and UpdateExisting modes                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Workflow Tools (MCP Integration)
+
+All tools are available as MCP (Model Context Protocol) tools for AI agents and automation:
+
+| Step | MCP Tool ID | Script | Purpose |
+|------|-------------|--------|---------|
+| 1 | `generate-markdown-hierarchy-template` | `GenerateAzDoMarkdownHierarchyTemplate.ps1` | Generate template with rules/examples |
+| 2 | `convert-markdown-to-hierarchy-json` | `ConvertMarkdownToHierarchyJson.ps1` | Validate/preview hierarchy structure |
+| 3 | `create-workitems-from-markdown` | `NewAzDoHierarchyFromMarkdown.ps1` | Create work items in Azure DevOps |
+
+### Quick Start Workflow
+
+Environment setup (required):
+```powershell
+# Set environment variables for MCP tools
+$env:GMD_AZDO_ORGANIZATION = "myorg"
+$env:GMD_AZDO_PROJECT = "myproject"
+# PAT token is typically pre-configured via environment
+```
+
+Workflow:
+```powershell
+# Step 1: Generate a template for your project
+$template = .\src\GenerateAzDoMarkdownHierarchyTemplate.ps1 -IncludeExample
+$template | Out-File "my-plan.md"
+
+# Step 2: Validate markdown structure (best before creating items)
+$content = Get-Content "my-plan.md" -Raw
+$json = .\src\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $content
+$json | ConvertTo-Json
+
+# Step 3: Preview work items (DryRun mode - no changes to Azure DevOps)
+$content = Get-Content "my-plan.md" -Raw
+.\src\NewAzDoHierarchyFromMarkdown.ps1 `
+    -MarkdownContent $content `
+    -DryRun
+
+# Step 4: Create work items (remove -DryRun to actually create)
+$content = Get-Content "my-plan.md" -Raw
+.\src\NewAzDoHierarchyFromMarkdown.ps1 `
+    -MarkdownContent $content
+```
+
+## Markdown Hierarchy Template Generation
+
+The `GenerateAzDoMarkdownHierarchyTemplate.ps1` script generates a markdown template with embedded rules from [docs/createMarkdownPlan.md](./docs/createMarkdownPlan.md) and [docs/architecturalRules.md](./docs/architecturalRules.md).
+
+### Features
+
+- **Embedded Rules**: All markdown rules included as inline comments
+- **Example Structure**: Shows correct formatting for Epics, Features, and Stories
+- **Rule Enforcement**: Guides creation of valid hierarchies (tags, titles, headers)
+- **Best Practices**: Demonstrates proper:
+  - Tag naming (camelCase)
+  - Story Point estimation
+  - Acceptance Criteria definition
+  - Gherkin BDD Scenarios
+  - Field formatting
+
+### Usage
+
+Generate template to console:
+```powershell
+.\src\GenerateAzDoMarkdownHierarchyTemplate.ps1
+```
+
+Generate template to file (redirect stdout):
+```powershell
+.\src\GenerateAzDoMarkdownHierarchyTemplate.ps1 > "my-hierarchy.md"
+```
+
+Generate template with real-world example:
+```powershell
+.\src\GenerateAzDoMarkdownHierarchyTemplate.ps1 -IncludeExample > "example.md"
+```
+
+### Template Contents
+
+The generated template includes:
+
+1. **Work Item Type Guide**
+   - Epic, Feature, Story, Task, Bug requirements
+   - Type prefixes and header levels
+
+2. **Formatting Rules**
+   - Tag conventions (camelCase)
+   - Title rules (no emoticons)
+   - Header level requirements
+   - Line ending rules
+
+3. **Field Reference**
+   - `**tags**`: Comma-separated (camelCase)
+   - `**Effort**`: For Epics/Features
+   - `**SP**`: Story points for Stories/Bugs
+   - `**Priority**`: For Tasks/Bugs
+   - `**Description****: With user story format
+
+4. **Acceptance Criteria & Scenarios**
+   - Checkbox format for criteria
+   - Gherkin Given/When/Then structure
+
+5. **Complete Example** (with `-IncludeExample`)
+   - Real-world "Customer Portal Redesign"
+   - Multiple Features and Stories
+   - Tasks and Bugs with proper nesting
 
 ## Creating Work Item Hierarchies from Markdown
 

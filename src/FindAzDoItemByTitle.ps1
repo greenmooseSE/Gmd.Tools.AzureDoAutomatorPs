@@ -48,10 +48,10 @@ PSObject representing the found work item, or $null if not found. Throws error o
 #Requires -Version 7.0
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Organization,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Project,
 
     [Parameter(Mandatory = $true)]
@@ -74,6 +74,21 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+
+# Apply environment variable defaults if parameters not provided
+if ([string]::IsNullOrWhiteSpace($Organization)) {
+    $Organization = [Environment]::GetEnvironmentVariable('GMD_AZDO_ORGANIZATION')
+    if ([string]::IsNullOrWhiteSpace($Organization)) {
+        Write-Error "Parameter 'Organization' is required. Provide via -Organization parameter or set GMD_AZDO_ORGANIZATION environment variable."
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Project)) {
+    $Project = [Environment]::GetEnvironmentVariable('GMD_AZDO_PROJECT')
+    if ([string]::IsNullOrWhiteSpace($Project)) {
+        Write-Error "Parameter 'Project' is required. Provide via -Project parameter or set GMD_AZDO_PROJECT environment variable."
+    }
+}
 
 # Helper function to normalize title (strip version suffixes)
 function Normalize-TitleForMatching {

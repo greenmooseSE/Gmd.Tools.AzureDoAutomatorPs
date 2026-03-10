@@ -2,3 +2,7 @@
 	path = submodules/Gmd.Chassi.DotNet
 	url = https://github.com/greenmooseSE/Gmd.Chassi.DotNet.git
 	branch = develop
+[submodule "submodules/Gmd.Tools.McpServerPs"]
+	path = submodules/Gmd.Tools.McpServerPs
+	url = https://github.com/greenmooseSE/Gmd.Tools.McpServerPs.git
+	branch = develop

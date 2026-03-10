@@ -71,10 +71,10 @@ Update existing Feature by ID directly:
 #Requires -Version 7.0
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Organization,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Project,
 
     [string]$Title,

@@ -44,10 +44,10 @@ Get reactions and filter by type:
 #Requires -Version 7.0
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Organization,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Project,
 
     [Parameter(Mandatory = $true)]
@@ -67,6 +67,26 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+
+# Validate ssLogIt.ps1 exists
+if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
+    Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH."
+}
+
+# Apply environment variable defaults if parameters not provided
+if ([string]::IsNullOrWhiteSpace($Organization)) {
+    $Organization = [Environment]::GetEnvironmentVariable('GMD_AZDO_ORGANIZATION')
+    if ([string]::IsNullOrWhiteSpace($Organization)) {
+        Write-Error "Parameter 'Organization' is required. Provide via -Organization parameter or set GMD_AZDO_ORGANIZATION environment variable."
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Project)) {
+    $Project = [Environment]::GetEnvironmentVariable('GMD_AZDO_PROJECT')
+    if ([string]::IsNullOrWhiteSpace($Project)) {
+        Write-Error "Parameter 'Project' is required. Provide via -Project parameter or set GMD_AZDO_PROJECT environment variable."
+    }
+}
 
 # Validate ssLogIt.ps1 exists
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
