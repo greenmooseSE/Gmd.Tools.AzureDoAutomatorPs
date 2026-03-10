@@ -1,0 +1,627 @@
+# MCP Configuration for Azure DevOps Automator
+# Maps all PowerShell scripts to MCP tool definitions
+# Fields:
+# - commands: list of command definitions (id must be unique)
+# - global: global defaults (workingDirectory, environment variables, timeoutSeconds)
+#
+# Command fields:
+# - id: identifier used by MCP clients (lowercase verb-noun pattern)
+# - script: path to the .ps1 script (relative to config file or absolute)
+# - description: human readable description of what the tool does
+# - passStyle: "named" (default) - how to pass arguments
+# - params: list of parameter definitions
+#     - name: public name (used by client)
+#     - type: hint: string|int|bool|double|object etc.
+#     - required: true|false
+#     - default: default value (optional)
+#     - mapTo: actual parameter name expected by script (if omitted, uses `name`)
+
+global:
+  workingDirectory: .
+  timeoutSeconds: 120
+  environment:
+    TZ: "UTC"
+
+commands:
+  # ===== GET OPERATIONS =====
+  - id: get-workitem
+    script: ./GetAzDoWorkItem.ps1
+    description: "Retrieve an Azure DevOps work item by ID with all fields and metadata. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+
+  - id: get-story
+    script: ./GetAzDoUserStory.ps1
+    description: "Retrieve a User Story work item with full details including acceptance criteria and scenarios. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: StoryId
+        type: int
+        required: true
+        mapTo: StoryId
+
+  - id: get-bug
+    script: ./GetAzDoBug.ps1
+    description: "Retrieve a Bug work item with reproduction steps and system information. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: BugId
+        type: int
+        required: true
+        mapTo: BugId
+
+  - id: get-comments
+    script: ./GetAzDoComments.ps1
+    description: "Retrieve all comments for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+
+  - id: get-comment-reactions
+    script: ./GetAzDoCommentReactions.ps1
+    description: "Retrieve all reactions (likes, hearts, etc.) for a work item comment. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: CommentId
+        type: int
+        required: true
+        mapTo: CommentId
+
+  - id: get-hierarchy-epic
+    script: ./GetAzDoHierarchyForEpic.ps1
+    description: "Retrieve complete Epic hierarchy with all Features and Stories. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: EpicId
+        type: int
+        required: false
+        mapTo: EpicId
+      - name: EpicTitle
+        type: string
+        required: false
+        mapTo: EpicTitle
+
+  - id: get-hierarchy-feature
+    script: ./GetAzDoHierarchyForFeature.ps1
+    description: "Retrieve complete Feature hierarchy with all Stories and Tasks. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: FeatureId
+        type: int
+        required: false
+        mapTo: FeatureId
+      - name: FeatureTitle
+        type: string
+        required: false
+        mapTo: FeatureTitle
+
+  - id: get-hierarchy-story
+    script: ./GetAzDoHierarchyForStory.ps1
+    description: "Retrieve Story hierarchy with all Tasks. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: StoryId
+        type: int
+        required: false
+        mapTo: StoryId
+      - name: StoryTitle
+        type: string
+        required: false
+        mapTo: StoryTitle
+
+  # ===== SET OPERATIONS =====
+  - id: set-story-points
+    script: ./SetAzDoStoryPoints.ps1
+    description: "Set the story points value for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: StoryPoints
+        type: int
+        required: true
+        mapTo: StoryPoints
+
+  - id: set-acceptance-criteria
+    script: ./SetAzDoAcceptanceCriteria.ps1
+    description: "Set the acceptance criteria for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: AcceptanceCriteria
+        type: string
+        required: true
+        mapTo: AcceptanceCriteria
+
+  - id: set-ac-scenarios
+    script: ./SetAzDoAcScenarios.ps1
+    description: "Set the acceptance criteria scenarios (BDD scenarios) for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: AcScenarios
+        type: string
+        required: true
+        mapTo: AcScenarios
+
+  - id: set-effort
+    script: ./SetAzDoEffort.ps1
+    description: "Set the effort (time estimate) for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: Effort
+        type: int
+        required: true
+        mapTo: Effort
+
+  - id: set-work-item-description
+    script: ./SetAzDoWorkItemDescription.ps1
+    description: "Set the description for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: Description
+        type: string
+        required: true
+        mapTo: Description
+
+  - id: set-extra-information
+    script: ./SetAzDoExtraInformation.ps1
+    description: "Set the extra information custom field for a work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: ExtraInformation
+        type: string
+        required: true
+        mapTo: ExtraInformation
+
+  - id: set-work-item-tags
+    script: ./SetAzDoWorkItemTags.ps1
+    description: "Set tags for a work item (replaces existing tags). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: Tags
+        type: string
+        required: true
+        mapTo: Tags
+
+  # ===== NEW OPERATIONS =====
+  - id: new-comment
+    script: ./NewAzDoComment.ps1
+    description: "Create a new comment on a work item (supports markdown). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: Content
+        type: string
+        required: true
+        mapTo: Content
+
+  - id: new-comment-reaction
+    script: ./NewAzDoCommentReaction.ps1
+    description: "Add a reaction (like, heart, etc.) to a work item comment. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: CommentId
+        type: int
+        required: true
+        mapTo: CommentId
+      - name: ReactionType
+        type: string
+        required: true
+        mapTo: ReactionType
+
+  # ===== UPSERT OPERATIONS =====
+  - id: upsert-epic
+    script: ./UpsertAzDoEpic.ps1
+    description: "Create or update an Epic work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: false
+        mapTo: Title
+      - name: Id
+        type: int
+        required: false
+        mapTo: Id
+      - name: Description
+        type: string
+        required: false
+        mapTo: Description
+      - name: Effort
+        type: int
+        required: false
+        mapTo: Effort
+      - name: FailIfExist
+        type: bool
+        required: false
+        default: false
+        mapTo: FailIfExist
+
+  - id: upsert-feature
+    script: ./UpsertAzDoFeature.ps1
+    description: "Create or update a Feature work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: false
+        mapTo: Title
+      - name: Id
+        type: int
+        required: false
+        mapTo: Id
+      - name: Description
+        type: string
+        required: false
+        mapTo: Description
+      - name: Effort
+        type: int
+        required: false
+        mapTo: Effort
+      - name: ParentEpicId
+        type: int
+        required: false
+        mapTo: ParentEpicId
+      - name: FailIfExist
+        type: bool
+        required: false
+        default: false
+        mapTo: FailIfExist
+
+  - id: upsert-story
+    script: ./UpsertAzDoStory.ps1
+    description: "Create or update a User Story work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: false
+        mapTo: Title
+      - name: Id
+        type: int
+        required: false
+        mapTo: Id
+      - name: Description
+        type: string
+        required: false
+        mapTo: Description
+      - name: AcceptanceCriteria
+        type: string
+        required: false
+        mapTo: AcceptanceCriteria
+      - name: AcScenarios
+        type: string
+        required: false
+        mapTo: AcScenarios
+      - name: ExtraInformation
+        type: string
+        required: false
+        mapTo: ExtraInformation
+      - name: StoryPoints
+        type: int
+        required: false
+        mapTo: StoryPoints
+      - name: ParentFeatureId
+        type: int
+        required: false
+        mapTo: ParentFeatureId
+      - name: FailIfExist
+        type: bool
+        required: false
+        default: false
+        mapTo: FailIfExist
+
+  - id: upsert-task
+    script: ./UpsertAzDoTask.ps1
+    description: "Create or update a Task work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: false
+        mapTo: Title
+      - name: Id
+        type: int
+        required: false
+        mapTo: Id
+      - name: Description
+        type: string
+        required: false
+        mapTo: Description
+      - name: Priority
+        type: int
+        required: false
+        mapTo: Priority
+      - name: OriginalEstimate
+        type: double
+        required: false
+        mapTo: OriginalEstimate
+      - name: RemainingWork
+        type: double
+        required: false
+        mapTo: RemainingWork
+      - name: CompletedWork
+        type: double
+        required: false
+        mapTo: CompletedWork
+      - name: State
+        type: string
+        required: false
+        mapTo: State
+      - name: ParentStoryId
+        type: int
+        required: false
+        mapTo: ParentStoryId
+      - name: FailIfExist
+        type: bool
+        required: false
+        default: false
+        mapTo: FailIfExist
+
+  - id: upsert-bug
+    script: ./UpsertAzDoBug.ps1
+    description: "Create or update a Bug work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: false
+        mapTo: Title
+      - name: Id
+        type: int
+        required: false
+        mapTo: Id
+      - name: Description
+        type: string
+        required: false
+        mapTo: Description
+      - name: Priority
+        type: int
+        required: false
+        mapTo: Priority
+      - name: ReproSteps
+        type: string
+        required: false
+        mapTo: ReproSteps
+      - name: SystemInfo
+        type: string
+        required: false
+        mapTo: SystemInfo
+      - name: StoryPoints
+        type: double
+        required: false
+        mapTo: StoryPoints
+      - name: FoundInBuild
+        type: string
+        required: false
+        mapTo: FoundInBuild
+      - name: IntegratedInBuild
+        type: string
+        required: false
+        mapTo: IntegratedInBuild
+      - name: ParentStoryId
+        type: int
+        required: false
+        mapTo: ParentStoryId
+      - name: FailIfExist
+        type: bool
+        required: false
+        default: false
+        mapTo: FailIfExist
+
+  # ===== REMOVE OPERATIONS =====
+  - id: remove-comment
+    script: ./RemoveAzDoComment.ps1
+    description: "Delete a comment from a work item by ID or by text pattern match. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: CommentId
+        type: int
+        required: false
+        mapTo: CommentId
+      - name: TextMatchRegex
+        type: string
+        required: false
+        mapTo: TextMatchRegex
+
+  - id: remove-comment-reaction
+    script: ./RemoveAzDoCommentReaction.ps1
+    description: "Remove a reaction from a work item comment. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: CommentId
+        type: int
+        required: true
+        mapTo: CommentId
+      - name: ReactionType
+        type: string
+        required: true
+        mapTo: ReactionType
+
+  - id: remove-epic
+    script: ./RemoveAzDoEpic.ps1
+    description: "Delete an Epic and cascade delete all child Features and Stories. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: EpicId
+        type: int
+        required: true
+        mapTo: EpicId
+
+  - id: remove-task
+    script: ./RemoveAzDoTask.ps1
+    description: "Delete a Task work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: TaskId
+        type: int
+        required: true
+        mapTo: TaskId
+
+  - id: remove-bug
+    script: ./RemoveAzDoBug.ps1
+    description: "Delete a Bug work item. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: BugId
+        type: int
+        required: true
+        mapTo: BugId
+
+  # ===== UPDATE OPERATIONS =====
+  - id: update-comment
+    script: ./UpdateAzDoComment.ps1
+    description: "Update the content of an existing comment. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: CommentId
+        type: int
+        required: true
+        mapTo: CommentId
+      - name: Content
+        type: string
+        required: true
+        mapTo: Content
+
+  - id: update-work-item-tags
+    script: ./UpdateAzDoWorkItemTags.ps1
+    description: "Update tags for a work item (add/remove tags without replacing all). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: WorkItemId
+        type: int
+        required: true
+        mapTo: WorkItemId
+      - name: TagsToAdd
+        type: string
+        required: false
+        mapTo: TagsToAdd
+      - name: TagsToRemove
+        type: string
+        required: false
+        mapTo: TagsToRemove
+
+  # ===== FIND OPERATIONS =====
+  - id: find-item-by-title
+    script: ./FindAzDoItemByTitle.ps1
+    description: "Find a work item by title with optional type and parent filtering. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Title
+        type: string
+        required: true
+        mapTo: Title
+      - name: Type
+        type: string
+        required: false
+        mapTo: Type
+      - name: ParentId
+        type: int
+        required: false
+        mapTo: ParentId
+      - name: NormalizeTitle
+        type: bool
+        required: false
+        default: false
+        mapTo: NormalizeTitle
+
+  # ===== CONVERT/PARSE OPERATIONS =====
+  - id: generate-markdown-hierarchy-template
+    script: ./GenerateAzDoMarkdownHierarchyTemplate.ps1
+    description: "Generate a markdown hierarchy template with embedded rules and examples for AI agents to create valid work item structures."
+    passStyle: named
+    params:
+      - name: IncludeExample
+        type: bool
+        required: false
+        default: false
+        mapTo: IncludeExample
+
+  - id: convert-markdown-to-hierarchy-json
+    script: ./ConvertMarkdownToHierarchyJson.ps1
+    description: "Parse markdown content and convert to JSON hierarchy structure (Epic/Feature/Story). Validates structure without modifying Azure DevOps."
+    passStyle: named
+    params:
+      - name: MarkdownContent
+        type: string
+        required: true
+        mapTo: MarkdownContent
+
+  - id: create-workitems-from-markdown
+    script: ./NewAzDoHierarchyFromMarkdown.ps1
+    description: "Create or update work item hierarchy in Azure DevOps from markdown content (Epic/Feature/Story/Task). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: MarkdownContent
+        type: string
+        required: true
+        mapTo: MarkdownContent
+      - name: EpicId
+        type: int
+        required: false
+        mapTo: EpicId
+      - name: DryRun
+        type: bool
+        required: false
+        default: false
+        mapTo: DryRun
+      - name: UpdateExisting
+        type: bool
+        required: false
+        default: false
+        mapTo: UpdateExisting

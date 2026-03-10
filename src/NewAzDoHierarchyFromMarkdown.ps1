@@ -1,10 +1,15 @@
 <#
 .SYNOPSIS
-Create Azure DevOps work item hierarchy from markdown file
+Create Azure DevOps work item hierarchy from markdown content
 
 .DESCRIPTION
-Parses a markdown file using hierarchical headers and creates a hierarchy of Epic/Feature/Story work items.
+Parses markdown content using hierarchical headers and creates a hierarchy of Epic/Feature/Story work items.
 Performs full validation before creating any items (fail-fast approach).
+
+Organization, Project, and PatToken are retrieved from environment variables:
+- GMD_AZDO_ORGANIZATION: Azure DevOps organization name
+- GMD_AZDO_PROJECT: Azure DevOps project name
+- GMD_AZDO_MACHINE_WORKITEMSRW: PAT token for work item operations
 
 Markdown format:
     # Epic Title
@@ -36,14 +41,8 @@ Markdown format:
     #### Extra Information
     Additional notes and requirements
 
-.PARAMETER Organization
-The Azure DevOps organization name (required)
-
-.PARAMETER Project
-The Azure DevOps project name (required)
-
-.PARAMETER MarkdownFilePath
-Path to markdown file to parse (required)
+.PARAMETER MarkdownContent
+The markdown hierarchy content as a string (required)
 
 .PARAMETER EpicId
 Optional: Parent Epic ID. If not provided, Features become top-level work items.
@@ -54,19 +53,16 @@ Switch: If specified, shows planned operations without creating work items
 .PARAMETER UpdateExisting
 Switch: If specified, matches existing work items by title (ignoring "(001)" suffixes) and updates them instead of creating new ones. Uses existing items as parents for child items.
 
-.PARAMETER PatToken
-Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW
-environment variable (expected to be encrypted).
-
 .OUTPUTS
 PSObject with summary of created/planned work items with hierarchy
 
 .EXAMPLE
 Create hierarchy with DryRun first:
-    .\New-AzDoHierarchyFromMarkdown.ps1 -Organization "myorg" -Project "myproject" -MarkdownFilePath "hierarchy.md" -DryRun
+    $content = Get-Content "hierarchy.md" -Raw
+    .\New-AzDoHierarchyFromMarkdown.ps1 -MarkdownContent $content -DryRun
 
 .NOTES
-- Markdown file must exist and be readable
+- Input content is validated during parsing
 - Requires Azure DevOps REST API access
 - Pre-validates entire structure before creating items
 - Hierarchy is inferred from header levels: # = Epic, ## = Feature, ### = Story, #### = Task/Bug
@@ -82,21 +78,13 @@ Create hierarchy with DryRun first:
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Organization,
-
-    [Parameter(Mandatory = $true)]
-    [string]$Project,
-
-    [Parameter(Mandatory = $true)]
-    [string]$MarkdownFilePath,
+    [string]$MarkdownContent,
 
     [int]$EpicId,
 
     [switch]$DryRun,
 
-    [switch]$UpdateExisting,
-
-    [string]$PatToken
+    [switch]$UpdateExisting
 )
 
 Set-StrictMode -Version 3.0
@@ -111,6 +99,19 @@ $ErrorActionPreference = 'Stop'
 # Validate ssLogIt.ps1 exists
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
     Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH."
+}
+
+# Get Organization, Project from environment variables
+[string]$Organization = $env:GMD_AZDO_ORGANIZATION
+[string]$Project = $env:GMD_AZDO_PROJECT
+[string]$PatToken = $env:GMD_AZDO_MACHINE_WORKITEMSRW
+
+if ([string]::IsNullOrWhiteSpace($Organization)) {
+    throw "Environment variable GMD_AZDO_ORGANIZATION is not set"
+}
+
+if ([string]::IsNullOrWhiteSpace($Project)) {
+    throw "Environment variable GMD_AZDO_PROJECT is not set"
 }
 
 # Helper function to normalize title for matching (strip version suffixes like "(001)")
@@ -324,7 +325,7 @@ if (-not (Test-Path -LiteralPath $MarkdownFilePath -PathType Leaf)) {
 
 $null = & ssLogIt.ps1 -Level Info -Message "Parsing markdown file: ::FgGreen::$MarkdownFilePath::FgDefault::"
 
-# Get PAT token if not provided
+# Get PAT token if not provided via environment
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
 }
@@ -332,7 +333,7 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 try {
     # Call adapter to parse markdown to JSON
     $null = & ssLogIt.ps1 -Level Info -Message "Converting markdown to JSON structure..."
-    $hierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $MarkdownFilePath -ErrorAction Stop
+    $hierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $MarkdownContent -ErrorAction Stop
 
     [object[]]$epics = $hierarchy.epics
     [object[]]$features = $hierarchy.topLevelFeatures

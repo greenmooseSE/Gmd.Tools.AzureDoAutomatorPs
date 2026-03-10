@@ -49,30 +49,31 @@ Output JSON structure:
       "topLevelFeatures": [...]
     }
 
-.PARAMETER MarkdownFilePath
-Path to markdown file to parse (required)
+.PARAMETER MarkdownContent
+The markdown hierarchy content as a string (required)
 
 .OUTPUTS
 JSON object with parsed hierarchy
 
 .EXAMPLE
-Convert markdown to JSON:
-    .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownFilePath "hierarchy.md" | ConvertTo-Json -Depth 10
+Convert markdown content to JSON:
+    $content = Get-Content "hierarchy.md" -Raw
+    .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $content | ConvertTo-Json -Depth 10
 
 Inspect structure:
-    $json = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownFilePath "hierarchy.md"
+    $content = Get-Content "hierarchy.md" -Raw
+    $json = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $content
     $json.epics[0].features[0].stories | Select-Object title, description
 
 .NOTES
-- Markdown file must exist and be readable
-- Validates entire structure during parsing (including title prefixes and header levels in descriptions)
-- Descriptions are preserved as-is from markdown (with newlines)
+- Input content is validated during parsing (including title prefixes and header levels in descriptions)
+- Descriptions are preserved as-is from content (with newlines)
 - All content is normalized and validated before output
 #>
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$MarkdownFilePath
+    [string]$MarkdownContent
 )
 
 Set-StrictMode -Version 3.0
@@ -305,15 +306,15 @@ function Test-DescriptionHeaderLevelsForTask {
     }
 }
 
-# Validate markdown file
-if (-not (Test-Path -LiteralPath $MarkdownFilePath -PathType Leaf)) {
-    throw "Markdown file not found: $MarkdownFilePath"
+# Validate markdown content
+if ([string]::IsNullOrWhiteSpace($MarkdownContent)) {
+    throw "Markdown content is empty or null"
 }
 
-Write-Debug "Parsing markdown file: $MarkdownFilePath"
+Write-Debug "Parsing markdown content"
 
-# Read and parse markdown file
-[string[]]$lines = @(Get-Content -LiteralPath $MarkdownFilePath -Raw) -split "`n"
+# Parse markdown content
+[string[]]$lines = $MarkdownContent -split "`n"
 
 # Structure to hold parsed data
 [object[]]$epics = @()
