@@ -13,7 +13,7 @@ If requested to implement all stories in a story, perform the following before/a
 3. Generate a commit message by calling `ssAiCommitMsg.ps1` (by default it is copied to clipboard, but it also returned as output).
 4. Commit the changes with the generated commit message.
 5. Ensure you have verified the ACs, and updated the story in AzureDo (as described in `docs/additionalAgentInstructions.md`, e.g. checking the listed ACs etc.).
-5. Checkout the feature branch base (e.g. `feat/ab#123-foo`), and merge with --no-ff. Example: `git checkout feat/ab#123-foo; git merge feat/ab#124-storyTitle --no-fff`;
+5. Checkout the feature branch base (e.g., `feat/ab#123-foo`), and merge with --no-ff. Example: `git checkout feat/ab#123-foo; git merge feat/ab#124-storyTitle --no-ff`;
 6. Continue from step B1.
 
 # D1. After implementation of all stories are done

@@ -21,7 +21,7 @@
 * If an AC item is not implemented, do not check off that checkbox but instead indicate this with update with strike-through and a comment, e.g. `- [ ] ~~AC item~~ (*Comment of why it was not implemented*).`.
 
 ## Story field  "AC Scenarios" (Gherkin/BDD scenarios)
-* Ensure each scenario is implemented in tests, and suffix the scenario title with "✅ (`<TestName>`)"
+* Ensure each scenario is implemented in tests, check off the the items (`- [x]` or `✅`) and update scenario with suffix of test name (e.g. `- [x] Scenario: User logs in 🧪 ``GivenStartPage_WhenUserLogsIn_SystemUpdatesDbWithUserSession`` ` )
 
 ## When completed implementing a story
 * Always update README.md when applicable.
