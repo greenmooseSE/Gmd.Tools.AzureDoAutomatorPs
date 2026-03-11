@@ -70,11 +70,13 @@ As a developer, I need to implement OAuth 2.0 authentication integration with Mi
 Entra ID so that users can securely log in with their organizational credentials.
 
 #### Acceptance Criteria
-- [ ] Users can log in with Entra ID credentials using OAuth 2.0 flow
-- [ ] Access token is valid for 1 hour and refresh token extends session
-- [ ] Failed login attempts are logged for security auditing
-- [ ] login page displays appropriate error messages for invalid credentials
-- [ ] Session is cleared when user logs out or token expires
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | Users can log in with Entra ID credentials using OAuth 2.0 flow |  |  |
+| ⏹️ | Access token is valid for 1 hour and refresh token extends session |  |  |
+| ⏹️ | Failed login attempts are logged for security auditing |  |  |
+| ⏹️ | Login page displays appropriate error messages for invalid credentials |  |  |
+| ⏹️ | Session is cleared when user logs out or token expires |  |  |
 
 #### AC Scenarios
 1. **Scenario**: User successfully logs in with valid Entra ID credentials\
@@ -112,11 +114,13 @@ As a user, I want to view and manage my profile information and preferences so t
 my account reflects my current details and communication preferences.
 
 #### Acceptance Criteria
-- [ ] User profile page displays name, email, phone, and account creation date
-- [ ] Users can edit name and email with confirmation dialog
-- [ ] Users can update communication preferences (email notifications, frequency)
-- [ ] All profile changes are audited with change timestamp and actor
-- [ ] New email requires verification via confirmation link
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | User profile page displays name, email, phone, and account creation date |  |  |
+| ⏹️ | Users can edit name and email with confirmation dialog |  |  |
+| ⏹️ | Users can update communication preferences (email notifications, frequency) |  |  |
+| ⏹️ | All profile changes are audited with change timestamp and actor |  |  |
+| ⏹️ | New email requires verification via confirmation link |  |  |
 
 #### AC Scenarios
 1. **Scenario**: User updates profile name successfully\
@@ -234,11 +238,13 @@ As a customer, I want to easily create a support ticket by filling out a simple 
 so that I can quickly request help from the support team.
 
 #### Acceptance Criteria
-- [ ] Form includes required fields: Title, Description, Category, Priority
-- [ ] Form validation provides real-time feedback on invalid inputs
-- [ ] File upload allows up to 5 attachments (10MB per file, 50MB total)
-- [ ] Form submission sends confirmation email with ticket number
-- [ ] Estimated response time is displayed based on priority and queue
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | Form includes required fields: Title, Description, Category, Priority |  |  |
+| ⏹️ | Form validation provides real-time feedback on invalid inputs |  |  |
+| ⏹️ | File upload allows up to 5 attachments (10MB per file, 50MB total) |  |  |
+| ⏹️ | Form submission sends confirmation email with ticket number |  |  |
+| ⏹️ | Estimated response time is displayed based on priority and queue |  |  |
 
 #### AC Scenarios
 1. **Scenario**: User creates ticket with valid information\
@@ -269,11 +275,13 @@ As a customer, I want to receive real-time notifications when my support ticket 
 changes so I'm always informed about the progress of my issue resolution.
 
 #### Acceptance Criteria
-- [ ] Ticket status changes trigger WebSocket notifications to connected clients
-- [ ] Users receive desktop and email notifications based on preference settings
-- [ ] Notification includes updated status, timestamp, and agent comment (if applicable)
-- [ ] User can customize which status changes trigger notifications
-- [ ] Notifications appear within 2 seconds of status change
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | Ticket status changes trigger WebSocket notifications to connected clients |  |  |
+| ⏹️ | Users receive desktop and email notifications based on preference settings |  |  |
+| ⏹️ | Notification includes updated status, timestamp, and agent comment (if applicable) |  |  |
+| ⏹️ | User can customize which status changes trigger notifications |  |  |
+| ⏹️ | Notifications appear within 2 seconds of status change |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Ticket is assigned to support agent and user is notified\
@@ -314,11 +322,13 @@ Implement a full-text search engine that returns relevant knowledge base article
 with AI-suggested related articles based on semantic similarity.
 
 #### Acceptance Criteria
-- [ ] Search index supports 50,000+ articles with sub-second response times
-- [ ] Search results ranked by relevance with relevance score displayed
-- [ ] AI suggestions return 3-5 semantically similar articles
-- [ ] Search supports filtering by category and date authored
-- [ ] Faceted search shows article counts by category
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | Search index supports 50,000+ articles with sub-second response times |  |  |
+| ⏹️ | Search results ranked by relevance with relevance score displayed |  |  |
+| ⏹️ | AI suggestions return 3-5 semantically similar articles |  |  |
+| ⏹️ | Search supports filtering by category and date authored |  |  |
+| ⏹️ | Faceted search shows article counts by category |  |  |
 
 #### AC Scenarios
 1. **Scenario**: User searches for articles about billing issues\
@@ -350,11 +360,13 @@ Allow users to contribute their own solutions to common issues, with community v
 and moderation to ensure quality content.
 
 #### Acceptance Criteria
-- [ ] Users can submit solutions to existing articles with title and detailed steps
-- [ ] Solutions are marked as "Pending Review" until moderated by staff
-- [ ] Community members can vote solutions helpful/unhelpful
-- [ ] Solutions with 20+ helpful votes appear above original article content
-- [ ] Inappropriate content is hidden after 5 unhelpful votes and reviewed
+| ✅ | What is Verified | Test(s) | Notes |
+|---|------------------|---------|-------|
+| ⏹️ | Users can submit solutions to existing articles with title and detailed steps |  |  |
+| ⏹️ | Solutions are marked as "Pending Review" until moderated by staff |  |  |
+| ⏹️ | Community members can vote solutions helpful/unhelpful |  |  |
+| ⏹️ | Solutions with 20+ helpful votes appear above original article content |  |  |
+| ⏹️ | Inappropriate content is hidden after 5 unhelpful votes and reviewed |  |  |
 
 #### AC Scenarios
 1. **Scenario**: User submits helpful solution to popular article\

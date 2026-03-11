@@ -96,10 +96,12 @@ $template = @"
 # **I want** [action]
 # **So that** [benefit/validation]
 
+
 # ACCEPTANCE CRITERIA
 # #### Acceptance Criteria
-# - [ ] Criterion 1 (one thing per criterion)
-# - [ ] Criterion 2
+# | ✅ | What is Verified | Test(s) | Notes |
+# |---|-----------------|---------|-------|
+# | ⏹️ | (Describe what is verified) | (Test name or method enclosed with backticks) | (Any notes) |
 
 # AC SCENARIOS (BDD/GHERKIN)
 # #### AC Scenarios
@@ -161,9 +163,11 @@ Include additional details about the implementation approach here if needed.  \
 Keep the description focused on the "what" and "why", not "how".
 
 #### Acceptance Criteria
-- [ ] Criterion 1 validates one specific behavior
-- [ ] Criterion 2 validates another specific behavior
-- [ ] Criterion 3 validates the integration or edge case
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| [ ] | Criterion 1 validates one specific behavior |  |  |
+| [ ] | Criterion 2 validates another specific behavior |  |  |
+| [ ] | Criterion 3 validates the integration or edge case |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Happy path with all inputs valid
@@ -201,8 +205,10 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 **So that** [related benefit]  \
 
 #### Acceptance Criteria
-- [ ] First behavior is correctly implemented
-- [ ] Edge cases are handled
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| [ ] | First behavior is correctly implemented |  |  |
+| [ ] | Edge cases are handled |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Normal operation
@@ -228,8 +234,10 @@ foundational work. This feature sets up any supporting systems needed.
 **So that** [system can function properly]  \
 
 #### Acceptance Criteria
-- [ ] Component is deployed and operational
-- [ ] Monitoring and logging are in place
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| [ ] | Component is deployed and operational |  |  |
+| [ ] | Monitoring and logging are in place |  |  |
 
 #### AC Scenarios
 1. **Scenario**: System starts correctly with new component
@@ -248,9 +256,11 @@ foundational work. This feature sets up any supporting systems needed.
 **So that** [system remains stable]  \
 
 #### Acceptance Criteria
-- [ ] Error is caught and logged
-- [ ] User receives helpful error message
-- [ ] System does not crash
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| [ ] | Error is caught and logged |  |  |
+| [ ] | User receives helpful error message |  |  |
+| [ ] | System does not crash |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Invalid input is provided

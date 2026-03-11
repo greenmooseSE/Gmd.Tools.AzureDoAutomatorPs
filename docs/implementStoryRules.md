@@ -14,11 +14,13 @@
 * Avoid using "#<number>" in an azDo comment, unless it is referencing a work item ID, escape it if not referencing a work item (e.g. "\#1").
 * When creating work item for testing purposes (explicit or implicit via tests), ensure we add tag `testWi` to easy find any orphan test work items later if needed (not applicable if we need to explicitly test creating work item without tags).
 
-## Story field "Acceptance Criteria" 
-* Check off the items (`[x]`) as you implement them. Validate that you only check those items you are confident to have fixed/implemented/verified.
+
+## Story field "Acceptance Criteria"
+* Acceptance Criteria must be managed as a markdown table with 4 columns: | ✅ | What is Verified | Test(s) | Notes |
+* Check off the items (✅) in the ✅ column as you implement them. Only check those items you are confident to have fixed/implemented/verified.
 * Each item should be verified in a test script (when possible).
-* If we have a test for it, also write the test method name suffix e.g. "(`GivenEmailIsInvalid_ItShouldThrowException`)".
-* If an AC item is not implemented, do not check off that checkbox but instead indicate this with update with strike-through and a comment, e.g. `- [ ] ~~AC item~~ (*Comment of why it was not implemented*).`.
+* If we have a test for it, write the test method name in the Test(s) column with backticks (e.g., `GivenEmailIsInvalid_ItShouldThrowException`).
+* If an AC item is not implemented, instead of ✅ emoticon, use ❌ and indicate with strike-through in the "What is Verified" column and a comment in Notes (e.g., `~~AC item~~` and `Not implemented because ...`).
 
 ## Story field  "AC Scenarios" (Gherkin/BDD scenarios)
 * Ensure each scenario is implemented in tests, check off the the items (`- [x]` or `✅`) and update scenario with suffix of test name (e.g. `- [x] Scenario: User logs in 🧪 ``GivenStartPage_WhenUserLogsIn_SystemUpdatesDbWithUserSession`` ` )

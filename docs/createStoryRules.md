@@ -10,8 +10,12 @@
 - Should contain 3-line persona layout (`**As a** ... **I want** ... **So that** ...`)
 - May contain headers with content e.g. `### Problem` and `## Solution`.
 
+
 ## Acceptance Criteria
-- Should be a list of bullet items (`- [ ] Some criteria`).
+- Acceptance Criteria **must be written as a markdown table** with 4 columns:
+  | ✅ | What is Verified | Test(s) | Notes |
+  |---|-----------------|---------|-------|
+  | [ ] | (Describe what is verified) | (Test name or method) | (Any notes) |
 - Prefer items that can be verified automatically; only diverge if the story nature doesn't allow it (e.g., "Create CI pipeline").
 - Include ONLY explicit criteria specific to this story's business logic or requirements.
 - **Do NOT include general criteria** such as:
