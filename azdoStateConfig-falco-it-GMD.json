@@ -1,0 +1,9 @@
+{
+  "writableStates": {
+    "Epic": ["New", "Active"],
+    "Feature": ["New", "Planning", "Planning Done", "Ready for Development", "Active"],
+    "Story": ["New", "Active", "Design", "Ready for Development", "Under Development"],
+    "Task": ["New", "Active"],
+    "Bug": ["New", "Active"]
+  }
+}

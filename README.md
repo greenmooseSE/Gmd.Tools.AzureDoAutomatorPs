@@ -28,6 +28,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
+- [State Configuration Management](#state-configuration-management)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -1089,6 +1090,135 @@ Example output:
 The repository includes an example hierarchy file that matches the parser format used by `NewAzDoHierarchyFromMarkdown.ps1` and demonstrates how to structure Epics, Features, Stories, Acceptance Criteria, AC Scenarios, tags and story points.
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
+
+## State Configuration Management
+
+The State Configuration system enables team-specific rules for which work item states are editable during hierarchy exports and reimports. This supports multiple organizations and projects with organization/project-scoped configuration files and sensible defaults.
+
+### Overview
+
+State configuration defines "writable states" for each work item type, allowing teams to:
+- Control which Azure DevOps states can be modified during export-import operations
+- Define organization/project-specific state rules
+- Use sensible defaults when no configuration is provided
+- Store configuration in version control for team collaboration
+- Support environment-specific overrides for CI/CD pipelines
+
+### Configuration File Format
+
+Configuration files are stored at the repository root using the naming pattern: `azdoStateConfig-{organization}-{project}.json`
+
+**Example: `azdoStateConfig-falco-it-GMD.json`**
+
+```json
+{
+  "writableStates": {
+    "Epic": ["New", "Active"],
+    "Feature": ["New", "Active"],
+    "Story": ["New", "Active"],
+    "Task": ["New", "Active"],
+    "Bug": ["New", "Active"]
+  }
+}
+```
+
+### Loading Configuration
+
+Use the `LoadStateConfiguration.ps1` script to load and cache state configuration:
+
+```powershell
+# Load configuration for an organization and project
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD"
+$epicStates = $config.writableStates.Epic
+
+# Alternative: specify custom repository root
+$config = .\LoadStateConfiguration.ps1 -Organization "contoso" -Project "web" `
+    -RepositoryRoot "C:\myrepo"
+
+# Force reload from file (bypass cache)
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Default Behavior
+
+When a configuration file is not found, sensible defaults are automatically applied. Only "New" and "Active" states are writable by default. Terminal states like "Done" and "Closed" should never be modified during export-import operations:
+
+```powershell
+# Configuration file azdoStateConfig-temp-test.json not found?
+# Default configuration is returned with these states:
+
+@{
+    writableStates = @{
+        "Epic"    = @("New", "Active")
+        "Feature" = @("New", "Active")
+        "Story"   = @("New", "Active")
+        "Task"    = @("New", "Active")
+        "Bug"     = @("New", "Active")
+    }
+}
+```
+
+### Configuration Features
+
+- **Memory Caching**: Configuration is cached after first load to avoid repeated file I/O operations
+- **Organization/Project Scoping**: Separate configuration files per organization-project pair enable team-specific rules
+- **Version Control**: Configuration files should be committed to version control for team collaboration
+- **CI/CD Pipeline Support**: Future enhancement will support environment variable overrides for pipeline-specific configurations
+- **Structure Validation**: Invalid configuration (missing writableStates property) is detected and reported with clear error messages
+
+### Troubleshooting
+
+#### Configuration File Not Found
+
+**Symptom**: LoadStateConfiguration returns default states instead of custom configuration
+
+**Solution**:
+1. Verify the configuration file exists in the repository root
+2. Check the filename matches the pattern: `azdoStateConfig-{organization}-{project}.json`
+3. Ensure the organization and project names match exactly (case-sensitive recommended)
+4. Verify the file contains valid JSON with "writableStates" property
+
+```powershell
+# Debug: Check if configuration file exists
+Test-Path "./azdoStateConfig-falco-it-GMD.json"
+
+# Debug: Verify JSON is valid
+Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+```
+
+#### Invalid Configuration Error
+
+**Symptom**: "Failed to load configuration... The property 'writableStates' cannot be found"
+
+**Solution**:
+1. Ensure your configuration JSON includes the "writableStates" property at the root level
+2. Verify the JSON structure matches the format shown above
+3. Use a JSON validator to verify the file is valid JSON syntax
+
+```powershell
+# Example: Check configuration structure
+$config = Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+$config.writableStates  # Should output the work item types and states
+```
+
+#### Performance/Caching Issues
+
+**Symptom**: Changed configuration file is not reflected in subsequent script calls
+
+**Solution**: Use the `-Force` parameter to bypass the in-memory cache and reload from file:
+
+```powershell
+# Force reload configuration from file
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Best Practices
+
+1. **Store in Version Control**: Commit configuration files to ensure team consistency
+2. **Name Consistently**: Use organization and project names from your Azure DevOps account
+3. **Document States**: Add comments to your configuration explaining why specific states are writable
+4. **Test Configuration**: Verify your configuration with small test hierarchies before large exports
+5. **Environment-Specific**: Consider different configurations for different environments (dev, staging, production)
 
 ## MCP Server Integration
 
