@@ -4,8 +4,8 @@ Retrieve Azure DevOps Epic hierarchy with Features and Stories
 
 .DESCRIPTION
 Fetches an Epic and builds a complete hierarchy showing:
-- Epic with Description and Effort
-- All Features under the Epic with Description and Effort
+- Epic with State, Description and Effort
+- All Features under the Epic with State, Description and Effort
 - All Stories under each Feature with full User Story details:
   Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
   StoryPoints, ExtraInformation, Tags
@@ -219,6 +219,7 @@ try {
 
             $featureObject = @{
                 Id = $featureId
+                State = $feature.fields.'System.State'
                 Title = $featureTitle
                 Description = if ($feature.fields.PSObject.Properties.Name -contains 'System.Description') { $feature.fields.'System.Description' } else { $null }
                 Effort = if ($feature.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $feature.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
@@ -236,6 +237,7 @@ try {
     # Build the hierarchy object
     $hierarchyObject = @{
         Id = $epicWorkItem.id
+        State = $epicWorkItem.fields.'System.State'
         Title = $epicTitle
         Description = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $epicWorkItem.fields.'System.Description' } else { $null }
         Effort = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $epicWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }

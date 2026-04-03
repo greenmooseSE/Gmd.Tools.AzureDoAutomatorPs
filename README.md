@@ -984,6 +984,73 @@ Story
     ├── Id, State, Title, Description, Tags
 ```
 
+#### `ConvertHierarchyToMarkdown.ps1`
+Export a User Story hierarchy to markdown format with state field and writable state validation.
+
+This script enables the export-modify-reimport workflow by converting a story hierarchy to markdown while respecting the state configuration rules. States that are not in the writable states list are marked as read-only with warning comments.
+
+Usage:
+```powershell
+# Get story hierarchy
+$hierarchy = .\GetAzDoHierarchyForStory.ps1 -StoryId 100
+
+# Export to markdown with state field
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -Organization "falco-it" `
+    -Project "GMD"
+
+# Save to file
+$markdown | Out-File "story-export.md"
+
+# With custom repository root for state configuration
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -Organization "contoso" `
+    -Project "web" `
+    -RepositoryRoot "C:\myrepo"
+```
+
+**Parameters:**
+- `Hierarchy` (required): Story hierarchy object from GetAzDoHierarchyForStory.ps1
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `RepositoryRoot` (optional): Root directory for state configuration files (default: current directory)
+
+**Features:**
+- Exports state field in markdown metadata (`**State**: [value]`)
+- Marks editable states (in writable states list) without warnings
+- Marks non-editable states with ⚠️ indicator and HTML warning comment
+- Gracefully handles incomplete or missing state configurations using sensible defaults
+- Formats tasks and bugs beneath the story
+- Preserves all work item metadata (description, acceptance criteria, story points, tags, etc.)
+- HTML comments warn users that non-writable state changes will be ignored during reimport
+
+**Output Markdown Structure:**
+```markdown
+<!-- WARNING: State 'Closed' is NOT in the writable states list...
+     During reimport, any state changes will be ignored. Do NOT modify the state field. -->
+
+### Story: Title
+
+**tags**: tag1, tag2
+**SP**: 5
+**State**: Closed ⚠️ (read-only)
+**Description**
+Story description here...
+
+#### Acceptance Criteria
+...
+
+#### AC Scenarios
+...
+
+#### Task: Task Title
+**State**: Active
+**Description**
+Task description...
+```
+
 #### `NewAzDoHierarchyFromMarkdown.ps1`
 Create complete work item hierarchy from markdown file.
 
