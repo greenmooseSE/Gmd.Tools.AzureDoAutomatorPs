@@ -355,7 +355,7 @@ function Cleanup-Item {
     if (-not [string]::IsNullOrWhiteSpace($Item.description)) { $cleaned.description = $Item.description }
     
     # Recursively clean children
-    if ($Item.children.Count -gt 0) {
+    if ($null -ne $Item.children -and $Item.children.Count -gt 0) {
         $cleaned.children = @($Item.children | ForEach-Object { Cleanup-Item -Item $_ })
     }
     

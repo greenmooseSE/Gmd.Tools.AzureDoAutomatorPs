@@ -272,46 +272,32 @@ function Update-WorkItem {
         [hashtable]$Changes
     )
     
-    $patch = @()
+    $fields = @{}
     
     foreach ($fieldName in $Changes.Keys) {
         $change = $Changes[$fieldName]
         
-        $fieldPath = switch ($fieldName) {
-            'title' { '/fields/System.Title' }
-            'description' { '/fields/System.Description' }
-            'state' { '/fields/System.State' }
-            'tags' { '/fields/System.Tags' }
-            'storyPoints' { '/fields/Microsoft.VSTS.Scheduling.StoryPoints' }
-            'effort' { '/fields/Microsoft.VSTS.Scheduling.Effort' }
-            'acceptanceCriteria' { '/fields/Microsoft.VSTS.Common.AcceptanceCriteria' }
-            'acScenarios' { '/fields/Custom.ACScenarios' }
-            'extraInformation' { '/fields/Custom.ExtraInformation' }
-            # Handle custom fields that start with "Custom."
-            { $fieldName -match '^Custom\.' } { "/fields/$fieldName" }
+        $azFieldName = switch ($fieldName) {
+            'title' { 'System.Title' }
+            'description' { 'System.Description' }
+            'state' { 'System.State' }
+            'tags' { 'System.Tags' }
+            'storyPoints' { 'Microsoft.VSTS.Scheduling.StoryPoints' }
+            'effort' { 'Microsoft.VSTS.Scheduling.Effort' }
+            'acceptanceCriteria' { 'Microsoft.VSTS.Common.AcceptanceCriteria' }
+            'acScenarios' { 'Custom.ACScenarios' }
+            'extraInformation' { 'Custom.ExtraInformation' }
+            { $fieldName -match '^Custom\.' } { $fieldName }
             default { $null }
         }
         
-        if ($fieldPath) {
-            $patch += @{
-                op    = 'replace'
-                path  = $fieldPath
-                value = $change.after
-            }
-        }
-        # Also handle any custom fields that might have been captured from markdown
-        # (e.g., fields like Custom.Platform, Custom.CustomField, etc.)
-        elseif ($fieldName -match '^Custom\.') {
-            $patch += @{
-                op    = 'replace'
-                path  = "/fields/$fieldName"
-                value = $change.after
-            }
+        if ($null -ne $azFieldName) {
+            $fields[$azFieldName] = $change.after
         }
     }
     
-    if ($patch.Count -gt 0) {
-        $workItem = Update-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $Id -Patch $patch -PatToken:$PatToken
+    if ($fields.Count -gt 0) {
+        $workItem = Update-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $Id -Fields $fields -PatToken:$PatToken
         return $workItem
     }
     

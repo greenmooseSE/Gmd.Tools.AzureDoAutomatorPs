@@ -197,16 +197,48 @@ function Compare-Fields {
 
 function Build-DependencyOrder {
     param([array]$Operations)
-    
+
+    if ($null -eq $Operations -or $Operations.Count -eq 0) {
+        return , @()
+    }
+
     # Sort operations: Creates first (parents before children), then Updates, then Moves
-    $creates = $Operations | Where-Object { $_.operationType -eq 'Create' } | Sort-Object {
+    [array]$creates = @($Operations | Where-Object { $_.operationType -eq 'Create' } | Sort-Object {
         if ($_.parentIdAfter) { 1 } else { 0 }
-    }, 'title'
-    
-    $updates = $Operations | Where-Object { $_.operationType -eq 'Update' }
-    $moves = $Operations | Where-Object { $_.operationType -eq 'Move' }
-    
-    return @($creates) + @($updates) + @($moves)
+    }, 'title')
+
+    [array]$updates = @($Operations | Where-Object { $_.operationType -eq 'Update' })
+    [array]$moves = @($Operations | Where-Object { $_.operationType -eq 'Move' })
+
+    return , @(($creates + $updates + $moves) | Where-Object { $null -ne $_ })
+}
+
+function Get-WritableStatesForType {
+    <#
+    .SYNOPSIS
+    Returns the list of writable states for a given work item type from state configuration.
+    Returns $null if configuration is unavailable or type is not mapped.
+    #>
+    param([string]$ItemType)
+
+    if ($null -eq $script:stateConfig -or $null -eq $script:stateConfig.writableStates) { return $null }
+
+    $configKey = switch ($ItemType) {
+        'Story'      { 'Story' }
+        'User Story' { 'Story' }
+        'Feature'    { 'Feature' }
+        'Epic'       { 'Epic' }
+        'Task'       { 'Task' }
+        'Bug'        { 'Bug' }
+        default      { $null }
+    }
+
+    if ($null -eq $configKey) { return $null }
+
+    if ($script:stateConfig.writableStates.PSObject.Properties.Name -contains $configKey) {
+        return @($script:stateConfig.writableStates.$configKey)
+    }
+    return $null
 }
 
 # ============================================================================
@@ -216,6 +248,22 @@ function Build-DependencyOrder {
 $script:errors = @()
 $script:warnings = @()
 $script:operations = @()
+
+# Load state configuration for validating state changes against writable states
+$script:stateConfig = $null
+if (-not [string]::IsNullOrWhiteSpace($StateConfigPath) -and (Test-Path $StateConfigPath)) {
+    $script:stateConfig = Get-Content -Raw $StateConfigPath | ConvertFrom-Json
+} else {
+    $org = $env:GMD_AZDO_ORGANIZATION
+    $proj = $env:GMD_AZDO_PROJECT
+    if (-not [string]::IsNullOrWhiteSpace($org) -and -not [string]::IsNullOrWhiteSpace($proj)) {
+        try {
+            $script:stateConfig = & "$PSScriptRoot/LoadStateConfiguration.ps1" -Organization $org -Project $proj
+        } catch {
+            # State config not critical; continue without state validation
+        }
+    }
+}
 
 # Validate input structure
 if (-not $OriginalHierarchy.workItems -or $OriginalHierarchy.workItems.Count -eq 0) {
@@ -250,7 +298,17 @@ foreach ($modItemKey in $modifiedFlat.Keys) {
             # Compare fields
             $origItemData = $origItem.item  # Already a hashtable
             $fieldChanges = Compare-Fields -Original $origItemData -Modified $modItemData
-            
+
+            # Validate state changes against writable states configuration
+            if ($fieldChanges.ContainsKey('state')) {
+                $newState = $fieldChanges['state'].after
+                $writableStates = Get-WritableStatesForType -ItemType $modItem.type
+                if ($null -ne $writableStates -and $writableStates -notcontains $newState) {
+                    $validStatesStr = $writableStates -join ', '
+                    $script:errors += "Cannot change $($modItem.type) state to '$newState'. State is not in the writable states list. Valid writable states: $validStatesStr"
+                }
+            }
+
             if ($fieldChanges.Count -gt 0 -or $modItem.parentId -ne $origItem.parentId) {
                 # Detect change type
                 $opType = if ($modItem.parentId -ne $origItem.parentId) { 'Move' } else { 'Update' }
