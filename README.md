@@ -1018,6 +1018,7 @@ $markdown = .\ConvertHierarchyToMarkdown.ps1 `
 - `RepositoryRoot` (optional): Root directory for state configuration files (default: current directory)
 
 **Features:**
+- Preserves WorkItemId in markdown metadata for round-trip export-import operations
 - Exports state field in markdown metadata (`**State**: [value]`)
 - Marks editable states (in writable states list) without warnings
 - Marks non-editable states with ⚠️ indicator and HTML warning comment

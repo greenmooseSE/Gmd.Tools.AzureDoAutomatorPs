@@ -682,3 +682,19 @@ commands:
         required: false
         default: false
         mapTo: UpdateExisting
+
+  - id: export-hierarchy-to-markdown
+    script: ./ConvertHierarchyToMarkdown.ps1
+    description: "Export a work item hierarchy (Epic/Feature/Story) to markdown format with WorkItemId preservation. Enables round-trip export-modify-reimport workflow. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: HierarchyJson
+        type: object
+        required: true
+        mapTo: Hierarchy
+        description: "Hierarchy object from get-hierarchy-epic, get-hierarchy-feature, or get-hierarchy-story"
+      - name: RepositoryRoot
+        type: string
+        required: false
+        mapTo: RepositoryRoot
+        description: "Root directory for state configuration files (default: current directory)"

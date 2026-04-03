@@ -191,6 +191,8 @@ function Convert-StoryToMarkdown {
     }
     
     # Add metadata
+    $markdown += "**WorkItemId**: $Id  `n"
+    
     if ($Tags) {
         $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
     }
@@ -252,6 +254,7 @@ function Convert-StoryToMarkdown {
             }
             
             $markdown += "#### Task: $taskTitle  `n`n"
+            $markdown += "**WorkItemId**: $taskId  `n"
             $markdown += "**State**: $taskState$(if (-not $isTaskStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($taskDescription) {
@@ -285,6 +288,7 @@ function Convert-StoryToMarkdown {
             }
             
             $markdown += "#### Bug: $bugTitle  `n`n"
+            $markdown += "**WorkItemId**: $bugId  `n"
             $markdown += "**State**: $bugState$(if (-not $isBugStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($bugDescription) {
@@ -334,6 +338,8 @@ function Convert-FeatureToMarkdown {
     }
     
     # Add metadata
+    $markdown += "**WorkItemId**: $Id  `n"
+    
     if ($Tags) {
         $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
     }
@@ -399,6 +405,21 @@ function Convert-EpicToMarkdown {
     }
     
     # Add metadata
+    $markdown += "**WorkItemId**: $Id  `n"
+    
+    if ($Tags) {
+        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+    }
+    
+    if ($Effort) {
+        $markdown += "**Effort**: $Effort  `n"
+    }
+    
+    # Add State field to metadata
+    $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
+    $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add metadata
     if ($Tags) {
         $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
     }
@@ -449,11 +470,11 @@ try {
     if ($Hierarchy.PSObject.Properties.Name -contains 'Features') {
         $markdown = Convert-EpicToMarkdown -Epic $Hierarchy
     }
-    # Check if Stories property exists and State does NOT exist (this is a Feature)
-    elseif ($Hierarchy.PSObject.Properties.Name -contains 'Stories' -and -not ($Hierarchy.PSObject.Properties.Name -contains 'State')) {
+    # Check if Stories property exists (this is a Feature)
+    elseif ($Hierarchy.PSObject.Properties.Name -contains 'Stories') {
         $markdown = Convert-FeatureToMarkdown -Feature $Hierarchy
     }
-    # Otherwise it's a Story (has State field)
+    # Otherwise it's a Story
     else {
         $markdown = Convert-StoryToMarkdown -Story $Hierarchy
     }
