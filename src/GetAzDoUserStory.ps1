@@ -130,6 +130,14 @@ try {
     # Otherwise, return subset of fields
     $null = & ssLogIt.ps1 -Level Debug -Message "Building User Story subset object"
 
+    # Collect all custom fields (fields starting with "Custom.") except those already exposed as top-level properties
+    $customFields = @{}
+    foreach ($fieldName in $workItem.fields.PSObject.Properties.Name) {
+        if ($fieldName -match '^Custom\.' -and $fieldName -notin @('Custom.ACScenarios', 'Custom.ExtraInformation')) {
+            $customFields[$fieldName] = $workItem.fields.$fieldName
+        }
+    }
+
     # Build the subset object
     $storyObject = @{
         Id = $workItem.id
@@ -141,6 +149,7 @@ try {
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
+        CustomFields = $customFields
     }
 
     # Convert to PSCustomObject with proper NoteProperties

@@ -236,6 +236,20 @@ function Create-WorkItem {
         }
     }
     
+    # Add any custom fields (fields starting with "Custom." or captured from markdown)
+    if ($Fields.customFields -and $Fields.customFields -is [hashtable]) {
+        foreach ($customFieldName in $Fields.customFields.Keys) {
+            $customFieldValue = $Fields.customFields[$customFieldName]
+            if ($null -ne $customFieldValue -and -not [string]::IsNullOrWhiteSpace($customFieldValue.ToString())) {
+                $patch += @{
+                    op    = 'add'
+                    path  = "/fields/$customFieldName"
+                    value = $customFieldValue.ToString()
+                }
+            }
+        }
+    }
+    
     # Add parent if provided
     if ($ParentId) {
         $patch += @{
@@ -273,6 +287,8 @@ function Update-WorkItem {
             'acceptanceCriteria' { '/fields/Microsoft.VSTS.Common.AcceptanceCriteria' }
             'acScenarios' { '/fields/Custom.ACScenarios' }
             'extraInformation' { '/fields/Custom.ExtraInformation' }
+            # Handle custom fields that start with "Custom."
+            { $fieldName -match '^Custom\.' } { "/fields/$fieldName" }
             default { $null }
         }
         
@@ -280,6 +296,15 @@ function Update-WorkItem {
             $patch += @{
                 op    = 'replace'
                 path  = $fieldPath
+                value = $change.after
+            }
+        }
+        # Also handle any custom fields that might have been captured from markdown
+        # (e.g., fields like Custom.Platform, Custom.CustomField, etc.)
+        elseif ($fieldName -match '^Custom\.') {
+            $patch += @{
+                op    = 'replace'
+                path  = "/fields/$fieldName"
                 value = $change.after
             }
         }

@@ -213,6 +213,7 @@ function Parse-MarkdownToWorkItems {
                 storyPoints = $null
                 effort = $null
                 description = $null
+                customFields = @{}
                 children = @()
             }
             
@@ -255,6 +256,15 @@ function Parse-MarkdownToWorkItems {
                 # Description might continue on same line
                 if ($line -match '^\*\*Description\*\*\s+(.+)$') {
                     $descriptionBuffer += $Matches[1]
+                }
+            }
+            # Handle custom fields (any field starting with Custom. or other custom fields)
+            elseif ($line -match '^\*\*([^*]+)\*\*:\s*(.+?)(\s*\\)?$') {
+                $fieldName = $Matches[1]
+                $fieldValue = $Matches[2].Trim()
+                # Skip standard fields that we've already processed
+                if ($fieldName -notin @('WorkItemId', 'State', 'tags', 'SP', 'Effort', 'Description')) {
+                    $currentItem.customFields[$fieldName] = $fieldValue
                 }
             }
         }

@@ -172,6 +172,7 @@ function Convert-StoryToMarkdown {
     $StoryPoints = $Story.StoryPoints
     $Tags = $Story.Tags
     $ExtraInformation = $Story.ExtraInformation
+    $CustomFields = if ($Story.PSObject.Properties.Name -contains 'CustomFields') { $Story.CustomFields } else { @{} }
     
     # Determine if state is writable
     $workItemType = "Story"
@@ -204,6 +205,29 @@ function Convert-StoryToMarkdown {
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
     $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add custom fields to metadata
+    if ($null -ne $CustomFields -and $CustomFields.Count -gt 0) {
+        foreach ($fieldName in ($CustomFields.Keys | Sort-Object)) {
+            $fieldValue = $CustomFields[$fieldName]
+            if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldValue.ToString())) {
+                $escapedValue = Format-MarkdownText $fieldValue.ToString()
+                $markdown += "**$fieldName**: $escapedValue  `n"
+            }
+        }
+    }
+    
+    # Add ACScenarios to metadata if present
+    if ($ACScenarios) {
+        $escapedValue = Format-MarkdownText $ACScenarios
+        $markdown += "**Custom.ACScenarios**: $escapedValue  `n"
+    }
+    
+    # Add ExtraInformation to metadata if present
+    if ($ExtraInformation) {
+        $escapedValue = Format-MarkdownText $ExtraInformation
+        $markdown += "**Custom.ExtraInformation**: $escapedValue  `n"
+    }
     
     # Add description
     if ($Description) {
