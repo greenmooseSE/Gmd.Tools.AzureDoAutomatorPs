@@ -1,0 +1,466 @@
+<#
+.SYNOPSIS
+Convert an Azure DevOps hierarchy to markdown format with state validation
+
+.DESCRIPTION
+Exports an Epic/Feature/Story hierarchy to markdown format including:
+- Supports Epic (with nested Features and Stories)
+- Supports Feature (with nested Stories)
+- Supports Story with Tasks and Bugs
+- State field in metadata section for Stories
+- Marks editable vs non-editable states based on configuration
+- Adds warning comments for non-writable states
+- Adds 2 trailing spaces before newlines for markdown line breaks (except headers, lists, tables)
+
+The exported markdown is compatible with NewAzDoHierarchyFromMarkdown.ps1 for round-trip import.
+
+.PARAMETER Hierarchy
+The hierarchy object from GetAzDoHierarchyForEpic.ps1, GetAzDoHierarchyForFeature.ps1, or GetAzDoHierarchyForStory.ps1 (required)
+
+.PARAMETER Organization
+The Azure DevOps organization name (required)
+
+.PARAMETER Project
+The Azure DevOps project name (required)
+
+.PARAMETER RepositoryRoot
+Root directory where state configuration files are stored. Default: current working directory.
+
+.OUTPUTS
+String containing the markdown representation of the hierarchy
+
+.EXAMPLE
+# Export an epic hierarchy to markdown
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 -EpicId 100 -Organization "myorg" -Project "myproj"
+$markdown = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy -Organization "myorg" -Project "myproj"
+$markdown | Out-File "epic.md"
+
+# Export a feature hierarchy to markdown
+$hierarchy = .\GetAzDoHierarchyForFeature.ps1 -FeatureId 200 -Organization "myorg" -Project "myproj"
+$markdown = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy -Organization "myorg" -Project "myproj"
+$markdown | Out-File "feature.md"
+
+# Export a story hierarchy to markdown
+$hierarchy = .\GetAzDoHierarchyForStory.ps1 -StoryId 300 -Organization "myorg" -Project "myproj"
+$markdown = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy -Organization "myorg" -Project "myproj"
+$markdown | Out-File "story.md"
+
+.NOTES
+- Requires LoadStateConfiguration.ps1 for writable states validation
+- Adds 2 trailing spaces before newlines for proper markdown line breaks
+- Non-writable states include a warning comment before the markdown
+- Compatible with NewAzDoHierarchyFromMarkdown.ps1 for reimport
+#>
+
+#Requires -Version 7.0
+
+param(
+    [Parameter(Mandatory = $true)]
+    [PSObject]$Hierarchy,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Organization,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Project,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RepositoryRoot = (Get-Location).Path
+)
+
+Set-StrictMode -Version 3.0
+$ErrorActionPreference = 'Stop'
+
+# Import modules
+. "$PSScriptRoot/AzDoAutomatorConstants.ps1"
+
+# Load state configuration
+$config = & "$PSScriptRoot/LoadStateConfiguration.ps1" -Organization $Organization -Project $Project -RepositoryRoot $RepositoryRoot
+
+function Format-MarkdownText {
+    <#
+    .SYNOPSIS
+    Escape markdown special characters in text
+    #>
+    param([string]$Text)
+    
+    if ([string]::IsNullOrEmpty($Text)) {
+        return ""
+    }
+    
+    # Escape pipe characters for markdown tables
+    $Text = $Text -replace '\|', '\|'
+    
+    return $Text
+}
+
+function Add-MarkdownLineBreaks {
+    <#
+    .SYNOPSIS
+    Add 2 trailing spaces to lines for markdown line breaks (except headers, bullets, tables)
+    #>
+    param([string]$Text)
+    
+    if ([string]::IsNullOrEmpty($Text)) {
+        return ""
+    }
+    
+    # Split text by newlines
+    $lines = $Text -split "`n"
+    $result = @()
+    
+    foreach ($line in $lines) {
+        # Don't add trailing spaces to:
+        # - Headers (lines starting with #)
+        # - Bullet points (lines starting with -, *, +)
+        # - Numbered lists (lines starting with digits followed by period/paren)
+        # - Tables (lines with |)
+        # - Empty lines
+        
+        if ($line -match '^\s*$' -or `
+            $line -match '^\s*[#]{1,6}\s' -or `
+            $line -match '^\s*[-*+]\s' -or `
+            $line -match '^\s*\d+[\.\)]\s' -or `
+            $line -match '\|') {
+            # Don't add trailing spaces
+            $result += $line
+        }
+        else {
+            # Add 2 trailing spaces for markdown line breaks
+            $result += "$line  "
+        }
+    }
+    
+    return $result -join "`n"
+}
+
+function New-StateWarningComment {
+    <#
+    .SYNOPSIS
+    Generate a warning comment for non-writable states
+    #>
+    param(
+        [string]$State,
+        [string]$WorkItemType,
+        [string[]]$WritableStates
+    )
+    
+    $statesStr = $WritableStates -join ', '
+    
+    return @"
+<!-- WARNING: State '$State' is NOT in the writable states list for $WorkItemType items.
+     Writable states: $statesStr
+     During reimport, any state changes will be ignored. Do NOT modify the state field. -->
+"@
+}
+
+function Convert-StoryToMarkdown {
+    <#
+    .SYNOPSIS
+    Convert a Story hierarchy to markdown
+    #>
+    param(
+        [PSObject]$Story
+    )
+    
+    $Id = $Story.Id
+    $Title = Format-MarkdownText $Story.Title
+    $State = $Story.State
+    $Description = $Story.Description
+    $AcceptanceCriteria = $Story.AcceptanceCriteria
+    $ACScenarios = $Story.ACScenarios
+    $StoryPoints = $Story.StoryPoints
+    $Tags = $Story.Tags
+    $ExtraInformation = $Story.ExtraInformation
+    
+    # Determine if state is writable
+    $workItemType = "Story"
+    $writableStates = $config.writableStates.$workItemType
+    $isStateWritable = $writableStates -contains $State
+    
+    # Build markdown output
+    $markdown = @"
+### Story: $Title
+
+"@
+    
+    # Add warning comment if state is not writable
+    if (-not $isStateWritable) {
+        $markdown += (New-StateWarningComment -State $State -WorkItemType $workItemType -WritableStates $writableStates)
+        $markdown += "`n`n"
+    }
+    
+    # Add metadata
+    if ($Tags) {
+        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+    }
+    
+    if ($StoryPoints) {
+        $markdown += "**SP**: $StoryPoints  `n"
+    }
+    
+    # Add State field to metadata
+    $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
+    $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add description
+    if ($Description) {
+        $markdown += "**Description**  `n"
+        $markdown += (Add-MarkdownLineBreaks $Description)
+        $markdown += "`n"
+    }
+    
+    # Add acceptance criteria
+    if ($AcceptanceCriteria) {
+        $markdown += "`n#### Acceptance Criteria  `n"
+        $markdown += (Add-MarkdownLineBreaks $AcceptanceCriteria)
+        $markdown += "`n"
+    }
+    
+    # Add AC scenarios
+    if ($ACScenarios) {
+        $markdown += "`n#### AC Scenarios  `n"
+        $markdown += (Add-MarkdownLineBreaks $ACScenarios)
+        $markdown += "`n"
+    }
+    
+    # Add extra information
+    if ($ExtraInformation) {
+        $markdown += "`n#### Extra Information  `n"
+        $markdown += (Add-MarkdownLineBreaks $ExtraInformation)
+        $markdown += "`n"
+    }
+    
+    # Add tasks if present (check if Tasks property exists and has items)
+    if ($Story.PSObject.Properties.Name -contains 'Tasks' -and $null -ne $Story.Tasks -and $Story.Tasks.Count -gt 0) {
+        $markdown += "`n"
+        foreach ($task in $Story.Tasks) {
+            $taskId = $task.Id
+            $taskTitle = Format-MarkdownText $task.Title
+            $taskState = $task.State
+            $taskDescription = $task.Description
+            
+            # Determine if task state is writable
+            $taskType = "Task"
+            $taskWritableStates = $config.writableStates.$taskType
+            $isTaskStateWritable = $taskWritableStates -contains $taskState
+            
+            # Add warning if task state is not writable
+            if (-not $isTaskStateWritable) {
+                $markdown += (New-StateWarningComment -State $taskState -WorkItemType $taskType -WritableStates $taskWritableStates)
+                $markdown += "`n"
+            }
+            
+            $markdown += "#### Task: $taskTitle  `n`n"
+            $markdown += "**State**: $taskState$(if (-not $isTaskStateWritable) { ' ⚠️ (read-only)' })  `n"
+            
+            if ($taskDescription) {
+                $markdown += "**Description**  `n"
+                $markdown += (Add-MarkdownLineBreaks $taskDescription)
+                $markdown += "`n"
+            }
+            
+            $markdown += "`n"
+        }
+    }
+    
+    # Add bugs if present (check if Bugs property exists and has items)
+    if ($Story.PSObject.Properties.Name -contains 'Bugs' -and $null -ne $Story.Bugs -and $Story.Bugs.Count -gt 0) {
+        $markdown += "`n"
+        foreach ($bug in $Story.Bugs) {
+            $bugId = $bug.Id
+            $bugTitle = Format-MarkdownText $bug.Title
+            $bugState = $bug.State
+            $bugDescription = $bug.Description
+            
+            # Determine if bug state is writable
+            $bugType = "Bug"
+            $bugWritableStates = $config.writableStates.$bugType
+            $isBugStateWritable = $bugWritableStates -contains $bugState
+            
+            # Add warning if bug state is not writable
+            if (-not $isBugStateWritable) {
+                $markdown += (New-StateWarningComment -State $bugState -WorkItemType $bugType -WritableStates $bugWritableStates)
+                $markdown += "`n"
+            }
+            
+            $markdown += "#### Bug: $bugTitle  `n`n"
+            $markdown += "**State**: $bugState$(if (-not $isBugStateWritable) { ' ⚠️ (read-only)' })  `n"
+            
+            if ($bugDescription) {
+                $markdown += "**Description**  `n"
+                $markdown += (Add-MarkdownLineBreaks $bugDescription)
+                $markdown += "`n"
+            }
+            
+            $markdown += "`n"
+        }
+    }
+    
+    return $markdown
+}
+
+function Convert-FeatureToMarkdown {
+    <#
+    .SYNOPSIS
+    Convert a Feature hierarchy to markdown
+    #>
+    param(
+        [PSObject]$Feature
+    )
+    
+    $Id = $Feature.Id
+    $Title = Format-MarkdownText $Feature.Title
+    $State = $Feature.State
+    $Description = $Feature.Description
+    $Effort = $Feature.Effort
+    $Tags = $Feature.Tags
+    
+    # Determine if state is writable
+    $workItemType = "Feature"
+    $writableStates = $config.writableStates.$workItemType
+    $isStateWritable = $writableStates -contains $State
+    
+    # Build markdown output
+    $markdown = @"
+## Feature: $Title
+
+"@
+    
+    # Add warning comment if state is not writable
+    if (-not $isStateWritable) {
+        $markdown += (New-StateWarningComment -State $State -WorkItemType $workItemType -WritableStates $writableStates)
+        $markdown += "`n`n"
+    }
+    
+    # Add metadata
+    if ($Tags) {
+        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+    }
+    
+    if ($Effort) {
+        $markdown += "**Effort**: $Effort  `n"
+    }
+    
+    # Add State field to metadata
+    $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
+    $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add description
+    if ($Description) {
+        $markdown += "**Description**  `n"
+        $markdown += (Add-MarkdownLineBreaks $Description)
+        $markdown += "`n"
+    }
+    
+    # Add stories if present (check if Stories property exists and has items)
+    if ($Feature.PSObject.Properties.Name -contains 'Stories' -and $null -ne $Feature.Stories -and $Feature.Stories.Count -gt 0) {
+        $markdown += "`n"
+        foreach ($story in $Feature.Stories) {
+            $markdown += (Convert-StoryToMarkdown -Story $story)
+            $markdown += "`n"
+        }
+    }
+    
+    return $markdown
+}
+
+function Convert-EpicToMarkdown {
+    <#
+    .SYNOPSIS
+    Convert an Epic hierarchy to markdown
+    #>
+    param(
+        [PSObject]$Epic
+    )
+    
+    $Id = $Epic.Id
+    $Title = Format-MarkdownText $Epic.Title
+    $State = $Epic.State
+    $Description = $Epic.Description
+    $Effort = $Epic.Effort
+    $Tags = $Epic.Tags
+    
+    # Determine if state is writable
+    $workItemType = "Epic"
+    $writableStates = $config.writableStates.$workItemType
+    $isStateWritable = $writableStates -contains $State
+    
+    # Build markdown output
+    $markdown = @"
+# Epic: $Title
+
+"@
+    
+    # Add warning comment if state is not writable
+    if (-not $isStateWritable) {
+        $markdown += (New-StateWarningComment -State $State -WorkItemType $workItemType -WritableStates $writableStates)
+        $markdown += "`n`n"
+    }
+    
+    # Add metadata
+    if ($Tags) {
+        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+    }
+    
+    if ($Effort) {
+        $markdown += "**Effort**: $Effort  `n"
+    }
+    
+    # Add State field to metadata
+    $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
+    $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add description
+    if ($Description) {
+        $markdown += "**Description**  `n"
+        $markdown += (Add-MarkdownLineBreaks $Description)
+        $markdown += "`n"
+    }
+    
+    # Add features if present (check if Features property exists and has items)
+    if ($Epic.PSObject.Properties.Name -contains 'Features' -and $null -ne $Epic.Features -and $Epic.Features.Count -gt 0) {
+        $markdown += "`n"
+        foreach ($feature in $Epic.Features) {
+            $markdown += (Convert-FeatureToMarkdown -Feature $feature)
+            $markdown += "`n"
+        }
+    }
+    
+    return $markdown
+}
+
+try {
+    # Validate hierarchy
+    if ($null -eq $Hierarchy) {
+        throw "Hierarchy parameter cannot be null"
+    }
+    
+    if ($null -eq $Hierarchy.Id) {
+        throw "Hierarchy must contain an Id field"
+    }
+    
+    if ($null -eq $Hierarchy.Title) {
+        throw "Hierarchy must contain a Title field"
+    }
+    
+    # Determine hierarchy type and convert accordingly
+    # Check if Features property exists (this is an Epic)
+    if ($Hierarchy.PSObject.Properties.Name -contains 'Features') {
+        $markdown = Convert-EpicToMarkdown -Epic $Hierarchy
+    }
+    # Check if Stories property exists and State does NOT exist (this is a Feature)
+    elseif ($Hierarchy.PSObject.Properties.Name -contains 'Stories' -and -not ($Hierarchy.PSObject.Properties.Name -contains 'State')) {
+        $markdown = Convert-FeatureToMarkdown -Feature $Hierarchy
+    }
+    # Otherwise it's a Story (has State field)
+    else {
+        $markdown = Convert-StoryToMarkdown -Story $Hierarchy
+    }
+    
+    return $markdown
+}
+catch {
+    Write-Error "Failed to convert hierarchy to markdown: $_"
+    throw
+}
