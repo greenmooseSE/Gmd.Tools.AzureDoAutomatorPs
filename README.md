@@ -1642,6 +1642,110 @@ $env:GMD_AZDO_PROJECT = "your-project"
 
 **Note:** Integration tests create temporary test data (Epic, Features, Stories) and automatically clean up by deleting the test Epic at the end.
 
+### Test Hierarchy Helper
+
+The `CreateTestHierarchy.ps1` helper simplifies creating temporary test hierarchies for export/import testing:
+
+#### Purpose
+Factory function for creating test work item hierarchies in Azure DevOps, used by integration tests to verify functionality against real hierarchies.
+
+#### Features
+- **Deterministic naming**: Test Epic created with "TEST-\<timestamp\>-\<description\>" prefix
+- **Configurable hierarchy**: Define Features → Stories → Tasks structure in code
+- **Automatic cleanup**: Built-in cleanup on creation failure with try/finally pattern
+- **Tagging**: All created items tagged with "testWi" for easy orphan detection
+- **Structured return**: Object with created work item IDs for verification
+
+#### Usage Example
+
+```powershell
+# Import the helper
+$spec = @{
+    features = @(
+        @{
+            title       = "Auth Feature"
+            effort      = 8
+            description = "Authentication feature"
+            stories     = @(
+                @{
+                    title        = "Login"
+                    storyPoints  = 3
+                    description  = "User login"
+                    tasks        = @(
+                        @{ title = "Setup OAuth"; effort = 2 }
+                    )
+                }
+            )
+            tasks       = @()
+        }
+    )
+    bugs = @(
+        @{ title = "Login timeout bug"; description = "Session expires too fast" }
+    )
+}
+
+# Create test hierarchy
+$result = ./test/CreateTestHierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -Description "ExportImportTest" `
+    -HierarchySpec $spec
+
+# Use created items for testing
+Write-Host "Created Epic: $($result.Epic.Id)"
+Write-Host "Features: $($result.Features.Count)"
+Write-Host "Stories: $($result.Stories.Count)"
+Write-Host "All work items: $($result.AllWorkItemIds -join ',')"
+
+# Verify creation succeeded
+if ($result.Success) {
+    try {
+        # Run your test operations with $result.Epic.Id, etc.
+        
+        # Validate export contains all items
+        # Verify export format
+    }
+    finally {
+        # Cleanup: Delete the test Epic and all children
+        ./src/RemoveAzDoEpic.ps1 `
+            -Organization "falco-it" `
+            -Project "GMD" `
+            -EpicId $result.Epic.Id `
+            -Force
+    }
+} else {
+    Write-Error "Failed to create test hierarchy: $($result.Errors -join '; ')"
+}
+```
+
+#### Return Object Structure
+
+```powershell
+@{
+    Success         = $true|$false
+    Epic            = @{ Id = 123; Title = "TEST-..."; Url = "..." }
+    Features        = @{ "Feature Title" = @{ Id = 456; Title = "..."; Url = "..." }; ... }
+    Stories         = @{ "Story Title" = @{ Id = 789; Title = "..."; ParentId = 456; Url = "..." }; ... }
+    Tasks           = @{ "Task Title" = @{ Id = 101; Title = "..."; ParentId = 789; Url = "..." }; ... }
+    Bugs            = @{ "Bug Title" = @{ Id = 102; Title = "..."; Url = "..." }; ... }
+    AllWorkItemIds  = @(123, 456, 789, 101, 102)  # For easy cleanup
+    Errors          = @()  # Any errors encountered during creation
+}
+```
+
+#### Integration Tests Using CreateTestHierarchy
+
+View the story AB#2226 test file for comprehensive examples:
+
+```powershell
+.\test\storyAcTests\2226CreateTestHierarchyManagementSystem\2226CreateTestHierarchyTest.ps1
+```
+
+These tests demonstrate:
+- Creating simple hierarchies and verifying queryability
+- Complex hierarchies with multiple levels (1 Epic, 2 Features, 5 Stories, 3 Tasks, 1 Bug)
+- Reliable cleanup removing all created items
+
 ## Error Handling
 
 All scripts follow strict error handling practices:
