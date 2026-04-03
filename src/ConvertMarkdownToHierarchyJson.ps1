@@ -397,6 +397,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                     Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentBug['description'] = $desc
                 }
+                elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+                    Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                    $currentTask['description'] = $desc
+                }
                 Write-Debug "Finalized description from empty line(s)"
                 $descriptionLines = @()
                 $descriptionStartFileLineNum = -1
@@ -429,6 +433,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 elseif ($currentLineType -eq 'bug_desc' -and $null -ne $currentBug) {
                     Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                     $currentBug['description'] = $desc
+                }
+                elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+                    Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                    $currentTask['description'] = $desc
                 }
                 $descriptionLines = @()
                 $descriptionStartFileLineNum = -1
@@ -625,6 +633,8 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             $topLevelFeatures += $currentFeature
         }
         $currentStory = $null
+        $currentBug = $null
+        $currentTask = $null
         $currentLineType = 'feature'
         Write-Debug "Found Feature: $featureTitle"
         continue
@@ -650,6 +660,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentBug['description'] = $desc
             }
+            elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+                Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentTask['description'] = $desc
+            }
             $descriptionLines = @()
             $descriptionStartFileLineNum = -1
         }
@@ -674,6 +688,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         }
         $currentFeature.stories += $currentStory
         $currentBug = $null
+        $currentTask = $null
         $currentLineType = 'story'
         Write-Debug "Found Story: $storyTitle"
         continue
@@ -750,6 +765,10 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
                 Test-DescriptionHeaderLevelsForBug -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
                 $currentBug['description'] = $desc
             }
+            elseif ($currentLineType -eq 'task_desc' -and $null -ne $currentTask) {
+                Test-DescriptionHeaderLevelsForTask -Description $desc -FileLines $lines -DescriptionStartFileLineNum $descriptionStartFileLineNum
+                $currentTask['description'] = $desc
+            }
             $descriptionLines = @()
             $descriptionStartFileLineNum = -1
         }
@@ -773,6 +792,7 @@ for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
             integratedInBuild    = $null
         }
         $currentStory.bugs += $currentBug
+        $currentTask = $null
         $currentLineType = 'bug'
         Write-Debug "Found Bug: $bugTitle"
         continue

@@ -172,6 +172,11 @@ try {
 
     $workItems = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body -ErrorAction Stop
 
+    # Validate response structure - if API returned an error, it may not have workItems property
+    if ($null -eq $workItems -or -not ($workItems | Get-Member -Name 'workItems' -ErrorAction SilentlyContinue)) {
+        throw "Azure DevOps API returned unexpected response format. Response: $(if($null -ne $workItems) {$workItems | ConvertTo-Json} else {'null'})"
+    }
+
     if ($null -eq $workItems.workItems -or @($workItems.workItems).Count -eq 0) {
         $null = & ssLogIt.ps1 -Level Debug -Message "Work item not found: $searchTitle"
         return $null

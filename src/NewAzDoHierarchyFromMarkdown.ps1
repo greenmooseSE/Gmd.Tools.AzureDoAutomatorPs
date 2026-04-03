@@ -42,7 +42,10 @@ Markdown format:
     Additional notes and requirements
 
 .PARAMETER MarkdownContent
-The markdown hierarchy content as a string (required)
+The markdown hierarchy content as a string. Either -MarkdownContent or -MarkdownFile must be provided.
+
+.PARAMETER MarkdownFile
+Path to a markdown file containing the hierarchy content. Either -MarkdownContent or -MarkdownFile must be provided.
 
 .PARAMETER EpicId
 Optional: Parent Epic ID. If not provided, Features become top-level work items.
@@ -77,8 +80,9 @@ Create hierarchy with DryRun first:
 #Requires -Version 7.0
 
 param(
-    [Parameter(Mandatory = $true)]
     [string]$MarkdownContent,
+
+    [string]$MarkdownFile,
 
     [int]$EpicId,
 
@@ -101,10 +105,25 @@ if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
     Write-Error "Required helper script 'ssLogIt.ps1' not found in PATH."
 }
 
+# Validate that either MarkdownContent or MarkdownFile is provided
+if ([string]::IsNullOrWhiteSpace($MarkdownContent) -and [string]::IsNullOrWhiteSpace($MarkdownFile)) {
+    throw "Either -MarkdownContent or -MarkdownFile parameter must be provided"
+}
+
+# Read markdown content from file if MarkdownFile is provided
+if (-not [string]::IsNullOrWhiteSpace($MarkdownFile)) {
+    if (-not (Test-Path -LiteralPath $MarkdownFile -PathType Leaf)) {
+        throw "Markdown file not found: $MarkdownFile"
+    }
+    $null = & ssLogIt.ps1 -Level Info -Message "Reading markdown file: ::FgGreen::$MarkdownFile::FgDefault::"
+    $MarkdownContent = Get-Content -LiteralPath $MarkdownFile -Raw -ErrorAction Stop
+}
+
 # Get Organization, Project from environment variables
 [string]$Organization = $env:GMD_AZDO_ORGANIZATION
 [string]$Project = $env:GMD_AZDO_PROJECT
-[string]$PatToken = $env:GMD_AZDO_MACHINE_WORKITEMSRW
+# Get PAT token - always decrypt from environment variable
+[string]$PatToken = Get-AzDoPatToken -Decrypt
 
 if ([string]::IsNullOrWhiteSpace($Organization)) {
     throw "Environment variable GMD_AZDO_ORGANIZATION is not set"
@@ -288,47 +307,33 @@ function Find-ExistingWorkItemByTitle {
         [int]$ParentId
     )
     
-    try {
-        $scriptArgs = @{
-            Organization  = $Organization
-            Project       = $Project
-            Title         = $Title
-            NormalizeTitle = $true
-            PatToken      = $PatToken
-        }
-
-        if ($PSBoundParameters.ContainsKey('Type') -and -not [string]::IsNullOrWhiteSpace($Type)) {
-            $scriptArgs['Type'] = $Type
-        }
-
-        if ($PSBoundParameters.ContainsKey('ParentId')) {
-            $scriptArgs['ParentId'] = $ParentId
-        }
-
-        $foundItem = & "$PSScriptRoot\FindAzDoItemByTitle.ps1" @scriptArgs -ErrorAction SilentlyContinue
-        
-        if ($null -ne $foundItem -and $null -ne $foundItem.id -and [int]$foundItem.id -gt 0) {
-            return [int]$foundItem.id
-        }
+    $scriptArgs = @{
+        Organization  = $Organization
+        Project       = $Project
+        Title         = $Title
+        NormalizeTitle = $true
+        PatToken      = $PatToken
     }
-    catch {
-        $null = & ssLogIt.ps1 -Level Debug -Message "Failed to find item by title '$Title': $_"
+
+    if ($PSBoundParameters.ContainsKey('Type') -and -not [string]::IsNullOrWhiteSpace($Type)) {
+        $scriptArgs['Type'] = $Type
+    }
+
+    if ($PSBoundParameters.ContainsKey('ParentId')) {
+        $scriptArgs['ParentId'] = $ParentId
+    }
+
+    # Call FindAzDoItemByTitle without suppressing errors. If the item is not found, it returns $null (normal).
+    # If an error occurs, it will be thrown and propagate up to the caller (fail-fast).
+    $foundItem = & "$PSScriptRoot\FindAzDoItemByTitle.ps1" @scriptArgs
+    
+    if ($null -ne $foundItem -and $null -ne $foundItem.id -and [int]$foundItem.id -gt 0) {
+        return [int]$foundItem.id
     }
 
     return $null
 }
 
-# Validate markdown file
-if (-not (Test-Path -LiteralPath $MarkdownFilePath -PathType Leaf)) {
-    Write-Error "Markdown file not found: $MarkdownFilePath"
-}
-
-$null = & ssLogIt.ps1 -Level Info -Message "Parsing markdown file: ::FgGreen::$MarkdownFilePath::FgDefault::"
-
-# Get PAT token if not provided via environment
-if ([string]::IsNullOrWhiteSpace($PatToken)) {
-    $PatToken = Get-AzDoPatToken -Decrypt
-}
 
 try {
     # Call adapter to parse markdown to JSON
@@ -402,9 +407,9 @@ try {
 
     # Count items
     $epicCount = $epics.Count
-    $totalFeatures = @()
+    $totalFeatures = 0
     if ($epics.Count -gt 0) {
-        $totalFeatures = $epics | ForEach-Object { $_.Features.Count } | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+        $totalFeatures = [int]($epics | ForEach-Object { $_.Features.Count } | Measure-Object -Sum | Select-Object -ExpandProperty Sum);
     }
     $totalFeatures = if ($null -eq $totalFeatures) { 0 } else { [int]$totalFeatures }
     $totalFeatures += $features.Count

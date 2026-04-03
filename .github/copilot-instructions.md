@@ -1,10 +1,20 @@
-# Project Overview
+# Local commands
+## Github CLI
+* Use gh cli for github interactions. 
+### Pull Requests
+* In addition to using gh cli, you can also use Use extension pr-review (`gh pr-review --help` for help).
+#### gh pr-review extension commands
+* List unresolved comments: (pwsh) `gh pr-review threads list --pr {prId} --repo {owner}/{repo} | ConvertFrom-Json | ? { !$_.IsResolved }`
+* Resolve a comment: `gh pr-review threads resolve --thread-id <threadId> --pr {prId} --repo {owner}/{repo}`
 
+# Project Overview
 
 ## Folder Structure
 
 - `/src`: Contains C# source code (library projects)
 - `/test`: Contains C# test code, mirroring the structure of `/src`
+
+# Rules and Guidelines
 
 ## Commit messages
 Write a commit message summarizing the changes. Output plain text only (no markdown).
@@ -35,6 +45,10 @@ Rules:
 - When performing a code review, do not allow use of `.GetAwaiter().GetResult()` in test code. Require `.zResultEx()` or `.zWaitEx()` instead for awaiting tasks in tests. Reference this rule in review comments if violated.
 - When performing a code review, prefer `.zShouldG()` and related assertion extensions over `AssertEx` for assertions in test code. Reference this rule in review comments if violated.
 
+## Database implementation
+- Do not create database triggers, stored procedures, or functions. All database logic should be implemented in C# code with proper DDD architecture.
+- When modifying database model, find script `efAddMigration.ps1` in workspace and use that to add migrations to get proper migrations created for all db providers.
+- Scripts should not be idempotent, our CD pipeline will take care of applying correct scripts.
 
 ## General Rules
 
@@ -53,19 +67,29 @@ Rules:
 ## Coding Standards
 
 ### C#
-- Use PascalCase for class, method, and property names
-- Use camelCase for local variables and parameters
+#### C# Naming conventions
+- Methods and Properties: Use PascalCase for public/internal. pPascalCase for protected, hPascalCase for private. Prefix z for static e.g. zhPrivateMethod.
+- Fields: Use _camelCase for private fields, use properties instead of fields for non private access. Prefix z for static e.g. _zprivateField.
+- Local functions: Use PascalCase, end position them at top (to avoid return statements).
+- Never use snake_case.
 - Each class should be in its own file named `<ClassName>.cs`
-- Each public method should have a clear, descriptive name
+- Each public method or property should have a clear, descriptive name.
+- Enums should be named using the pattern `en<PascalCase>` (e.g., `enTestName`).
+
+#### C# Documentation
+- For inline comments, use `//` above statements, not at end of line, use this very restrictive and only when clarification is needed.
 - Always document "outside-assembly visible" classes and methods with XML comments.
-- Documentation rules:  - Use `<summary>`, `<param>`, `<returns>`, and `<remarks>` tags as appropriate.
-  - Use `<see cref="TypeName"/>` for referencing types in documentation.
-  - Keep documentation concise and to the point.
-  - Avoid <returns> if it is easy to use in the summary instead.
-  - Include default values in the documentation, either in summary if suitable or param tag.
-- When writing generating, always write proper XML documentation format where possible, and when feasable keep the xml doc on 1 line (including tags).
-- Keep methods focused and concise
- - Methods should not be written as single-line bodies. Always place a newline after the opening brace and before the closing brace so the method is split across multiple lines. For example, prefer:
+- Use `<summary>`, `<param>` as appropriate. Be restrictive with using `<returns>` and `<remarks>`, only use these if it adds significant value that cannot fit in the summary.
+- Use `<see cref="TypeName"/>` for referencing types in documentation.
+- Keep documentation concise and to the point.
+- Include default values in the documentation, either in summary if suitable or param tag.
+- Use proper documentation that adds value, e.g. avoid writing comments that just restate the method name.
+- Always use XML documentation format where possible, and when feasible keep the xml doc on 1 line (including the summary tags).
+
+#### C# coding style
+- Keep methods focused and concise.
+- Never use the null-forgiving operator (!). Instead, in tests use `.zNotNull()` extension, and in production code e.g. `.zEnsureNotNull("text")` extension, and use its return value (not null).
+- Methods should not be written as single-line bodies. Always place a newline after the opening brace and before the closing brace so the method is split across multiple lines. For example, prefer:
 
 ```
 public void Foo()
@@ -73,9 +97,7 @@ public void Foo()
     // method body
 }
 ```
-
 instead of `public void Foo() { /* ... */ }`.
-- Enums should be named using the pattern `en<PascalCase>` (e.g., `enTestName`).
 - Tests should be named `<MethodName>Test.cs` and placed in a folder `<ClassName>Tests` under `/test`, mirroring the source structure
 - Test methods should use NUnit `[Test]` attribute and assert expected behavior
 - Use file-scoped namespaces.
