@@ -1,5 +1,7 @@
 # Epic: 🚀 Customer Portal Redesign - Q1 2024
 
+**WorkItemId**: 2215
+**State**: Active
 **tags**: customerPortal, frontend, testWi\
 **Effort**: 40
 **Description**\
@@ -46,6 +48,8 @@ to enable faster iteration and better scalability.
 
 ## Feature: 🎨 User Authentication & Profile Management
 
+**WorkItemId**: 2216
+**State**: Under Development
 **tags**: authentication, security, testWi\
 **Effort**: 13
 **Description**\
@@ -63,6 +67,8 @@ communication preferences. All changes are audited and logged for compliance.
 
 ### Story: 🔐 Implement OAuth 2.0 with Microsoft Entra ID
 
+**WorkItemId**: 2217
+**State**: Committed
 **tags**: authentication, entraId, testWi\
 **SP**: 8\
 **Description**\
