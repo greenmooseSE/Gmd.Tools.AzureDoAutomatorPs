@@ -29,6 +29,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
 - [State Configuration Management](#state-configuration-management)
+- [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -1287,6 +1288,182 @@ $config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -
 3. **Document States**: Add comments to your configuration explaining why specific states are writable
 4. **Test Configuration**: Verify your configuration with small test hierarchies before large exports
 5. **Environment-Specific**: Consider different configurations for different environments (dev, staging, production)
+
+## Export-Modify-Reimport Workflow
+
+The Azure DevOps Automator supports a complete export-modify-reimport workflow that enables teams to:
+- Export work item hierarchies to markdown for external editing
+- Detect changes between original and modified versions
+- Apply validated changes back to Azure DevOps with transaction-like safety
+- Maintain work item IDs and parent-child relationships throughout the cycle
+
+### Complete Workflow
+
+**Step 1: Export Hierarchy to Markdown**
+
+Use `ConvertHierarchyToMarkdown.ps1` to export a hierarchy with work item IDs and state validation:
+
+```powershell
+# Export a Feature hierarchy to markdown
+$hierarchy = .\GetAzDoHierarchyForFeature.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -FeatureId 2216
+
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -ValidateStateChanges
+
+$markdown | Out-File "feature-export.md"
+```
+
+The exported markdown includes:
+- **WorkItemId** for round-trip identification
+- **State** field for writable state validation  
+- **Tags** and custom fields
+- Read-only warnings for non-writable states
+
+**Step 2: Modify the Markdown File**
+
+Users edit the markdown file externally:
+- Change titles, descriptions, story points
+- Add new work items (without WorkItemId)
+- Update tags and other fields
+- The markdown structure preserves parent-child relationships
+
+```markdown
+## Feature: Auth Feature
+**WorkItemId**: 2216
+**State**: Active
+**Effort**: 13
+**Description**
+Authentication module for user management
+
+### Story: Login
+**WorkItemId**: 2217
+**State**: Active
+**StoryPoints**: 5
+**Description**
+Implement user login functionality
+
+### Story: Password Reset
+**StoryPoints**: 3
+**Description**
+Add password recovery feature (no WorkItemId = new item)
+```
+
+**Step 3: Parse Modified Markdown**
+
+Use `ConvertMarkdownToHierarchyJson.ps1` to parse the modified markdown:
+
+```powershell
+$modifiedContent = Get-Content "feature-export.md" -Raw
+
+$modifiedHierarchy = .\ConvertMarkdownToHierarchyJson.ps1 `
+    -MarkdownContent $modifiedContent
+
+# Result: JSON hierarchy with all changes preserved
+```
+
+**Step 4: Detect Changes**
+
+Use `DetectHierarchyChanges.ps1` to compare original and modified versions:
+
+```powershell
+# Load original hierarchy from export
+$originalHierarchy = Get-Content "original-hierarchy.json" | ConvertFrom-Json
+
+# Detect changes with validation
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalHierarchy `
+    -ModifiedHierarchy $modifiedHierarchy `
+    -StateConfigPath "azdoStateConfig-falco-it-GMD.json"
+
+if ($diff.validationPassed) {
+    Write-Host "Safe to apply: $($diff.operations.Count) changes"
+} else {
+    Write-Host "Errors: $($diff.errors -join '; ')"
+}
+```
+
+The diff output includes:
+- **Field-level changes** with before/after values
+- **New work items** (identified by missing WorkItemId)
+- **Hierarchy reorganizations** (parent-child changes)
+- **Validation errors** preventing dangerous modifications
+- **Dependency order** for safe application
+
+**Step 5: Apply Changes Back**
+
+Use `ApplyValidatedChanges.ps1` to apply changes to Azure DevOps:
+
+```powershell
+# First, dry-run to see what would happen
+$result = .\ApplyValidatedChanges.ps1 `
+    -ValidatedDiff $diff `
+    -DryRun
+
+if ($result.success) {
+    Write-Host "Dry-run OK. Would apply $($result.appliedChanges) changes"
+    
+    # Now apply for real
+    $actualResult = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+    
+    if ($actualResult.success) {
+        Write-Host "Applied all changes successfully"
+        $actualResult.operationsSummary | Format-Table
+    } else {
+        Write-Host "Failed: $($actualResult.failureReason)"
+    }
+}
+```
+
+### Change Detection Validation
+
+Dangerous modifications are prevented with comprehensive validation:
+
+1. **Deletion Prevention**: Parent items with pending child modifications cannot be deleted
+2. **State Validation**: State changes respect configured writable states
+3. **Orphan Detection**: Changes that would create orphaned items are rejected
+4. **ID Verification**: Existing work item IDs are validated to exist in Azure DevOps
+5. **Circular References**: Parent-child cycles are detected and prevented
+
+### Safety Features
+
+- **Transaction-like behavior**: All changes succeed or none do (fail-fast approach)
+- **DryRun mode**: Preview changes without applying them
+- **Detailed reporting**: Every change is logged with before/after values
+- **No silent skips**: Errors halt the entire operation; never skip silently
+- **Rollback capability**: If any change fails, remaining changes are not attempted
+
+### Example: Complete Workflow
+
+```powershell
+# 1. Export
+$feature = .\GetAzDoHierarchyForFeature.ps1 -Organization "falco-it" -Project "GMD" -FeatureId 2216
+$original = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $feature | Out-File "export.md"
+$originalJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownFilePath "export.md"
+
+# ... User edits export.md ...
+
+# 2. Reimport
+$modified = Get-Content "export.md" -Raw
+$modifiedJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $modified
+
+# 3. Detect
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalJson `
+    -ModifiedHierarchy $modifiedJson
+
+# 4. Apply
+if ($diff.validationPassed) {
+    $result = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff -DryRun
+    if ($result.success) {
+        $final = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+        $final.operationsSummary | Where-Object { $_.status -eq 'Applied' }
+    }
+}
+```
 
 ## MCP Server Integration
 
