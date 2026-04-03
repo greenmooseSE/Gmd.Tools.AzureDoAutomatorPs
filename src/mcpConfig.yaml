@@ -120,6 +120,63 @@ commands:
         required: false
         mapTo: StoryTitle
 
+  - id: get-iterations
+    script: ./GetAzDoIterations.ps1
+    description: "Retrieve all iterations (sprints) from a project. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Organization
+        type: string
+        required: false
+        mapTo: Organization
+      - name: Project
+        type: string
+        required: false
+        mapTo: Project
+
+  # ===== ITERATION OPERATIONS =====
+  - id: create-future-iterations
+    script: ./CreateAzDoFutureIterations.ps1
+    description: "Create iterations starting from a specified date under a parent path with configurable length and naming template. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: ParentPath
+        type: string
+        required: true
+        mapTo: ParentPath
+      - name: StartAt
+        type: string
+        required: true
+        mapTo: StartAt
+      - name: StopAt
+        type: string
+        required: false
+        mapTo: StopAt
+      - name: IterationLength
+        type: string
+        required: false
+        default: "1m"
+        mapTo: IterationLength
+      - name: IterationNameTemplate
+        type: string
+        required: false
+        default: "{yyyy-MM}"
+        mapTo: IterationNameTemplate
+      - name: MonthsAhead
+        type: int
+        required: false
+        default: 6
+        mapTo: MonthsAhead
+      - name: CounterStart
+        type: int
+        required: false
+        mapTo: CounterStart
+      - name: DryRun
+        type: bool
+        required: false
+        default: false
+        mapTo: DryRun
+
   # ===== SET OPERATIONS =====
   - id: set-story-points
     script: ./SetAzDoStoryPoints.ps1

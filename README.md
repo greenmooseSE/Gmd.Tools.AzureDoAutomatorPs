@@ -9,6 +9,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - **Creating/Updating** Epics, Features, Stories, and Tasks
 - **Getting/Setting** work item properties (description, acceptance criteria, story points, effort)
 - **Managing Tags** (add, replace, remove)
+- **Managing Iterations** (retrieving, creating future iterations based on existing patterns)
 - **Generating hierarchies** from markdown files
 - **Deleting** work items (Epics with cascading children, or individual Tasks) with safety confirmations
 
@@ -20,12 +21,14 @@ This project provides a complete automation toolkit for Azure DevOps work item l
   - [Verify Helper Scripts](#2-verify-helper-scripts)
 - [Module Architecture](#module-architecture)
 - [Automation Scripts](#automation-scripts)
+- [Iteration Management](#iteration-management)
 - [Markdown Hierarchy Workflow](#markdown-hierarchy-workflow)
 - [Markdown Hierarchy Template Generation](#markdown-hierarchy-template-generation)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
+- [State Configuration Management](#state-configuration-management)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -1088,6 +1091,135 @@ The repository includes an example hierarchy file that matches the parser format
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
 
+## State Configuration Management
+
+The State Configuration system enables team-specific rules for which work item states are editable during hierarchy exports and reimports. This supports multiple organizations and projects with organization/project-scoped configuration files and sensible defaults.
+
+### Overview
+
+State configuration defines "writable states" for each work item type, allowing teams to:
+- Control which Azure DevOps states can be modified during export-import operations
+- Define organization/project-specific state rules
+- Use sensible defaults when no configuration is provided
+- Store configuration in version control for team collaboration
+- Support environment-specific overrides for CI/CD pipelines
+
+### Configuration File Format
+
+Configuration files are stored at the repository root using the naming pattern: `azdoStateConfig-{organization}-{project}.json`
+
+**Example: `azdoStateConfig-falco-it-GMD.json`**
+
+```json
+{
+  "writableStates": {
+    "Epic": ["New", "Active"],
+    "Feature": ["New", "Active"],
+    "Story": ["New", "Active"],
+    "Task": ["New", "Active"],
+    "Bug": ["New", "Active"]
+  }
+}
+```
+
+### Loading Configuration
+
+Use the `LoadStateConfiguration.ps1` script to load and cache state configuration:
+
+```powershell
+# Load configuration for an organization and project
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD"
+$epicStates = $config.writableStates.Epic
+
+# Alternative: specify custom repository root
+$config = .\LoadStateConfiguration.ps1 -Organization "contoso" -Project "web" `
+    -RepositoryRoot "C:\myrepo"
+
+# Force reload from file (bypass cache)
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Default Behavior
+
+When a configuration file is not found, sensible defaults are automatically applied. Only "New" and "Active" states are writable by default. Terminal states like "Done" and "Closed" should never be modified during export-import operations:
+
+```powershell
+# Configuration file azdoStateConfig-temp-test.json not found?
+# Default configuration is returned with these states:
+
+@{
+    writableStates = @{
+        "Epic"    = @("New", "Active")
+        "Feature" = @("New", "Active")
+        "Story"   = @("New", "Active")
+        "Task"    = @("New", "Active")
+        "Bug"     = @("New", "Active")
+    }
+}
+```
+
+### Configuration Features
+
+- **Memory Caching**: Configuration is cached after first load to avoid repeated file I/O operations
+- **Organization/Project Scoping**: Separate configuration files per organization-project pair enable team-specific rules
+- **Version Control**: Configuration files should be committed to version control for team collaboration
+- **CI/CD Pipeline Support**: Future enhancement will support environment variable overrides for pipeline-specific configurations
+- **Structure Validation**: Invalid configuration (missing writableStates property) is detected and reported with clear error messages
+
+### Troubleshooting
+
+#### Configuration File Not Found
+
+**Symptom**: LoadStateConfiguration returns default states instead of custom configuration
+
+**Solution**:
+1. Verify the configuration file exists in the repository root
+2. Check the filename matches the pattern: `azdoStateConfig-{organization}-{project}.json`
+3. Ensure the organization and project names match exactly (case-sensitive recommended)
+4. Verify the file contains valid JSON with "writableStates" property
+
+```powershell
+# Debug: Check if configuration file exists
+Test-Path "./azdoStateConfig-falco-it-GMD.json"
+
+# Debug: Verify JSON is valid
+Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+```
+
+#### Invalid Configuration Error
+
+**Symptom**: "Failed to load configuration... The property 'writableStates' cannot be found"
+
+**Solution**:
+1. Ensure your configuration JSON includes the "writableStates" property at the root level
+2. Verify the JSON structure matches the format shown above
+3. Use a JSON validator to verify the file is valid JSON syntax
+
+```powershell
+# Example: Check configuration structure
+$config = Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+$config.writableStates  # Should output the work item types and states
+```
+
+#### Performance/Caching Issues
+
+**Symptom**: Changed configuration file is not reflected in subsequent script calls
+
+**Solution**: Use the `-Force` parameter to bypass the in-memory cache and reload from file:
+
+```powershell
+# Force reload configuration from file
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Best Practices
+
+1. **Store in Version Control**: Commit configuration files to ensure team consistency
+2. **Name Consistently**: Use organization and project names from your Azure DevOps account
+3. **Document States**: Add comments to your configuration explaining why specific states are writable
+4. **Test Configuration**: Verify your configuration with small test hierarchies before large exports
+5. **Environment-Specific**: Consider different configurations for different environments (dev, staging, production)
+
 ## MCP Server Integration
 
 The Azure DevOps Automator project includes full Model Context Protocol (MCP) support, enabling all tools to be consumed by AI assistants and automation frameworks over HTTP.
@@ -1464,7 +1596,161 @@ foreach ($id in $storyIds) {
 }
 ```
 
+## Iteration Management
+
+### Overview
+
+Iteration management scripts help automate the creation and management of project iterations (sprints).
+
+#### `GetAzDoIterations.ps1`
+
+Retrieve all iterations from an Azure DevOps project. Iterations are returned in chronological order by start date.
+
+```powershell
+# Get all iterations from default organization/project
+$iterations = .\GetAzDoIterations.ps1
+$iterations | Format-Table -Property name, attributes
+
+# Get iterations from specific organization/project
+$iterations = .\GetAzDoIterations.ps1 `
+    -Organization "myorg" `
+    -Project "myproject"
+```
+
+**Parameters:**
+- `Organization` (optional): Azure DevOps organization. Uses GMD_AZDO_ORGANIZATION if not provided.
+- `Project` (optional): Azure DevOps project. Uses GMD_AZDO_PROJECT if not provided.
+- `PatToken` (optional): PAT token for authentication. Uses GMD_AZDO_MACHINE_WORKITEMSRW environment variable if not provided.
+
+**Returns:**
+Array of iteration objects containing:
+- `id`: Unique iteration identifier
+- `name`: Iteration name
+- `path`: Iteration path in hierarchy
+- `startDate`: Start date
+- `finishDate`: End date
+- `state`: Current state (e.g., "Active", "Completed", "Future")
+
+#### `CreateAzDoFutureIterations.ps1`
+
+Automatically create iterations starting from a specified date with configurable length and naming template. Supports custom iteration durations (weeks or months) and flexible naming patterns with date formats and optional counter placeholders. Iterations are created under a specified parent path in the iteration hierarchy.
+
+```powershell
+# Create monthly iterations starting 2026-01-04 under parent "2026"
+.\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04"
+
+# Preview with DryRun before creating
+.\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -DryRun
+
+# Create monthly iterations with StopAt date (prevents creating 2027 iterations)
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -StopAt "2026-12-31" `
+    -MonthsAhead 12
+
+# Create 2-week iterations with custom counter naming under parent path
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationLength "2w" `
+    -IterationNameTemplate "W{counterPadded}" `
+    -CounterStart 1
+
+# Create monthly iterations with custom template
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationNameTemplate "Sprint {counterNonPadded}" `
+    -CounterStart 1
+
+# Create quarterly iterations
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationLength "3m" `
+    -IterationNameTemplate "Q{counterNonPadded} {yyyy}" `
+    -CounterStart 1 `
+    -MonthsAhead 12
+
+# Create iterations for specific organization/project
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -Organization "myorg" `
+    -Project "myproject" `
+    -MonthsAhead 12
+
+# View planned iterations without creating
+$result = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -DryRun
+$result.plannedIterations | Format-Table
+```
+
+**Parameters:**
+- `ParentPath` (required): Parent path for creating iterations (e.g., "2026", "GMD/2026/Q1"). Defines the iteration hierarchy level where iterations will be created.
+- `StartAt` (required): Date to start creating iterations from (format: yyyy-MM-dd, e.g., 2026-01-04).
+- `StopAt` (optional): Date to stop creating iterations. Prevents creating iterations that would start on or after this date (format: yyyy-MM-dd, e.g., 2026-12-31). If not specified, iterations are created based on MonthsAhead parameter.
+- `IterationLength` (optional, default: "1m"): Iteration duration with unit suffix:
+  - "1m", "2m", "3m", etc. for months
+  - "1w", "2w", "4w", etc. for weeks
+- `IterationNameTemplate` (optional, default: "{yyyy-MM}"): Template for iteration names with support for:
+  - Date format specifiers: {yyyy}, {MM}, {dd}, {yyyy-MM}, {yyyy-MM-dd}, etc. (standard .NET date format)
+  - {counterNonPadded}: Counter without padding (1, 2, 10)
+  - {counterPadded}: Counter with zero-padding (01, 02, 10)
+- `CounterStart` (optional): Starting value for counter. Required if template contains counter placeholders, not allowed otherwise.
+- `MonthsAhead` (optional, default: 6): Number of iteration periods to create (must be 1-24).
+- `Organization` (optional): Azure DevOps organization. Uses GMD_AZDO_ORGANIZATION if not provided.
+- `Project` (optional): Azure DevOps project. Uses GMD_AZDO_PROJECT if not provided.
+- `PatToken` (optional): PAT token for authentication. Uses GMD_AZDO_MACHINE_WORKITEMSRW environment variable if not provided.
+- `DryRun` (optional, switch): Preview planned iterations without creating them.
+
+**Returns:**
+Object with summary containing:
+- `plannedIterations`: Array of iterations that were created or would be created
+- `totalCreated`: Number of iterations created (0 in DryRun)
+- `message`: Summary message
+
+**Validation Rules:**
+- `ParentPath` is required and cannot be empty
+- `StartAt` is required and must be in yyyy-MM-dd format
+- `StopAt` (if provided) must be in yyyy-MM-dd format and must be after `StartAt`
+- `IterationLength` must match format like "1m", "2w", "3m"
+- If `IterationNameTemplate` contains counter placeholders, `CounterStart` is mandatory
+- `CounterStart` cannot be specified if template doesn't contain counter placeholders
+- If `IterationLength` is not default (1m), `IterationNameTemplate` is required (to avoid ambiguous naming)
+- `MonthsAhead` must be between 1 and 24
+
+**Behavior:**
+- Creates new iterations starting from the specified `StartAt` date
+- Stops creating iterations when start date reaches or exceeds `StopAt` date (if specified)
+- Only creates iterations if they don't already exist by name and date range
+- Uses fail-fast approach: validates entire structure before creating any items
+- Supports flexible iteration naming via template substitution
+- Counter values increment for each iteration when template includes counter placeholders
+- Iterations are created under the specified parent path in the iteration hierarchy
+
+**Example Workflow:**
+
+```powershell
+# Step 1: Verify existing iterations
+$iterations = .\GetAzDoIterations.ps1
+Write-Host "Found $($iterations.Count) existing iterations"
+
+# Step 2: Preview what will be created with StopAt limit
+$preview = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -StopAt "2026-12-31" -DryRun
+$preview.plannedIterations | Format-Table -Property name, startDate, endDate
+
+# Step 3: Create iterations
+$result = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -StopAt "2026-12-31"
+Write-Host $result.message
+
+# Step 4: Verify results
+$allIterations = .\GetAzDoIterations.ps1
+Write-Host "Now have $($allIterations.Count) total iterations"
+```
+
 ## Markdown Hierarchy Workflow
+
 
 This project provides a complete workflow for planning and executing work item hierarchies through markdown files:
 

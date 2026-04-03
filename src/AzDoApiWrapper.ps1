@@ -793,3 +793,184 @@ function Update-AzDoComment {
         }
     }
 }
+
+<#
+.SYNOPSIS
+Get all iterations from an Azure DevOps project
+
+.DESCRIPTION
+Retrieve all iterations (sprints) from an Azure DevOps project with full details.
+Iterations are already sorted by start date in ascending order.
+
+.PARAMETER Organization
+The Azure DevOps organization name
+
+.PARAMETER Project
+The project name
+
+.PARAMETER PatToken
+Optional PAT token. If not provided, retrieves from environment.
+
+.OUTPUTS
+Array of iteration objects sorted by start date ascending, or $null if no iterations exist
+
+.EXAMPLE
+$iterations = Get-AzDoIterations -Organization "myorg" -Project "myproject"
+#>
+function Get-AzDoIterations {
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Organization,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Project,
+
+        [string]$PatToken
+    )
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($PatToken)) {
+            $PatToken = Get-AzDoPatToken -Decrypt
+        }
+
+        $headers = New-AzDoAuthHeader -PatToken $PatToken
+
+        # Iterations API endpoint
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/work/teamsettings/iterations?api-version=7.1-preview.1"
+
+        try {
+            [object]$response = Invoke-AzDoApiRequest -Uri $uri -Method 'Get' -Headers $headers
+            
+            if ($null -eq $response -or $null -eq $response.value) {
+                return $null
+            }
+
+            [object[]]$iterations = $response.value
+            
+            # Sort by start date ascending
+            $iterations = $iterations | Sort-Object -Property {
+                if ([string]::IsNullOrWhiteSpace($_.attributes.startDate)) {
+                    [datetime]::MaxValue
+                }
+                else {
+                    [datetime]$_.attributes.startDate
+                }
+            }
+
+            return $iterations
+        }
+        catch {
+            $null = & ssLogIt.ps1 -Level Error -Message "Failed to retrieve iterations from $Project : $($_.Exception.Message)" -Exception $_
+            throw
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Create a new iteration in an Azure DevOps project
+
+.DESCRIPTION
+Create a new iteration (sprint) with specified start and end dates under an optional parent path.
+Parent iteration paths must already exist before creating iterations under them.
+
+Reference: https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/classification-nodes/create-or-update?view=azure-devops-rest-7.1&tabs=HTTP
+
+.PARAMETER Organization
+The Azure DevOps organization name
+
+.PARAMETER Project
+The project name
+
+.PARAMETER IterationName
+The name of the iteration
+
+.PARAMETER StartDate
+The start date (will use today if not specified when present)
+
+.PARAMETER EndDate
+The end date (finish date)
+
+.PARAMETER ParentPath
+Optional parent path for the iteration (e.g. "GMD/2026"). If specified, the iteration is created under this parent classification node.
+Default is to create at project root level. NOTE: Parent iteration paths must already exist in Azure DevOps.
+
+.PARAMETER PatToken
+Optional PAT token. If not provided, retrieves from environment.
+
+.OUTPUTS
+The created iteration object
+
+.EXAMPLE
+$newIteration = New-AzDoIteration -Organization "myorg" -Project "myproject" -IterationName "Sprint 1" -StartDate "2026-01-04" -EndDate "2026-02-03"
+
+Create under parent path "GMD/2026":
+$newIteration = New-AzDoIteration -Organization "myorg" -Project "myproject" -ParentPath "GMD/2026" -IterationName "2026-01" -StartDate "2026-01-04" -EndDate "2026-02-03"
+#>
+function New-AzDoIteration {
+    [CmdletBinding()]
+    [OutputType([object])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Organization,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Project,
+
+        [Parameter(Mandatory = $true)]
+        [string]$IterationName,
+
+        [Parameter(Mandatory = $true)]
+        [datetime]$StartDate,
+
+        [Parameter(Mandatory = $true)]
+        [datetime]$EndDate,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ParentPath,
+
+        [string]$PatToken
+    )
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($PatToken)) {
+            $PatToken = Get-AzDoPatToken -Decrypt
+        }
+
+        $headers = New-AzDoAuthHeader -PatToken $PatToken
+
+        # Iterations API endpoint - using project-level classification nodes (not team-specific)
+        # Reference: https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/classification-nodes/create-or-update?view=azure-devops-rest-7.1&tabs=HTTP
+        # If ParentPath is specified, append it to the URL to create under parent node
+        # ParentPath can use forward slashes (GMD/2026) which get converted to backslashes for the API
+        [string]$uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/classificationnodes/iterations"
+        
+        if (-not [string]::IsNullOrWhiteSpace($ParentPath)) {
+            # Convert forward slashes to backslashes (Azure DevOps uses backslashes in paths)
+            # Then URL encode the backslashes
+            [string]$normalizedPath = $ParentPath -replace '/', '\'
+            [string]$encodedPath = [Uri]::EscapeDataString($normalizedPath)
+            $uri = "$uri/$encodedPath"
+        }
+        
+        $uri = "$uri`?api-version=7.1-preview.2"
+
+        $body = @{
+            name       = $IterationName
+            attributes = @{
+                startDate  = $StartDate.ToString('o')
+                finishDate = $EndDate.ToString('o')
+            }
+        }
+
+        try {
+            return Invoke-AzDoApiRequest -Uri $uri -Method 'Post' -Headers $headers -Body $body
+        }
+        catch {
+            $null = & ssLogIt.ps1 -Level Error -Message "Failed to create iteration '$IterationName' in $Project : $($_.Exception.Message)" -Exception $_
+            throw
+        }
+    }
+}
