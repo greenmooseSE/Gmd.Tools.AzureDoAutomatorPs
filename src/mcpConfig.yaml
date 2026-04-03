@@ -698,3 +698,41 @@ commands:
         required: false
         mapTo: RepositoryRoot
         description: "Root directory for state configuration files (default: current directory)"
+
+  - id: detect-hierarchy-changes
+    script: ./DetectHierarchyChanges.ps1
+    description: "Detect and validate changes between original and modified work item hierarchies. Compares JSON hierarchies to produce a validated diff with operations in dependency order. Prevents dangerous modifications."
+    passStyle: named
+    params:
+      - name: OriginalHierarchy
+        type: object
+        required: true
+        mapTo: OriginalHierarchy
+        description: "Original hierarchy JSON as returned by convert-markdown-to-hierarchy-json"
+      - name: ModifiedHierarchy
+        type: object
+        required: true
+        mapTo: ModifiedHierarchy
+        description: "Modified hierarchy JSON after user edits"
+      - name: StateConfigPath
+        type: string
+        required: false
+        mapTo: StateConfigPath
+        description: "Optional path to state configuration file for validating state changes"
+
+  - id: apply-validated-changes
+    script: ./ApplyValidatedChanges.ps1
+    description: "Apply validated changes back to Azure DevOps with transaction-like safety. Creates new work items, updates existing ones, and manages parent-child relationships. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: ValidatedDiff
+        type: object
+        required: true
+        mapTo: ValidatedDiff
+        description: "Validated diff object from detect-hierarchy-changes"
+      - name: DryRun
+        type: bool
+        required: false
+        default: false
+        mapTo: DryRun
+        description: "Preview changes without applying - test mode"
