@@ -376,14 +376,15 @@ foreach ($operation in $ValidatedDiff.operations) {
                     $script:appliedChanges++
                 }
                 'Move' {
-                    # For now, moves are handled as updates
-                    $updated = Update-WorkItem -Id $operation.itemId -Changes $operation.changes
+                    # Reparent the work item to the new parent
+                    $newParentId = ResolveDependencyId -DependencyId $operation.parentIdAfter
+                    $moved = Move-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $operation.itemId -NewParentId $newParentId -PatToken:$PatToken
                     $script:appliedChanges++
                 }
             }
         }
         
-        $script:operationsSummary += $opSummary
+        $script:operationsSummary += [PSCustomObject]$opSummary
     }
     catch {
         $failureSummary = @{
@@ -394,7 +395,7 @@ foreach ($operation in $ValidatedDiff.operations) {
             error         = $_.Exception.Message
         }
         
-        $script:operationsSummary += $failureSummary
+        $script:operationsSummary += [PSCustomObject]$failureSummary
         
         return @{
             success           = $false

@@ -185,6 +185,9 @@ function Parse-MarkdownToWorkItems {
     [object]$currentItem = $null
     [array]$descriptionBuffer = @()
     [bool]$collectingDescription = $false
+    [bool]$script:collectingCustomField = $false
+    [string]$script:customFieldName = $null
+    [array]$script:customFieldBuffer = @()
     
     for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         $line = $lines[$lineNum]
@@ -195,6 +198,12 @@ function Parse-MarkdownToWorkItems {
         if ($null -ne $itemInfo) {
             # Save previous item if exists
             if ($null -ne $currentItem) {
+                # Finalize any pending custom field
+                if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
+                    $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                    $script:collectingCustomField = $false
+                }
+                
                 if ($descriptionBuffer.Count -gt 0) {
                     $currentItem.description = ($descriptionBuffer -join "`n").Trim()
                 }
@@ -222,6 +231,12 @@ function Parse-MarkdownToWorkItems {
         }
         elseif ($null -ne $currentItem -and $line -match '^\*\*') {
             # Metadata line
+            # Finalize any pending custom field
+            if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
+                $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                $script:collectingCustomField = $false
+            }
+            
             $collectingDescription = $false
             
             # Extract all metadata fields
@@ -259,13 +274,35 @@ function Parse-MarkdownToWorkItems {
                 }
             }
             # Handle custom fields (any field starting with Custom. or other custom fields)
-            elseif ($line -match '^\*\*([^*]+)\*\*:\s*(.+?)(\s*\\)?$') {
+            elseif ($line -match '^\*\*([^*]+)\*\*:\s*(.*)$') {
                 $fieldName = $Matches[1]
                 $fieldValue = $Matches[2].Trim()
                 # Skip standard fields that we've already processed
                 if ($fieldName -notin @('WorkItemId', 'State', 'tags', 'SP', 'Effort', 'Description')) {
-                    $currentItem.customFields[$fieldName] = $fieldValue
+                    # If field value is empty or just whitespace, value continues on next lines
+                    if ([string]::IsNullOrWhiteSpace($fieldValue)) {
+                        $script:collectingCustomField = $true
+                        $script:customFieldName = $fieldName
+                        $script:customFieldBuffer = @()
+                    }
+                    else {
+                        $currentItem.customFields[$fieldName] = $fieldValue
+                    }
                 }
+            }
+        }
+        elseif ($null -ne $currentItem -and $script:collectingCustomField) {
+            # Collecting multi-line custom field value
+            if ($line -match '^\*\*' -or (Get-WorkItemInfo -Line $line)) {
+                # Hit next metadata or work item, finalize current custom field
+                $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                $script:collectingCustomField = $false
+                # This line will be reprocessed in next iteration
+                $lineNum--
+            }
+            else {
+                # Add to custom field value (including blank lines within field)
+                $script:customFieldBuffer += $line
             }
         }
         elseif ($null -ne $currentItem -and $collectingDescription) {
@@ -293,6 +330,12 @@ function Parse-MarkdownToWorkItems {
     
     # Save last item
     if ($null -ne $currentItem) {
+        # Finalize any pending custom field
+        if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
+            $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+            $script:collectingCustomField = $false
+        }
+        
         if ($descriptionBuffer.Count -gt 0) {
             $currentItem.description = ($descriptionBuffer -join "`n").Trim()
         }
@@ -353,6 +396,27 @@ function Cleanup-Item {
     if ($null -ne $Item.storyPoints) { $cleaned.storyPoints = $Item.storyPoints }
     if ($null -ne $Item.effort) { $cleaned.effort = $Item.effort }
     if (-not [string]::IsNullOrWhiteSpace($Item.description)) { $cleaned.description = $Item.description }
+    
+    # Map custom fields to top-level properties for consistency with Azure DevOps export
+    # This ensures DetectHierarchyChanges can properly compare original vs modified
+    if ($null -ne $Item.customFields -and $Item.customFields.Count -gt 0) {
+        # Map "Custom.ACScenarios" -> "acScenarios" to match original structure
+        if ($Item.customFields.ContainsKey('Custom.ACScenarios')) {
+            $cleaned.acScenarios = $Item.customFields['Custom.ACScenarios']
+        }
+        
+        # Map "Custom.ExtraInformation" -> "extraInformation" to match original structure
+        if ($Item.customFields.ContainsKey('Custom.ExtraInformation')) {
+            $cleaned.extraInformation = $Item.customFields['Custom.ExtraInformation']
+        }
+        
+        # Include any other custom fields that weren't specifically mapped
+        foreach ($fieldName in $Item.customFields.Keys) {
+            if ($fieldName -notin @('Custom.ACScenarios', 'Custom.ExtraInformation')) {
+                $cleaned[$fieldName] = $Item.customFields[$fieldName]
+            }
+        }
+    }
     
     # Recursively clean children
     if ($null -ne $Item.children -and $Item.children.Count -gt 0) {

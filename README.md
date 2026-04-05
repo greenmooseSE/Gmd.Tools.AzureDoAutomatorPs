@@ -30,8 +30,12 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Example Hierarchy](#example-hierarchy)
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
+- [Recipes](#recipes)
+  - [Update Hierarchy Structure in Azure DevOps](#update-hierarchy-structure-in-azure-devops)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
+  - [Test Hierarchy Helper](#test-hierarchy-helper)
+  - [Test Markdown Generator](#test-markdown-generator)
 - [Contributing](#contributing)
 
 ## Prerequisites
@@ -93,6 +97,7 @@ Low-level REST API wrapper with retry logic:
 - `Get-AzDoWorkItemById`: Retrieve specific work items
 - `New-AzDoWorkItem`: Create new work items
 - `Update-AzDoWorkItem`: Update existing work items
+- `Move-AzDoWorkItem`: Reparent work items to a new parent (supports hierarchy reorganization)
 - `Remove-AzDoWorkItem`: Delete work items
 - `New-AzDoComment`: Add comment to a work item
 - Built-in retry logic for transient failures
@@ -1428,6 +1433,42 @@ Dangerous modifications are prevented with comprehensive validation:
 4. **ID Verification**: Existing work item IDs are validated to exist in Azure DevOps
 5. **Circular References**: Parent-child cycles are detected and prevented
 
+### Hierarchy Reorganization (Reparenting)
+
+The workflow supports reorganizing work item hierarchies through reparenting—moving work items to different parents while preserving their identity:
+
+**Scenario: Consolidate Stories from Multiple Features**
+
+```powershell
+# Export epic with multiple features
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 -Organization "falco-it" -Project "GMD" -EpicId 1577
+$exported = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy
+$exported | Out-File "epic-export.md"
+
+# Edit markdown to consolidate all stories under one target feature:
+# - Move all stories from Feature A to Feature C
+# - Move all stories from Feature B to Feature C
+# - Keep original features (they become empty)
+
+$modified = Get-Content "epic-export.md" -Raw
+$modifiedJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $modified
+$original = $exported | ConvertFrom-Json
+
+# Detect the reorganization (will show "Move" operations for each story)
+$diff = .\DetectHierarchyChanges.ps1 -OriginalHierarchy $original -ModifiedHierarchy $modifiedJson
+
+# DryRun to preview
+$preview = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff -DryRun
+
+# Apply the reparenting
+$result = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+
+# Result in Azure DevOps:
+# - All stories now under Feature C
+# - Feature A, B, C still exist (A and B as empty)
+# - All story IDs and content preserved
+```
+
 ### Safety Features
 
 - **Transaction-like behavior**: All changes succeed or none do (fail-fast approach)
@@ -1465,7 +1506,251 @@ if ($diff.validationPassed) {
 }
 ```
 
+## Recipes
+
+### Update Hierarchy Structure in Azure DevOps
+
+This recipe demonstrates how to reorganize your Azure DevOps work item hierarchy. Use this workflow when you need to:
+- Move stories from one feature to another
+- Consolidate multiple features into one
+- Reorganize work items while preserving their identity and metadata
+- Make bulk structural changes with full validation and preview
+
+**Overview of the three-step process:**
+1. **Export** the hierarchy from Azure DevOps to markdown
+2. **Modify** the markdown structure (change parent-child relationships)
+3. **Reimport** the changes back to Azure DevOps
+
+#### Step 1: Export Existing Hierarchy to Markdown
+
+Export your current hierarchy from Azure DevOps:
+
+```powershell
+# First, find the Epic ID you want to work with
+$epic = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicTitle "My Epic Name"
+
+# Export the hierarchy to markdown format
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId $epic.Id
+
+$markdown = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy
+
+# Save to file for editing
+$markdown | Out-File "hierarchy-export.md" -Encoding UTF8
+```
+
+**What the exported markdown looks like:**
+```markdown
+# Epic: System Architecture Redesign (ID: 1577)
+
+## Feature: API Layer Refactoring (ID: 1578)
+- Story: Redesign REST API endpoints (ID: 1579)
+- Story: Implement GraphQL support (ID: 1580)
+
+## Feature: Database Optimization (ID: 1581)
+- Story: Migrate to NoSQL (ID: 1582)
+- Story: Add caching layer (ID: 1583)
+```
+
+#### Step 2: Modify the Markdown Structure
+
+Edit the markdown file to reorganize your work items. You can:
+- **Move stories** to different features by changing the indentation
+- **Change feature order** by reordering sections
+- **Keep work item IDs** intact (they're preserved in the markdown)
+
+**Example: Consolidate all stories into a single feature**
+
+Original structure:
+```markdown
+# Epic: System Redesign (ID: 1577)
+
+## Feature: API Layer (ID: 1578)
+- Story: Refactor endpoints (ID: 1579)
+- Story: Add GraphQL (ID: 1580)
+
+## Feature: Database (ID: 1581)
+- Story: Migrate data (ID: 1582)
+- Story: Add caching (ID: 1583)
+```
+
+Modified structure (all stories under Feature: Database):
+```markdown
+# Epic: System Redesign (ID: 1577)
+
+## Feature: API Layer (ID: 1578)
+# (now empty)
+
+## Feature: Database (ID: 1581)
+- Story: Refactor endpoints (ID: 1579)
+- Story: Add GraphQL (ID: 1580)
+- Story: Migrate data (ID: 1582)
+- Story: Add caching (ID: 1583)
+```
+
+**What you can modify:**
+- ✅ Move work items to different parents
+- ✅ Add new work items (add new story/feature lines)
+- ✅ Update descriptions and story points (edit text after the ID)
+- ✅ Reorder work items
+- ✅ Change field values
+
+**What you cannot modify:**
+- ❌ Change work item IDs (they're part of the round-trip mechanism)
+- ❌ Change the work item type (Story stays a Story, Feature stays a Feature)
+
+#### Step 3: Reimport Changes Back to Azure DevOps
+
+After modifying the markdown, reimport your changes back to Azure DevOps with full validation and preview:
+
+**Option A: Interactive Script (Recommended)**
+
+Use the interactive script for guided workflow with automatic editor support and safety prompts:
+
+```powershell
+# Automatically exports, opens editor, previews, and applies changes
+.\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# Or with pre-existing markdown file
+.\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md"
+
+# Or with debug mode to preview changes without applying
+.\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md" `
+    -RunAsDebug
+
+# Or with existing original markdown (skip re-fetching from Azure DevOps)
+.\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md" `
+    -OriginalMarkdownPath "./hierarchy-export-original.md"
+```
+
+**interactive-update-hierarchy.ps1 Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `-Organization` | string | Yes | Azure DevOps organization name |
+| `-Project` | string | Yes | Azure DevOps project name |
+| `-EpicId` / `-FeatureId` / `-StoryId` | int | Yes (one) | Work item ID to export and modify |
+| `-MarkdownFile` | string | No | Path to markdown file with modifications. If omitted, opens editor for you |
+| `-OriginalMarkdownPath` | string | No | Path to existing original hierarchy markdown. If provided, skips fetching from Azure DevOps (useful for iterating on changes without repeated API calls) |
+| `-SkipEditor` | switch | No | Don't open markdown file in editor (useful for automated workflows) |
+| `-RunAsDebug` | switch | No | Debug mode: runs through all steps but stops after preview without applying changes. Skips user confirmation prompt |
+| `-RepositoryRoot` | string | No | Root directory for state configuration. Default: current working directory |
+
+**Option B: Manual Step-by-Step**
+
+```powershell
+# Step 3a: Get the ORIGINAL hierarchy from Azure DevOps (not from markdown)
+$originalHierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# Step 3b: Read the MODIFIED markdown file
+$modifiedMarkdown = Get-Content "hierarchy-export.md" -Raw
+
+# Step 3c: Convert modified markdown to JSON structure
+$modifiedHierarchy = .\ConvertMarkdownToHierarchyJson.ps1 `
+    -MarkdownContent $modifiedMarkdown
+
+# Step 3d: Detect what changed between original and modified
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalHierarchy `
+    -ModifiedHierarchy $modifiedHierarchy
+
+# Step 3e: Preview changes WITH DryRun (always do this first!)
+Write-Host "Preview of changes (DRY RUN):" -ForegroundColor Cyan
+$preview = .\ApplyValidatedChanges.ps1 `
+    -ValidatedDiff $diff `
+    -DryRun:$true
+
+Write-Host "Operations to be applied:" -ForegroundColor Yellow
+$preview.operations | Format-Table @(
+    @{ Label = "Type"; Expression = { $_.operationType } },
+    @{ Label = "Item"; Expression = { $_.itemTitle } },
+    @{ Label = "Status"; Expression = { $_.status } }
+) -AutoSize
+
+# Step 3f: After reviewing preview, apply the changes
+$confirm = Read-Host "Apply these changes? (yes/no)"
+if ($confirm -eq "yes") {
+    Write-Host "`nApplying changes..." -ForegroundColor Cyan
+    $result = .\ApplyValidatedChanges.ps1 `
+        -ValidatedDiff $diff `
+        -DryRun:$false
+    Write-Host "✓ Changes applied successfully!" -ForegroundColor Green
+}
+```
+
+#### Complete Recipe Using Interactive Script
+
+For the easiest workflow, use the interactive script which handles all three steps:
+
+```powershell
+# Navigate to script directory
+cd .\tools
+
+# Run the interactive update script
+.\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# The script will:
+# 1. Export the current hierarchy from Azure DevOps
+# 2. Open it in your default editor for modification
+# 3. Wait for you to finish editing and close the editor
+# 4. Show a preview of all changes (DRY RUN)
+# 5. Ask for confirmation before applying
+# 6. Apply the validated changes
+# 7. Show results summary
+```
+
+#### Workflow Tips
+
+**Best Practices:**
+1. **Always use DryRun first** - Preview changes before applying them
+2. **Export first, then modify** - Keep the original exported file as backup
+3. **Test with a small hierarchy** - Validate the workflow on simpler structures before complex ones
+4. **Validate your markdown** - Use proper formatting (verify indentation and structure)
+5. **Preserve work item IDs** - Never manually change the work item ID numbers
+
+**Common Scenarios:**
+
+| Scenario | Steps | Result |
+|----------|-------|--------|
+| Move stories to different feature | Export → Modify parent → Reimport | Stories reparented, IDs preserved |
+| Consolidate features | Export → Move all stories to target feature → Reimport | Empty source features, stories in target |
+| Combine two epics | Export first epic → Manually update parent IDs → Reimport | All items now under one epic |
+| Add new work items | Export → Add new story/feature lines → Reimport | New items created linked to parents |
+
+**Validation Rules:**
+- All work item IDs must be unique
+- Parent-child relationships must be valid (Story can't be parent of Feature)
+- Work item types cannot change through modifications
+- State changes are validated against configured writable states
+
 ## MCP Server Integration
+
 
 The Azure DevOps Automator project includes full Model Context Protocol (MCP) support, enabling all tools to be consumed by AI assistants and automation frameworks over HTTP.
 
@@ -1745,6 +2030,63 @@ These tests demonstrate:
 - Creating simple hierarchies and verifying queryability
 - Complex hierarchies with multiple levels (1 Epic, 2 Features, 5 Stories, 3 Tasks, 1 Bug)
 - Reliable cleanup removing all created items
+
+### Test Markdown Generator
+
+The `CreateTestMarkdown.ps1` helper generates a complete synthetic markdown hierarchy file
+without requiring any live Azure DevOps connection. Use it to produce ready-to-consume
+markdown input for testing parsers, importers, and other markdown-driven tooling.
+
+#### Purpose
+
+Generates a fully-populated markdown hierarchy (Epic → Features → Stories/Bugs → Tasks)
+using made-up but realistic values. All writable fields defined by the markdown template
+(`GenerateAzDoMarkdownHierarchyTemplate.ps1`) are populated. Values differ between items
+using a timestamp seed so each run produces unique item names.
+
+#### Features
+
+- **No Azure DevOps connection required**: Generates markdown locally
+- **All writable fields populated**: tags, Effort, SP, Priority, OriginalEstimate, Description, Acceptance Criteria, AC Scenarios, Extra Information
+- **Configurable counts**: Control the number of Features, Stories, Bugs, and Tasks per level
+- **Optional no-task items**: `CreateSomeStoriesAndBugsWithoutTasks` creates at least one Story and one Bug per Feature with no Tasks (tests edge-case handling)
+- **testWi tag**: All generated items include the `testWi` tag for identification
+- **Parser-validated format**: Output passes `ConvertMarkdownToHierarchyJson.ps1` parsing without errors
+
+#### Usage
+
+```powershell
+# Generate with defaults (2 Features, 2 Stories/Feature, 2 Bugs/Feature, 2 Tasks each)
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "My Test Epic" `
+    -MdOutputFile ".\tmp\test-hierarchy.md"
+
+# Generate minimal hierarchy (1 Feature, 1 Story, 1 Bug, 1 Task each)
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "Minimal Test" `
+    -MdOutputFile ".\tmp\minimal.md" `
+    -FeatureCount 1 -StoryPerFeatureCount 1 -BugPerFeatureCount 1 `
+    -TaskPerStory 1 -TaskPerBug 1
+
+# Include items without tasks for edge-case testing
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "Edge Case Test" `
+    -MdOutputFile ".\tmp\edge.md" `
+    -CreateSomeStoriesAndBugsWithoutTasks
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `-EpicTitle` | string | Yes | — | Title for the single Epic |
+| `-MdOutputFile` | string | Yes | — | Output file path (directories created automatically) |
+| `-FeatureCount` | int | No | 2 | Number of Features under the Epic |
+| `-StoryPerFeatureCount` | int | No | 2 | Number of Stories under each Feature |
+| `-BugPerFeatureCount` | int | No | 2 | Number of Bugs under each Feature |
+| `-TaskPerStory` | int | No | 2 | Number of Tasks under each Story |
+| `-TaskPerBug` | int | No | 2 | Number of Tasks under each Bug |
+| `-CreateSomeStoriesAndBugsWithoutTasks` | switch | No | off | Last Story and last Bug in each Feature are created without Tasks |
 
 ## Error Handling
 
@@ -2301,35 +2643,35 @@ To prevent headers in descriptions from being confused with hierarchy markers:
 ```markdown
 # Epic: Epic Title
 
-**tags**: tag1, tag2\
-**Effort**: 21\
-**Description**\
+**tags**: tag1, tag2  
+**Effort**: 21  
+**Description**  
 Multi-line description with headers at level 3 or higher
 ### Header in Epic Description
 More content here
 
 ## Feature: Feature Title
 
-**tags**: tag1, tag2\
-**Effort**: 13\
-**Description**\
+**tags**: tag1, tag2  
+**Effort**: 13  
+**Description**  
 Feature description with headers at level 3 or higher
 ### Implementation Details
 Additional context
 
 ### Story: Story Title
 
-**tags**: tag1, tag2\
-**SP**: 5\
-**Description**\
+**tags**: tag1, tag2  
+**SP**: 5  
+**Description**  
 Story description with headers at level 4 or higher
 #### Acceptance Criteria
 - [ ] Criterion 1
 
 #### AC Scenarios
-1. **Scenario**: First scenario\
-  Given...\
-  When...\
+1. **Scenario**: First scenario  
+  Given...  
+  When...  
   Then...
 
 #### Extra Information
@@ -2338,16 +2680,16 @@ Story description with headers at level 4 or higher
 
 #### Formatting Guidelines
 
-**Newlines in Descriptions**: Use trailing backslash (`\`) at the end of lines to enforce newlines:
+**Newlines in Descriptions**: Use 2 spaces (`  `) at the end of lines to enforce newlines:
 
 ```markdown
 ## Feature: Example
 
-**tags**: documentation, guide\
-**Description**\
-This is the first line\
-This is the second line (backslash above enforces newline)\
-This is the third line
+**tags**: documentation, guide  
+**Description**  
+This is the first line  
+This is the second line (2 spaces above enforces newline)  
+This is the third line  
 ```
 
 **Supported Properties**
@@ -2362,15 +2704,15 @@ This is the third line
 **Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
 ```markdown
 #### AC Scenarios
-1. **Scenario**: User logs in\
-  Given user is on login page\
-  When user enters valid credentials\
-  Then user is logged in\
+1. **Scenario**: User logs in  
+  Given user is on login page  
+  When user enters valid credentials  
+  Then user is logged in  
   And dashboard is displayed
 
-2. **Scenario**: Login fails with invalid password\
-  Given user is on login page\
-  When user enters invalid password\
+2. **Scenario**: Login fails with invalid password  
+  Given user is on login page  
+  When user enters invalid password  
   Then error message is shown
 ```
 
@@ -2388,7 +2730,7 @@ This is the third line
 ```markdown
 #### Extra Information
 - Reference documentation: https://docs.example.com
-- Consider security implications\
+- Consider security implications  
 - Apply rate limiting on API endpoints
 ```
 
@@ -2408,7 +2750,7 @@ See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-re
 - Numbered Gherkin scenarios with proper Given/When/Then structure
 - Story points estimation
 - Real-world use cases (Customer Portal Redesign with authentication, ticketing, and knowledge base features)
-- Trailing backslashes for enforcing newlines in markdown
+- Trailing 2 space characters for enforcing newlines in markdown
 - **Tasks under Stories** - Examples of leaf-level work items
 
 ### Creating Tasks Within Stories

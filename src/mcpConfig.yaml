@@ -177,6 +177,32 @@ commands:
         default: false
         mapTo: DryRun
 
+  # ===== STATE MANAGEMENT OPERATIONS =====
+  - id: load-state-configuration
+    script: ./LoadStateConfiguration.ps1
+    description: "Load and cache state configuration for work item types. Configuration defines which states are writable for each work item type (Epic, Feature, Story, Task, Bug). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Organization
+        type: string
+        required: true
+        mapTo: Organization
+      - name: Project
+        type: string
+        required: true
+        mapTo: Project
+      - name: RepositoryRoot
+        type: string
+        required: false
+        mapTo: RepositoryRoot
+        description: "Root directory where configuration files are stored (default: current directory)"
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
+        description: "Ignore cache and reload configuration from file"
+
   # ===== SET OPERATIONS =====
   - id: set-story-points
     script: ./SetAzDoStoryPoints.ps1
