@@ -1,10 +1,12 @@
 <#
 .SYNOPSIS
-Create Azure DevOps work item hierarchy from markdown content
+Create or update Azure DevOps work item hierarchy from a markdown file or content string
 
 .DESCRIPTION
-Parses markdown content using hierarchical headers and creates a hierarchy of Epic/Feature/Story work items.
-Performs full validation before creating any items (fail-fast approach).
+Parses markdown content using hierarchical headers and creates or updates a hierarchy of
+Epic/Feature/Story/Task work items. When a markdown file path is provided, work item IDs
+are written back to the file after creation, enabling idempotent re-runs: subsequent
+invocations update existing items by ID instead of creating duplicates.
 
 Organization, Project, and PatToken are retrieved from environment variables:
 - GMD_AZDO_ORGANIZATION: Azure DevOps organization name
@@ -12,40 +14,36 @@ Organization, Project, and PatToken are retrieved from environment variables:
 - GMD_AZDO_MACHINE_WORKITEMSRW: PAT token for work item operations
 
 Markdown format:
-    # Epic Title
+    # Epic: Epic Title
+    **WorkItemId**: 2215  (written back after first run)
     **tags**: tag1, tag2
     **Description**
     Multi-line description text
     
-    ## Feature Title
+    ## Feature: Feature Title
     **tags**: tag1, tag2
     **Description**
     Feature description
     
-    ### Story Title
+    ### Story: Story Title
     **tags**: tag1, tag2
     **SP**: 5
     **Description**
-    Story description as a developer...
+    Story description ...
     
-    #### Acceptance Criteria
-    - [ ] Criterion 1
-    - [ ] Criterion 2
-    
-    #### AC Scenarios
-    1. **Scenario**: First scenario
-    Given...
-    When...
-    Then...
-    
-    #### Extra Information
-    Additional notes and requirements
+    #### Task: Task Title
+    **Priority**: 1
+    **OriginalEstimate**: 4
+    **Description**
+    Task details
 
 .PARAMETER MarkdownContent
 The markdown hierarchy content as a string. Either -MarkdownContent or -MarkdownFile must be provided.
 
 .PARAMETER MarkdownFile
 Path to a markdown file containing the hierarchy content. Either -MarkdownContent or -MarkdownFile must be provided.
+After work items are created, **WorkItemId**: <id> lines are inserted after each work item header
+so that subsequent runs update existing items instead of creating new ones.
 
 .PARAMETER EpicId
 Optional: Parent Epic ID. If not provided, Features become top-level work items.
@@ -54,25 +52,30 @@ Optional: Parent Epic ID. If not provided, Features become top-level work items.
 Switch: If specified, shows planned operations without creating work items
 
 .PARAMETER UpdateExisting
-Switch: If specified, matches existing work items by title (ignoring "(001)" suffixes) and updates them instead of creating new ones. Uses existing items as parents for child items.
+Switch: If specified and an item has no WorkItemId in the markdown, matches existing work items
+by title (ignoring "(001)" suffixes) and updates them instead of creating new ones.
 
 .OUTPUTS
 PSObject with summary of created/planned work items with hierarchy
 
 .EXAMPLE
-Create hierarchy with DryRun first:
-    $content = Get-Content "hierarchy.md" -Raw
-    .\New-AzDoHierarchyFromMarkdown.ps1 -MarkdownContent $content -DryRun
+Preview what will be created (DryRun):
+    .\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md" -DryRun
+
+.EXAMPLE
+Create hierarchy and write IDs back to file (first run):
+    .\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
+
+.EXAMPLE
+Re-run on same file to update existing items (uses WorkItemIds already in the file):
+    .\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
 
 .NOTES
-- Input content is validated during parsing
-- Requires Azure DevOps REST API access
-- Pre-validates entire structure before creating items
+- When WorkItemId is present in the markdown, it is used directly for ID-based updates
+- WorkItemId lines are written back only when -MarkdownFile is used (not -MarkdownContent)
 - Hierarchy is inferred from header levels: # = Epic, ## = Feature, ### = Story, #### = Task/Bug
-- Tasks are automatically created during hierarchy processing when found in markdown (#### Task: under Story)
-  - Tasks do NOT support Acceptance Criteria or AC Scenarios (only Description, Priority, time tracking fields)
-  - Tasks require a Story parent in the markdown structure (enforced during parsing)
-  - Example: Tasks defined with Priority, Original Estimate, Remaining, Completed fields
+- Tasks do NOT support Acceptance Criteria or AC Scenarios (only Description, Priority, time tracking fields)
+- Tasks require a Story parent in the markdown structure (enforced during parsing)
 - Use RemoveAzDoTask.ps1 for individual Task deletion
 - Use RemoveAzDoEpic.ps1 for cascading delete of entire Epic hierarchies
 #>
@@ -118,12 +121,21 @@ if (-not [string]::IsNullOrWhiteSpace($MarkdownFile)) {
     $null = & ssLogIt.ps1 -Level Info -Message "Reading markdown file: ::FgGreen::$MarkdownFile::FgDefault::"
     $MarkdownContent = Get-Content -LiteralPath $MarkdownFile -Raw -ErrorAction Stop
 }
+else {
+    # If -MarkdownContent is a file path reference (contains \ or /), try to auto-detect and read it
+    if ($MarkdownContent -match '[\\/]' -and (Test-Path -LiteralPath $MarkdownContent -PathType Leaf -ErrorAction SilentlyContinue)) {
+        $null = & ssLogIt.ps1 -Level Info -Message "Auto-detected file path in -MarkdownContent: ::FgGreen::$MarkdownContent::FgDefault:: Reading file..."
+        # Save the resolved path so IDs are written back after creation
+        $MarkdownFile = $MarkdownContent
+        $MarkdownContent = Get-Content -LiteralPath $MarkdownContent -Raw -ErrorAction Stop
+    }
+}
 
 # Get Organization, Project from environment variables
 [string]$Organization = $env:GMD_AZDO_ORGANIZATION
 [string]$Project = $env:GMD_AZDO_PROJECT
-# Get PAT token - always decrypt from environment variable
-[string]$PatToken = Get-AzDoPatToken -Decrypt
+# Get PAT token - always decrypt from environment variable (skip for DryRun to avoid decryption errors)
+[string]$PatToken = if (-not $DryRun) { Get-AzDoPatToken -Decrypt } else { "dry-run-no-token" }
 
 if ([string]::IsNullOrWhiteSpace($Organization)) {
     throw "Environment variable GMD_AZDO_ORGANIZATION is not set"
@@ -167,6 +179,10 @@ function Analyze-DryRunOperations {
         TasksUpdate    = 0
     }
     
+    # Check if we're running with a dummy token (dry-run mode without real authentication)
+    # If so, skip API calls and assume all items need to be created
+    [bool]$isDryRunWithDummyToken = ($PatToken -eq "dry-run-no-token")
+    
     # Helper to get existing story titles under a feature
     function Get-ExistingStoriesTitles {
         param([int]$FeatureId)
@@ -186,7 +202,14 @@ function Analyze-DryRunOperations {
     
     # Analyze epics
     foreach ($epic in $Epics) {
-        $existingEpicId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $epic.title -Type $script:WORKITEM_TYPE_EPIC -PatToken $PatToken
+        # Skip API calls if using dummy dry-run token
+        if ($isDryRunWithDummyToken) {
+            $existingEpicId = $null
+        }
+        else {
+            $existingEpicId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $epic.title -Type $script:WORKITEM_TYPE_EPIC -PatToken $PatToken
+        }
+        
         if ($null -ne $existingEpicId -and [int]$existingEpicId -gt 0) {
             $analysis.EpicsUpdate++
         }
@@ -197,8 +220,8 @@ function Analyze-DryRunOperations {
         
         # Analyze features within epic
         foreach ($feature in $epic.features) {
-            # Only search under epic parent if epic ID is valid
-            if ($null -ne $existingEpicId -and [int]$existingEpicId -gt 0) {
+            # Only search under epic parent if epic ID is valid (skip if using dummy token)
+            if (-not $isDryRunWithDummyToken -and $null -ne $existingEpicId -and [int]$existingEpicId -gt 0) {
                 $existingFeatureId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $feature.title -Type $script:WORKITEM_TYPE_FEATURE -ParentId $existingEpicId -PatToken $PatToken
             } else {
                 $existingFeatureId = $null
@@ -253,7 +276,14 @@ function Analyze-DryRunOperations {
     
     # Analyze top-level features
     foreach ($feature in $Features) {
-        $existingFeatureId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $feature.title -Type $script:WORKITEM_TYPE_FEATURE -PatToken $PatToken
+        # Skip API calls if using dummy dry-run token
+        if ($isDryRunWithDummyToken) {
+            $existingFeatureId = $null
+        }
+        else {
+            $existingFeatureId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $feature.title -Type $script:WORKITEM_TYPE_FEATURE -PatToken $PatToken
+        }
+        
         if ($null -ne $existingFeatureId -and [int]$existingFeatureId -gt 0) {
             $analysis.FeaturesUpdate++
             
@@ -334,14 +364,165 @@ function Find-ExistingWorkItemByTitle {
     return $null
 }
 
+# Convert a Feature node from new workItems format to the legacy hashtable format
+function Convert-HierarchyFeature {
+    param([object]$Item)
+    [string[]]$tags = if ($Item['tags']) { [string[]]($Item['tags'] -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
+    $feature = @{
+        title       = $Item['title']
+        workItemId  = $Item['workItemId']
+        description = $Item['description']
+        effort      = $Item['effort']
+        tags        = $tags
+        stories     = [array]@()
+    }
+    $children = $Item['children']
+    if ($null -ne $children -and $children.Count -gt 0) {
+        foreach ($child in @($children)) {
+            if ($child['type'] -in @('Story', 'Bug')) {
+                $feature.stories += @(Convert-HierarchyStory -Item $child)
+            }
+        }
+    }
+    return $feature
+}
+
+# Convert a Story/Bug node from new workItems format to the legacy hashtable format
+function Convert-HierarchyStory {
+    param([object]$Item)
+    [string[]]$tags = if ($Item['tags']) { [string[]]($Item['tags'] -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
+    $story = @{
+        title              = $Item['title']
+        workItemId         = $Item['workItemId']
+        description        = $Item['description']
+        storyPoints        = $Item['storyPoints']
+        acceptanceCriteria = $Item['acceptanceCriteria']
+        acScenarios        = $Item['acScenarios']
+        extraInformation   = $Item['extraInformation']
+        tags               = $tags
+        tasks              = [array]@()
+        bugs               = [array]@()
+    }
+    $children = $Item['children']
+    if ($null -ne $children -and $children.Count -gt 0) {
+        foreach ($child in @($children)) {
+            if ($child['type'] -eq 'Task') {
+                [string[]]$taskTags = if ($child['tags']) { [string[]]($child['tags'] -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
+                $story.tasks += @(@{
+                    title            = $child['title']
+                    workItemId       = $child['workItemId']
+                    description      = $child['description']
+                    priority         = $child['priority']
+                    originalEstimate = $child['originalEstimate']
+                    remainingWork    = $child['remainingWork']
+                    completedWork    = $child['completedWork']
+                    tags             = $taskTags
+                })
+            }
+            elseif ($child['type'] -eq 'Bug') {
+                [string[]]$bugTags = if ($child['tags']) { [string[]]($child['tags'] -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
+                $story.bugs += @(@{
+                    title       = $child['title']
+                    workItemId  = $child['workItemId']
+                    description = $child['description']
+                    storyPoints = $child['storyPoints']
+                    tags        = $bugTags
+                })
+            }
+        }
+    }
+    return $story
+}
+
+# Convert from new workItems format (flat with children) to legacy epics/topLevelFeatures format
+function Convert-WorkItemsToLegacyFormat {
+    param([array]$WorkItems)
+    [array]$epics = @()
+    [array]$topLevelFeatures = @()
+    foreach ($item in $WorkItems) {
+        if ($item['type'] -eq 'Epic') {
+            [string[]]$epicTags = if ($item['tags']) { [string[]]($item['tags'] -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
+            $epic = @{
+                title       = $item['title']
+                workItemId  = $item['workItemId']
+                description = $item['description']
+                effort      = $item['effort']
+                tags        = $epicTags
+                features    = [array]@()
+            }
+            $children = $item['children']
+            if ($null -ne $children -and $children.Count -gt 0) {
+                foreach ($child in @($children)) {
+                    if ($child['type'] -eq 'Feature') {
+                        $epic.features += @(Convert-HierarchyFeature -Item $child)
+                    }
+                }
+            }
+            $epics += $epic
+        }
+        elseif ($item['type'] -eq 'Feature') {
+            $topLevelFeatures += @(Convert-HierarchyFeature -Item $item)
+        }
+    }
+    return @{ Epics = $epics; TopLevelFeatures = $topLevelFeatures }
+}
+
+# Update the markdown file to insert **WorkItemId**: <id> after each work item header that does not already have one
+function Update-MarkdownWithWorkItemIds {
+    param(
+        [string]$MarkdownFilePath,
+        [hashtable]$TitleToIdMap
+    )
+    [string]$content = Get-Content -LiteralPath $MarkdownFilePath -Raw
+    [string[]]$lines = $content -split '\r?\n'
+    [System.Collections.Generic.List[string]]$newLines = [System.Collections.Generic.List[string]]::new()
+
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        [string]$line = $lines[$i]
+        $newLines.Add($line)
+
+        if ($line -match '^(#{1,5})\s+(Epic|Feature|Story|Task|Bug):\s+(.+)$') {
+            [string]$titleFromHeader = $Matches[3].Trim()
+
+            # Check if the next line already has **WorkItemId**: N
+            [string]$nextLine = if ($i + 1 -lt $lines.Count) { $lines[$i + 1] } else { '' }
+            if ($nextLine -match '^\*\*WorkItemId\*\*:') {
+                continue
+            }
+
+            # Normalize title (strip trailing "(NNN)") to find a match
+            [string]$normalizedTitle = $titleFromHeader -replace '\s*\(\d+\)\s*$', ''
+            $normalizedTitle = $normalizedTitle.Trim()
+
+            $foundId = $null
+            foreach ($key in $TitleToIdMap.Keys) {
+                [string]$keyStr = [string]$key
+                if ($keyStr -eq $titleFromHeader -or $keyStr -eq $normalizedTitle) {
+                    $foundId = $TitleToIdMap[$key]
+                    break
+                }
+            }
+
+            if ($null -ne $foundId) {
+                $newLines.Add("**WorkItemId**: $foundId")
+            }
+        }
+    }
+
+    [string]$newContent = $newLines -join "`n"
+    Set-Content -LiteralPath $MarkdownFilePath -Value $newContent -NoNewline -Encoding UTF8
+}
+
 
 try {
     # Call adapter to parse markdown to JSON
     $null = & ssLogIt.ps1 -Level Info -Message "Converting markdown to JSON structure..."
-    $hierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $MarkdownContent -ErrorAction Stop
+    $parsedHierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $MarkdownContent -ErrorAction Stop
 
-    [object[]]$epics = $hierarchy.epics
-    [object[]]$features = $hierarchy.topLevelFeatures
+    # Convert from new workItems format (nested children) to legacy epics/topLevelFeatures format
+    $converted = Convert-WorkItemsToLegacyFormat -WorkItems @($parsedHierarchy.workItems)
+    [object[]]$epics = $converted.Epics
+    [object[]]$features = $converted.TopLevelFeatures
 
     $null = & ssLogIt.ps1 -Level Debug -Message "Markdown conversion successful"
 
@@ -391,7 +572,7 @@ try {
                 Create = $analysis.TasksCreate
                 Update = $analysis.TasksUpdate
             }
-            Structure           = $hierarchy
+            Structure           = $parsedHierarchy
         }
         return $dryRunOutput
     }
@@ -457,8 +638,13 @@ try {
         $epicId = -1  # Use -1 as sentinel value for "not yet set"; 0 means invalid
         $null = & ssLogIt.ps1 -Level Debug -Message "Processing epic: $($epic.title) | initial epicId: $epicId | UpdateExisting: $UpdateExisting"
         
-        # Check for existing epic if UpdateExisting is specified
-        if ($UpdateExisting) {
+        # Use WorkItemId from markdown if available (takes precedence over title search)
+        if ($null -ne $epic.workItemId -and [int]$epic.workItemId -gt 0) {
+            $epicId = [int]$epic.workItemId
+            $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $epicId from markdown for Epic: $($epic.title)"
+        }
+        # Check for existing epic if UpdateExisting is specified (fallback when no workItemId)
+        elseif ($UpdateExisting) {
             $null = & ssLogIt.ps1 -Level Debug -Message "UpdateExisting mode: checking for existing epic '$($epic.title)'"
             $existingEpicId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $epic.title -Type $script:WORKITEM_TYPE_EPIC -NormalizeTitle -PatToken $PatToken
             $null = & ssLogIt.ps1 -Level Debug -Message "Find-ExistingWorkItemByTitle returned: $existingEpicId (type: $(if($null -eq $existingEpicId){'$null'}else{$existingEpicId.GetType().Name}))"
@@ -525,8 +711,13 @@ try {
         foreach ($feature in $epic.features) {
             $featureId = -1  # Sentinel value for "not yet set"
             
-            # Check for existing feature if UpdateExisting is specified
-            if ($UpdateExisting) {
+            # Use WorkItemId from markdown if available (takes precedence over title search)
+            if ($null -ne $feature.workItemId -and [int]$feature.workItemId -gt 0) {
+                $featureId = [int]$feature.workItemId
+                $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $featureId from markdown for Feature: $($feature.title)"
+            }
+            # Check for existing feature if UpdateExisting is specified (fallback when no workItemId)
+            elseif ($UpdateExisting) {
                 $existingFeatureId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $feature.title -Type $script:WORKITEM_TYPE_FEATURE -ParentId $epicId -NormalizeTitle -PatToken $PatToken
                 if ($null -ne $existingFeatureId -and [int]$existingFeatureId -gt 0) {
                     $featureId = $existingFeatureId
@@ -541,6 +732,11 @@ try {
                 Title           = $feature.title
                 ParentEpicId    = $epicId
                 PatToken        = $PatToken
+            }
+
+            # Pass Id when known from markdown so UpsertAzDoFeature updates by ID directly
+            if ($featureId -gt 0) {
+                $featureParams['Id'] = $featureId
             }
 
             if ($feature.description) {
@@ -561,8 +757,14 @@ try {
                 $storyId = -1  # Sentinel value for "not yet set"
                 $foundExistingStory = $false
                 
-                # Check for existing story under this Feature if UpdateExisting is specified
-                if ($UpdateExisting) {
+                # Use WorkItemId from markdown if available (takes precedence over title search)
+                if ($null -ne $story.workItemId -and [int]$story.workItemId -gt 0) {
+                    $storyId = [int]$story.workItemId
+                    $foundExistingStory = $true
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for Story: $($story.title)"
+                }
+                # Check for existing story under this Feature if UpdateExisting is specified (fallback when no workItemId)
+                elseif ($UpdateExisting) {
                     $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type $script:WORKITEM_TYPE_STORY -ParentId $featureId -NormalizeTitle -PatToken $PatToken
                     if ($null -ne $existingStoryId -and [int]$existingStoryId -gt 0) {
                         $storyId = $existingStoryId
@@ -652,6 +854,11 @@ try {
                             PatToken      = $PatToken
                         }
 
+                        # Pass Id when task already exists (from markdown workItemId)
+                        if ($null -ne $task.workItemId -and [int]$task.workItemId -gt 0) {
+                            $taskParams['Id'] = [int]$task.workItemId
+                        }
+
                         if ($task.description) {
                             $taskParams['Description'] = $task.description
                         }
@@ -668,7 +875,7 @@ try {
                             $taskParams['CompletedWork'] = $task.completedWork
                         }
 
-                        $null = & ssLogIt.ps1 -Level Debug -Message "Creating Task: $($task.title) under Story (ID: $storyId)"
+                        $null = & ssLogIt.ps1 -Level Debug -Message "Upserting Task: $($task.title) under Story (ID: $storyId)"
                         $createdTask = & "$PSScriptRoot\UpsertAzDoTask.ps1" @taskParams -ErrorAction Stop
                         $createdItems[$createdTask.id] = $createdTask
                         $taskTitleToId[$task.title] = $createdTask.id
@@ -686,6 +893,11 @@ try {
             Project      = $Project
             Title        = $feature.title
             PatToken     = $PatToken
+        }
+
+        # Pass Id when known from markdown so UpsertAzDoFeature updates by ID directly
+        if ($null -ne $feature.workItemId -and [int]$feature.workItemId -gt 0) {
+            $featureParams['Id'] = [int]$feature.workItemId
         }
 
         if ($feature.description) {
@@ -709,8 +921,13 @@ try {
         foreach ($story in $feature.stories) {
             $storyId = -1  # Sentinel value for "not yet set"
             
-            # Check for existing story under this Feature if UpdateExisting is specified
-            if ($UpdateExisting) {
+            # Use WorkItemId from markdown if available (takes precedence over title search)
+            if ($null -ne $story.workItemId -and [int]$story.workItemId -gt 0) {
+                $storyId = [int]$story.workItemId
+                $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for Story: $($story.title)"
+            }
+            # Check for existing story under this Feature if UpdateExisting is specified (fallback when no workItemId)
+            elseif ($UpdateExisting) {
                 $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type $script:WORKITEM_TYPE_STORY -ParentId $featureId -NormalizeTitle -PatToken $PatToken
                 if ($null -ne $existingStoryId -and [int]$existingStoryId -gt 0) {
                     $storyId = $existingStoryId
@@ -799,6 +1016,11 @@ try {
                         PatToken      = $PatToken
                     }
 
+                    # Pass Id when task already exists (from markdown workItemId)
+                    if ($null -ne $task.workItemId -and [int]$task.workItemId -gt 0) {
+                        $taskParams['Id'] = [int]$task.workItemId
+                    }
+
                     if ($task.description) {
                         $taskParams['Description'] = $task.description
                     }
@@ -815,7 +1037,7 @@ try {
                         $taskParams['CompletedWork'] = $task.completedWork
                     }
 
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Creating Task: $($task.title) under Story (ID: $storyId)"
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Upserting Task: $($task.title) under Story (ID: $storyId)"
                     $createdTask = & "$PSScriptRoot\UpsertAzDoTask.ps1" @taskParams -ErrorAction Stop
                     $createdItems[$createdTask.id] = $createdTask
                     $taskTitleToId[$task.title] = $createdTask.id
@@ -1029,6 +1251,20 @@ try {
     }
     if ($tagErrorCount -gt 0) {
         $null = & ssLogIt.ps1 -Level Warn -Message "$tagErrorCount tag operations failed"
+    }
+
+    # Write back work item IDs to the markdown file so subsequent runs update existing items
+    if (-not [string]::IsNullOrWhiteSpace($MarkdownFile) -and $createdItems.Count -gt 0) {
+        $null = & ssLogIt.ps1 -Level Info -Message "Writing work item IDs back to markdown file: ::FgGreen::$MarkdownFile::FgDefault::"
+        [hashtable]$idWritebackMap = @{}
+        foreach ($itemId in $createdItems.Keys) {
+            $item = $createdItems[$itemId]
+            if ($item.PSObject.Properties['fields']) {
+                $idWritebackMap[$item.fields.'System.Title'] = $itemId
+            }
+        }
+        Update-MarkdownWithWorkItemIds -MarkdownFilePath $MarkdownFile -TitleToIdMap $idWritebackMap
+        $null = & ssLogIt.ps1 -Level Info -Message "Markdown updated with work item IDs"
     }
 
     return $summary

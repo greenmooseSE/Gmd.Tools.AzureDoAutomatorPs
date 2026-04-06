@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 
 [int]$script:RETRY_MAX_ATTEMPTS = 3
 [int]$script:RETRY_DELAY_MS = 1000
-[int]$script:API_TIMEOUT_SECONDS = 30
+[int]$script:API_TIMEOUT_SECONDS = 120
 
 # ============================================================================
 # Private Helper Functions
@@ -108,18 +108,25 @@ function Invoke-AzDoApiRequest {
                 [int]$statusCode = 0
                 [string]$responseBody = ""
 
-                # Extract HTTP status code and response body if available
-                if ($_.Exception.Response) {
-                    $statusCode = [int]$_.Exception.Response.StatusCode
+                # Extract HTTP status code and response body if available.
+                # Use PSObject.Properties to avoid Set-StrictMode errors when the exception
+                # type (e.g. HttpRequestException in .NET 6+) lacks a .Response property.
+                [object]$exResponse = if ($_.Exception.PSObject.Properties['Response']) { $_.Exception.Response } else { $null }
+                if ($null -ne $exResponse) {
+                    $statusCode = [int]$exResponse.StatusCode
                     
                     try {
-                        $streamReader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+                        $streamReader = [System.IO.StreamReader]::new($exResponse.GetResponseStream())
                         $responseBody = $streamReader.ReadToEnd()
                         $streamReader.Close()
                     }
                     catch {
                         # Could not read response body
                     }
+                }
+                elseif ($_.Exception.PSObject.Properties['StatusCode'] -and $null -ne $_.Exception.StatusCode) {
+                    # HttpRequestException in .NET 6+ exposes StatusCode directly
+                    $statusCode = [int]$_.Exception.StatusCode
                 }
 
                 # Determine if error is transient (retry-able)

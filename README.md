@@ -11,7 +11,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - **Managing Tags** (add, replace, remove)
 - **Managing Iterations** (retrieving, creating future iterations based on existing patterns)
 - **Generating hierarchies** from markdown files
-- **Deleting** work items (Epics with cascading children, or individual Tasks) with safety confirmations
+- **Deleting** work items with optional recursive child deletion (`-Recursive`) and safety confirmations (Epics, Features, Stories, Bugs, Tasks)
 
 ## Table of Contents
 
@@ -31,6 +31,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
 - [Recipes](#recipes)
+  - [Generate Azure DevOps Hierarchy from Markdown](#generate-azure-devops-hierarchy-from-markdown)
   - [Update Hierarchy Structure in Azure DevOps](#update-hierarchy-structure-in-azure-devops)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
@@ -287,7 +288,7 @@ $task = .\UpsertAzDoTask.ps1 `
   - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
 
 #### `RemoveAzDoTask.ps1`
-Delete a Task work item with optional confirmation prompt.
+Delete a Task work item with optional confirmation prompt. Tasks are leaf-level items with no children.
 
 ```powershell
 # Delete Task with confirmation prompt (safe default)
@@ -409,20 +410,28 @@ Write-Host "System Info: $($bug.fields.'Microsoft.VSTS.TCM.SystemInfo')"
 - Complete Bug work item object as JSON with all fields including Priority, ReproSteps, SystemInfo, StoryPoints, FoundInBuild, IntegratedInBuild, comments, and tags
 
 #### `RemoveAzDoBug.ps1`
-Delete a Bug work item with optional confirmation prompt.
+Delete a Bug work item with optional recursive deletion of child Tasks.
 
 ```powershell
-# Delete Bug with confirmation prompt (safe default)
+# Delete Bug only (child Tasks become orphaned, warning shown if children exist)
 $result = .\RemoveAzDoBug.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -BugId 789
 
-# Delete Bug without confirmation prompt
+# Delete Bug and all child Tasks
 $result = .\RemoveAzDoBug.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -BugId 789 `
+    -Recursive
+
+# Delete Bug and all child Tasks without confirmation
+$result = .\RemoveAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId 789 `
+    -Recursive `
     -Force
 ```
 
@@ -430,13 +439,16 @@ $result = .\RemoveAzDoBug.ps1 `
 - `Organization` (required): Azure DevOps organization
 - `Project` (required): Project name
 - `BugId` (required): Bug ID to delete
+- `Recursive` (switch): Delete all child Tasks before deleting the Bug
 - `Force` (switch): Skip confirmation prompt
 - `PatToken` (optional): Override default PAT token
 
 **Behavior:**
-- Without `-Force`: Displays bug details and prompts for confirmation
+- Without `-Recursive`: Deletes only the Bug; warns if child Tasks exist (they become orphaned)
+- With `-Recursive`: Deletes all child Tasks first, then the Bug
+- Without `-Force`: Prompts for confirmation (requires "YES" response)
 - With `-Force`: Deletes immediately without confirmation
-- Returns summary with deletion status as JSON
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `BugId`, `BugTitle`
 
 #### `GetAzDoWorkItem.ps1`
 Retrieve complete work item information.
@@ -1059,38 +1071,65 @@ Task description...
 ```
 
 #### `NewAzDoHierarchyFromMarkdown.ps1`
-Create complete work item hierarchy from markdown file.
+Create complete work item hierarchy from markdown file or content string. After creation, **WorkItemId** lines are written back to the file so subsequent runs update existing items instead of creating duplicates.
 
 Markdown format:
 ```markdown
-# Epic Title (optional, for nested structure)
+# Epic: My Epic Title
+**WorkItemId**: 100  (written back after first run)
+**tags**: tag1, tag2
+**Effort**: 10
+**Description**
+Multi-line epic description
 
-## Feature 1 Title
-- Story 1 Title
-  - AC: First acceptance criterion
-  - AC: Second acceptance criterion
-  - SP: 5
-- Story 2 Title
-  - SP: 8
+## Feature: Feature Title
+**WorkItemId**: 101
+**tags**: tag1
+**Effort**: 5
+**Description**
+Feature description
 
-## Feature 2 Title
-- Story 3 Title
+### Story: Story Title
+**WorkItemId**: 102
+**tags**: tag1
+**SP**: 5
+**Description**
+**As a** user
+**I want** to do something
+**So that** value is delivered
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ☐ | Feature works for happy path |  |  |
+
+#### AC Scenarios
+1. **Scenario**: Happy path
+   Given setup state
+   When action occurs
+   Then expected result
+
+#### Extra Information
+Additional notes or links
+
+#### Task: Task Title
+**tags**: tag1
+**Priority**: 2
+**OriginalEstimate**: 4
+**Description**
+Task details
 ```
 
 Usage:
 ```powershell
-# Read markdown content
-$content = Get-Content ".\hierarchy.md" -Raw
+# Pass file path directly via -MarkdownContent (auto-detected, writes IDs back)
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownContent .\my-hierarchy.md
 
-# Dry run preview (uses environment variables for org/project)
-$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -MarkdownContent $content `
-    -DryRun
+# Or use -MarkdownFile explicitly (also writes IDs back)
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
 
-# Create hierarchy with validation
-$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -MarkdownContent $content `
-    -EpicId 100
+# Dry run preview
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md" -DryRun
 
 # Access results
 Write-Host "Created: $($result.CreatedItems.Count) items"
@@ -1102,28 +1141,35 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token (optional, uses encryption if set)
 
 **Features:**
-- Pre-validates entire structure before creating items (fail-fast)
-- Supports optional Epic parent
-- Parses acceptance criteria and story points from markdown
+- Fields mapped to correct Azure DevOps fields: Description, AcceptanceCriteria (`#### Acceptance Criteria`), AC Scenarios (`#### AC Scenarios`), Extra Information (`#### Extra Information`)
+- Bold-formatted lines in descriptions (e.g. `**As a**`) are kept in Description, not treated as metadata
+- WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
+- Supports optional Epic parent via `-EpicId`
 - DryRun mode shows planned operations without creation
-- Comprehensive error reporting
 
 #### `RemoveAzDoEpic.ps1`
-Delete an Epic and all child work items (DESTRUCTIVE OPERATION).
+Delete an Epic, optionally including all child work items (DESTRUCTIVE OPERATION).
 
-Usage:
 ```powershell
-# Delete with confirmation prompt (safe default)
+# Delete Epic only (children become orphaned, warning shown if children exist)
 $result = .\RemoveAzDoEpic.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -EpicId 100
 
-# Delete without confirmation (use with caution!)
+# Delete Epic and all children recursively
 $result = .\RemoveAzDoEpic.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -EpicId 100 `
+    -Recursive
+
+# Delete Epic and all children without confirmation
+$result = .\RemoveAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -EpicId 100 `
+    -Recursive `
     -Force
 
 # Check results
@@ -1132,12 +1178,82 @@ $result.SkippedCount   # Number of items that failed to delete
 $result.Cancelled      # Whether user cancelled operation
 ```
 
-**Safety Features:**
-- Lists all work items to be deleted before proceeding
-- Requires user confirmation (type "YES") unless -Force specified
-- Displays deletion progress
-- Returns summary of results
-- Logs all operations for audit trail
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `EpicId` (required): Epic ID to delete
+- `Recursive` (switch): Delete all child Features, Stories, and Tasks before deleting the Epic
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Epic; warns if child work items exist (they become orphaned)
+- With `-Recursive`: Lists all descendants, deletes children first (leaf-to-root), then the Epic
+- Without `-Force`: Requires user confirmation (type "YES")
+- With `-Force`: Deletes immediately without confirmation
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
+
+#### `RemoveAzDoFeature.ps1`
+Delete a Feature, optionally including all child work items (DESTRUCTIVE OPERATION).
+
+```powershell
+# Delete Feature only (children become orphaned, warning shown if children exist)
+$result = .\RemoveAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureId 200
+
+# Delete Feature and all children recursively
+$result = .\RemoveAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureId 200 `
+    -Recursive -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `FeatureId` (required): Feature ID to delete
+- `Recursive` (switch): Delete all child Stories, Tasks, and Bugs before deleting the Feature
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Feature; warns if child work items exist (they become orphaned)
+- With `-Recursive`: Lists all descendants, deletes children first (leaf-to-root), then the Feature
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
+
+#### `RemoveAzDoStory.ps1`
+Delete a Story, optionally including child Tasks (DESTRUCTIVE OPERATION).
+
+```powershell
+# Delete Story only (child Tasks become orphaned, warning shown if children exist)
+$result = .\RemoveAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryId 300
+
+# Delete Story and all child Tasks
+$result = .\RemoveAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryId 300 `
+    -Recursive -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `StoryId` (required): Story ID to delete
+- `Recursive` (switch): Delete all child Tasks before deleting the Story
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Story; warns if child Tasks exist (they become orphaned)
+- With `-Recursive`: Deletes all child Tasks first, then the Story
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
 
 ## Environment Variables
 
@@ -1508,6 +1624,78 @@ if ($diff.validationPassed) {
 
 ## Recipes
 
+### Generate Azure DevOps Hierarchy from Markdown
+
+Use this recipe when you have a markdown file describing your planned work (Epics, Features, Stories, Tasks) and want to create or update the corresponding work items in Azure DevOps in one step.
+
+**Key behaviours:**
+- First run: creates all work items and writes the assigned `**WorkItemId**: <id>` back into the markdown file
+- Subsequent runs: uses those IDs to **update** existing items — no duplicates are ever created
+- DryRun mode lets you preview what will be created or updated before committing
+
+#### Prerequisites
+
+1. Set the required environment variables:
+
+```powershell
+$env:GMD_AZDO_ORGANIZATION = "your-org"
+$env:GMD_AZDO_PROJECT      = "your-project"
+# Store an encrypted PAT (see Setup section)
+```
+
+2. Have a markdown hierarchy file ready (use `GenerateAzDoMarkdownHierarchyTemplate.ps1` to scaffold one):
+
+```powershell
+# Generate a template to start from
+.\src\GenerateAzDoMarkdownHierarchyTemplate.ps1 -IncludeExample > my-hierarchy.md
+# Edit my-hierarchy.md with your Epic / Feature / Story titles
+```
+
+#### Step 1: Preview what will be created (DryRun)
+
+```powershell
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md" -DryRun
+```
+
+The output shows a breakdown of items to create vs. update without touching Azure DevOps.
+
+#### Step 2: Create the hierarchy
+
+```powershell
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
+```
+
+After this runs, `my-hierarchy.md` is updated in-place with `**WorkItemId**: <id>` lines inserted after each work item header. Example result:
+
+```markdown
+# Epic: My Project Epic
+**WorkItemId**: 2215
+**tags**: myProject
+**Description**
+Epic description...
+
+## Feature: User Authentication
+**WorkItemId**: 2216
+...
+```
+
+#### Step 3: Update existing items (subsequent runs)
+
+Run the **exact same command** again at any time. The IDs already in the file are used to update the existing work items rather than create new ones:
+
+```powershell
+# Same command — updates existing items because WorkItemIds are now in the file
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
+```
+
+#### Notes
+
+- To nest the hierarchy under an existing Epic pass `-EpicId <id>`
+- Use `-UpdateExisting` to enable title-based matching as a fallback for items without a `WorkItemId` in the markdown
+- The markdown file is only written when `-MarkdownFile` is used (not when `-MarkdownContent` is passed as a string)
+
+---
+
 ### Update Hierarchy Structure in Azure DevOps
 
 This recipe demonstrates how to reorganize your Azure DevOps work item hierarchy. Use this workflow when you need to:
@@ -1775,7 +1963,7 @@ The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All
 - **Set Operations** (6): Update properties (story points, effort, tags, description)
 - **New Operations** (2): Create comments and reactions
 - **Upsert Operations** (5): Create/update Epics, Features, Stories, Tasks, Bugs
-- **Remove Operations** (5): Delete work items and comments
+- **Remove Operations** (7): Delete work items and comments (Epic, Feature, Story, Bug, Task, Comment, CommentReaction)
 - **Update Operations** (2): Modify existing comments and tags
 - **Find Operations** (1): Search for work items by title
 - **Generate/Validate** (3):
@@ -1996,6 +2184,7 @@ if ($result.Success) {
             -Organization "falco-it" `
             -Project "GMD" `
             -EpicId $result.Epic.Id `
+            -Recursive `
             -Force
     }
 } else {
@@ -2135,7 +2324,10 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
 │   ├── UpdateAzDoWorkItemTags.ps1           (Update/add/remove tags - modern replacement)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)
-│   ├── RemoveAzDoEpic.ps1                   (Delete Epic and children)
+│   ├── RemoveAzDoEpic.ps1                   (Delete Epic, optionally with children)
+│   ├── RemoveAzDoFeature.ps1                (Delete Feature, optionally with children)
+│   ├── RemoveAzDoStory.ps1                  (Delete Story, optionally with child Tasks)
+│   ├── RemoveAzDoBug.ps1                    (Delete Bug, optionally with child Tasks)
 │   ├── RunSystemTest.ps1                    (System test suite)
 │   └── VerifyAzDoPat.ps1                    (Verify PAT read access)
 ├── test/
@@ -2959,8 +3151,8 @@ $bugDetails = .\GetAzDoBug.ps1 `
     -Project "myproj" `
     -BugId $bug.id
 
-# Delete a Bug
-.\RemoveAzDoBug.ps1 -Organization "myorg" -Project "myproj" -BugId $bug.id -Force
+# Delete a Bug (and its child Tasks)
+.\RemoveAzDoBug.ps1 -Organization "myorg" -Project "myproj" -BugId $bug.id -Recursive -Force
 ```
 
 ### Usage
