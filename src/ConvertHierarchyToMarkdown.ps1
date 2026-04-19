@@ -94,6 +94,25 @@ function Format-MarkdownText {
     return $Text
 }
 
+function Format-Tags {
+    <#
+    .SYNOPSIS
+    Normalize a tags string: split by comma or semicolon, trim, sort alphabetically, rejoin with "; ".
+    #>
+    param([string]$Tags)
+    
+    if ([string]::IsNullOrWhiteSpace($Tags)) {
+        return ""
+    }
+    
+    $sorted = $Tags -split '\s*[,;]\s*' |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { $_.Trim() } |
+        Sort-Object
+    
+    return $sorted -join '; '
+}
+
 function Add-MarkdownLineBreaks {
     <#
     .SYNOPSIS
@@ -195,7 +214,7 @@ function Convert-StoryToMarkdown {
     $markdown += "**WorkItemId**: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
     }
     
     if ($StoryPoints) {
@@ -365,7 +384,7 @@ function Convert-FeatureToMarkdown {
     $markdown += "**WorkItemId**: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
     }
     
     if ($Effort) {
@@ -432,20 +451,7 @@ function Convert-EpicToMarkdown {
     $markdown += "**WorkItemId**: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
-    }
-    
-    if ($Effort) {
-        $markdown += "**Effort**: $Effort  `n"
-    }
-    
-    # Add State field to metadata
-    $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
-    $markdown += "**State**: $State$stateMarker  `n"
-    
-    # Add metadata
-    if ($Tags) {
-        $markdown += "**tags**: $(Format-MarkdownText $Tags)  `n"
+        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
     }
     
     if ($Effort) {

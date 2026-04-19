@@ -9,6 +9,7 @@ Fetches an Epic and builds a complete hierarchy showing:
 - All Stories under each Feature with full User Story details:
   Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
   StoryPoints, ExtraInformation, Tags
+- All Tasks and Bugs under each Story
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -204,8 +205,8 @@ try {
                     try {
                         $null = & ssLogIt.ps1 -Level Debug -Message "Processing Story (ID: $storyId)"
 
-                        # Get full story details
-                        $storyDetails = & "$PSScriptRoot/GetAzDoUserStory.ps1" -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
+                        # Get full story details including Tasks and Bugs
+                        $storyDetails = & "$PSScriptRoot/GetAzDoHierarchyForStory.ps1" -Organization $Organization -Project $Project -StoryId $storyId -PatToken $PatToken
 
                         if ($null -ne $storyDetails) {
                             $storiesArray += $storyDetails

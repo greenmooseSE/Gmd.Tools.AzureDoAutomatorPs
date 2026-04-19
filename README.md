@@ -30,6 +30,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Example Hierarchy](#example-hierarchy)
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
+- [Download and Compare Workflow](#download-and-compare-workflow)
 - [Recipes](#recipes)
   - [Generate Azure DevOps Hierarchy from Markdown](#generate-azure-devops-hierarchy-from-markdown)
   - [Update Hierarchy Structure in Azure DevOps](#update-hierarchy-structure-in-azure-devops)
@@ -160,7 +161,13 @@ $feature = .\UpsertAzDoFeature.ps1 `
 - `Id` (optional): Feature ID for direct update. Cannot be used with -FailIfExist
 - `Description` (optional): Feature description
 - `ParentEpicId` (optional): Parent Epic ID (used only when creating)
-- `Effort` (optional): Effort value in story points (non-negative integer)
+- `Effort` (optional): Effort value (non-negative number; decimals supported, e.g. 2.5)
+- `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
+- `OriginalEstimate` (optional): Original estimate in hours (non-negative number)
+- `FixedIn` (optional): Text field for the version or build where the feature was completed
+- `DeployedToDev` (optional): Boolean — whether the feature has been deployed to Dev
+- `DeployedToStaging` (optional): Boolean — whether the feature has been deployed to Staging
+- `DeployedToProduction` (optional): Boolean — whether the feature has been deployed to Production
 - `FailIfExist` (switch): Create-only mode; fails if feature exists. Cannot be used with -Id
 - `PatToken` (optional): Override default PAT token
 
@@ -223,6 +230,12 @@ $story = .\UpsertAzDoStory.ps1 `
 - `AcScenarios` (optional): Acceptance criteria scenarios
 - `ExtraInformation` (optional): Extra information text
 - `StoryPoints` (optional): Story points (non-negative integer)
+- `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
+- `OriginalEstimate` (optional): Original estimate in hours (non-negative number)
+- `FixedIn` (optional): Text field for the version or build where the story was completed
+- `DeployedToDev` (optional): Boolean — whether the story has been deployed to Dev
+- `DeployedToStaging` (optional): Boolean — whether the story has been deployed to Staging
+- `DeployedToProduction` (optional): Boolean — whether the story has been deployed to Production
 - `ParentFeatureId` (optional): Parent Feature ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
@@ -276,7 +289,7 @@ $task = .\UpsertAzDoTask.ps1 `
 - `Title` (required for create, optional for ID-based update): Task title
 - `Id` (optional): Task ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Task description
-- `Effort` (optional): Effort value (non-negative integer)
+- `Effort` (optional): Effort value (non-negative number; decimals supported, e.g. 0.5)
 - `State` (optional): Task state (e.g., "To Do", "In Progress", "Done")
 - `ParentStoryId` (optional): Parent Story ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
@@ -1622,6 +1635,113 @@ if ($diff.validationPassed) {
 }
 ```
 
+## Download and Compare Workflow
+
+Use this workflow when you have a local markdown plan (e.g. `testEpic.md`) and want to compare it with the current state in Azure DevOps — for example, to see what changed between your plan and what was actually created, or to review differences before applying changes.
+
+### Overview
+
+| Step | Script | Purpose |
+|------|--------|---------|
+| 1 | `src/tools/ExportAzDoHierarchyToMarkdown.ps1` | Download current AzDo hierarchy to a markdown file |
+| 2 | `src/tools/SortMarkdownHierarchy.ps1` | Sort both files by WorkItemId for clean diffing |
+| 3 | Diff tool (e.g. `code --diff`) | Side-by-side comparison |
+
+### Step 1: Download Current Hierarchy from Azure DevOps
+
+Use `ExportAzDoHierarchyToMarkdown.ps1` to download an Epic, Feature, or Story hierarchy to a markdown file:
+
+```powershell
+# Export an Epic hierarchy
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 2535 `
+    -OutputFile azDoEpic.md
+
+# Export a Feature hierarchy
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -FeatureId 2536 `
+    -OutputFile azDoFeature.md
+
+# Using environment variables for org/project
+$env:GMD_AZDO_ORGANIZATION = "falco-it"
+$env:GMD_AZDO_PROJECT = "GMD"
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 -EpicId 2535 -OutputFile azDoEpic.md
+```
+
+**Parameters:**
+- `Organization` (optional): Azure DevOps organization. Falls back to `GMD_AZDO_ORGANIZATION` env variable.
+- `Project` (optional): Azure DevOps project. Falls back to `GMD_AZDO_PROJECT` env variable.
+- `EpicId` / `FeatureId` / `StoryId` (one required): Work item ID to export.
+- `OutputFile` (required): Path to write the exported markdown. Overwritten if it exists.
+- `RepositoryRoot` (optional): Root directory for state configuration. Default: repository root.
+- `PatToken` (optional): PAT token override.
+
+### Step 2: Sort Both Files for Clean Diffing
+
+The local plan and the AzDo export may have work items in different orders. Use `SortMarkdownHierarchy.ps1` to normalize both files by sorting work items by WorkItemId at each level:
+
+```powershell
+# Sort both files (outputs testEpic-sorted.md and azDoEpic-sorted.md)
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md -MarkdownFile2 azDoEpic.md
+
+# Specify explicit output paths
+.\src\tools\SortMarkdownHierarchy.ps1 `
+    -MarkdownFile testEpic.md     -OutputFile testEpic-sorted.md `
+    -MarkdownFile2 azDoEpic.md    -OutputFile2 azDoEpic-sorted.md
+
+# Sort a single file only
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md
+```
+
+**Parameters:**
+- `MarkdownFile` (required): First markdown file to sort.
+- `OutputFile` (optional): Output for sorted first file. Default: original name with `-sorted` suffix (e.g. `testEpic.md` → `testEpic-sorted.md`).
+- `MarkdownFile2` (optional): Second markdown file to sort in the same call.
+- `OutputFile2` (optional): Output for sorted second file.
+
+**Sorting behaviour:**
+- Items with a `WorkItemId` are sorted ascending by ID.
+- Items without a `WorkItemId` (new items in your plan) are placed after sorted items, ordered alphabetically by title.
+- Trailing markdown whitespace (`  `) and state warning HTML comments are stripped for clean comparison.
+- Both files are serialized in the same canonical format, making content differences the focus of the diff.
+
+### Step 3: Diff the Sorted Files
+
+```powershell
+# VS Code side-by-side diff
+code --diff testEpic-sorted.md azDoEpic-sorted.md
+
+# Or use any diff tool
+diff testEpic-sorted.md azDoEpic-sorted.md
+```
+
+### Complete Workflow Example
+
+```powershell
+# 1. Download current AzDo state for Epic 2535
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 -EpicId 2535 -OutputFile azDoEpic.md
+
+# 2. Sort both files for clean comparison
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md -MarkdownFile2 azDoEpic.md
+
+# 3. Open side-by-side diff in VS Code
+code --diff testEpic-sorted.md azDoEpic-sorted.md
+```
+
+### What the diff will show
+
+| Difference | Meaning |
+|------------|---------|
+| `State: New` in AzDo only | AzDo items have state; local plan typically does not |
+| Tags with `;` in AzDo vs `,` in local | AzDo uses semicolons as tag separator |
+| Work item present in local only (no WorkItemId) | New item in your plan not yet created in AzDo |
+| Field value differences | Content was changed in your plan or directly in AzDo |
+| Item order differences | Only visible before sorting; sorting normalises this |
+
 ## Recipes
 
 ### Generate Azure DevOps Hierarchy from Markdown
@@ -1802,20 +1922,20 @@ Use the interactive script for guided workflow with automatic editor support and
 
 ```powershell
 # Automatically exports, opens editor, previews, and applies changes
-.\tools\interactive-update-hierarchy.ps1 `
+.\src\tools\interactive-update-hierarchy.ps1 `
     -Organization "falco-it" `
     -Project "GMD" `
     -EpicId 1577
 
 # Or with pre-existing markdown file
-.\tools\interactive-update-hierarchy.ps1 `
+.\src\tools\interactive-update-hierarchy.ps1 `
     -Organization "falco-it" `
     -Project "GMD" `
     -EpicId 1577 `
     -MarkdownFile "./hierarchy-modified.md"
 
 # Or with debug mode to preview changes without applying
-.\tools\interactive-update-hierarchy.ps1 `
+.\src\tools\interactive-update-hierarchy.ps1 `
     -Organization "falco-it" `
     -Project "GMD" `
     -EpicId 1577 `
@@ -1823,7 +1943,7 @@ Use the interactive script for guided workflow with automatic editor support and
     -RunAsDebug
 
 # Or with existing original markdown (skip re-fetching from Azure DevOps)
-.\tools\interactive-update-hierarchy.ps1 `
+.\src\tools\interactive-update-hierarchy.ps1 `
     -Organization "falco-it" `
     -Project "GMD" `
     -EpicId 1577 `
@@ -1894,11 +2014,8 @@ if ($confirm -eq "yes") {
 For the easiest workflow, use the interactive script which handles all three steps:
 
 ```powershell
-# Navigate to script directory
-cd .\tools
-
 # Run the interactive update script
-.\interactive-update-hierarchy.ps1 `
+.\src\tools\interactive-update-hierarchy.ps1 `
     -Organization "falco-it" `
     -Project "GMD" `
     -EpicId 1577
@@ -1973,17 +2090,17 @@ The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All
 
 ### Starting the MCP Server
 
-The `tools/runMcpServerHttp.ps1` script starts the MCP server with HTTP configuration:
+The `src/tools/runMcpServerHttp.ps1` script starts the MCP server with HTTP configuration:
 
 ```powershell
 # Start on default port 8081
-.\tools\runMcpServerHttp.ps1
+.\src\tools\runMcpServerHttp.ps1
 
 # Start on custom port
-.\tools\runMcpServerHttp.ps1 -HttpPort 3000
+.\src\tools\runMcpServerHttp.ps1 -HttpPort 3000
 
 # Start with verbose logging
-.\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
+.\src\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
 ```
 
 The server will be accessible at:
@@ -1994,7 +2111,7 @@ http://localhost:8081
 ### MCP Server Files
 
 - **Config**: `src/mcpConfig.yaml` - Tool definitions and mappings
-- **Launcher**: `tools/runMcpServerHttp.ps1` - Start server script
+- **Launcher**: `src/tools/runMcpServerHttp.ps1` - Start server script
 - **Validator**: `test/ValidateMcpConfigTest.ps1` - Validate config
 - **MCP Runtime**: `submodules/Gmd.Tools.McpServerPs/` - MCP server engine
 
@@ -2908,14 +3025,36 @@ This is the third line
   Then error message is shown
 ```
 
-**Story Points (SP)**:
+**Story Points (SP)** - Stories and Bugs only (decimals supported, e.g. 0.5, 1.5):
 ```markdown
-**SP**: 8
+**SP**: 0.5
 ```
 
-**Effort** - Available for Epics and Features (non-negative integer):
+**Effort** - Epics and Features only (decimals supported, e.g. 2.5):
 ```markdown
-**Effort**: 21
+**Effort**: 2.5
+```
+
+**Priority** - Features, Stories, Bugs, and Tasks (1=highest, 4=lowest):
+```markdown
+**Priority**: 2
+```
+
+**OriginalEstimate** - Features, Stories, and Tasks (hours, non-negative number):
+```markdown
+**OriginalEstimate**: 8
+```
+
+**FixedIn** - Features and Stories (text, version or build where completed):
+```markdown
+**FixedIn**: 2026.4.1
+```
+
+**DeployedToDev / DeployedToStaging / DeployedToProduction** - Features and Stories (boolean):
+```markdown
+**DeployedToDev**: true
+**DeployedToStaging**: false
+**DeployedToProduction**: false
 ```
 
 **Extra Information (EI)**:

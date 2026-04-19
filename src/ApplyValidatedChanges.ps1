@@ -86,6 +86,10 @@ param(
 
     [switch]$DryRun,
 
+    [string]$Organization,
+
+    [string]$Project,
+
     [string]$PatToken
 )
 
@@ -101,15 +105,15 @@ $ErrorActionPreference = 'Stop'
 # Configuration
 # ============================================================================
 
-$Organization = $env:GMD_AZDO_ORGANIZATION
-$Project = $env:GMD_AZDO_PROJECT
+$Organization = if (-not [string]::IsNullOrWhiteSpace($Organization)) { $Organization } else { $env:GMD_AZDO_ORGANIZATION }
+$Project = if (-not [string]::IsNullOrWhiteSpace($Project)) { $Project } else { $env:GMD_AZDO_PROJECT }
 
 if ([string]::IsNullOrWhiteSpace($Organization)) {
-    Write-Error "Organization not set. Configure GMD_AZDO_ORGANIZATION environment variable."
+    Write-Error "Organization not set. Provide -Organization or configure GMD_AZDO_ORGANIZATION environment variable."
 }
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
-    Write-Error "Project not set. Configure GMD_AZDO_PROJECT environment variable."
+    Write-Error "Project not set. Provide -Project or configure GMD_AZDO_PROJECT environment variable."
 }
 
 $script:createdItemMap = @{}
@@ -146,123 +150,45 @@ function Create-WorkItem {
         [int]$ParentId
     )
     
-    $patch = @(
-        @{
-            op    = 'add'
-            path  = '/fields/System.Title'
-            value = $Title
-        }
-    )
-    
-    # Add common fields if provided
-    if ($Fields.description) {
-        $patch += @{
-            op    = 'add'
-            path  = '/fields/System.Description'
-            value = $Fields.description
-        }
+    $apiFields = @{
+        'System.Title' = $Title
     }
     
-    if ($Fields.tags) {
-        $patch += @{
-            op    = 'add'
-            path  = '/fields/System.Tags'
-            value = $Fields.tags
-        }
+    if ($Fields.ContainsKey('description') -and $Fields['description']) {
+        $apiFields['System.Description'] = $Fields['description']
+    }
+    if ($Fields.ContainsKey('tags') -and $Fields['tags']) {
+        $apiFields['System.Tags'] = $Fields['tags']
     }
     
-    # Add type-specific fields
     switch ($Type) {
         'Story' {
-            if ($Fields.storyPoints) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Microsoft.VSTS.Scheduling.StoryPoints'
-                    value = $Fields.storyPoints
-                }
-            }
-            if ($Fields.acceptanceCriteria) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Microsoft.VSTS.Common.AcceptanceCriteria'
-                    value = $Fields.acceptanceCriteria
-                }
-            }
-            if ($Fields.acScenarios) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Custom.ACScenarios'
-                    value = $Fields.acScenarios
-                }
-            }
+            if ($Fields.ContainsKey('storyPoints') -and $Fields['storyPoints']) { $apiFields['Microsoft.VSTS.Scheduling.StoryPoints'] = $Fields['storyPoints'] }
+            if ($Fields.ContainsKey('acceptanceCriteria') -and $Fields['acceptanceCriteria']) { $apiFields['Microsoft.VSTS.Common.AcceptanceCriteria'] = $Fields['acceptanceCriteria'] }
+            if ($Fields.ContainsKey('acScenarios') -and $Fields['acScenarios']) { $apiFields['Custom.ACScenarios'] = $Fields['acScenarios'] }
         }
-        'Feature' {
-            if ($Fields.effort) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Microsoft.VSTS.Scheduling.Effort'
-                    value = $Fields.effort
-                }
-            }
-        }
-        'Epic' {
-            if ($Fields.effort) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Microsoft.VSTS.Scheduling.Effort'
-                    value = $Fields.effort
-                }
-            }
-        }
-        'Task' {
-            # Tasks don't support Acceptance Criteria
+        { $_ -in 'Feature', 'Epic' } {
+            if ($Fields.ContainsKey('effort') -and $Fields['effort']) { $apiFields['Microsoft.VSTS.Scheduling.Effort'] = $Fields['effort'] }
         }
         'Bug' {
-            if ($Fields.priority) {
-                $patch += @{
-                    op    = 'add'
-                    path  = '/fields/Microsoft.VSTS.Common.Priority'
-                    value = $Fields.priority
-                }
-            }
+            if ($Fields.ContainsKey('priority') -and $Fields['priority']) { $apiFields['Microsoft.VSTS.Common.Priority'] = $Fields['priority'] }
         }
     }
     
-    if ($Fields.extraInformation) {
-        $patch += @{
-            op    = 'add'
-            path  = '/fields/Custom.ExtraInformation'
-            value = $Fields.extraInformation
-        }
+    if ($Fields.ContainsKey('extraInformation') -and $Fields['extraInformation']) {
+        $apiFields['Custom.ExtraInformation'] = $Fields['extraInformation']
     }
     
-    # Add any custom fields (fields starting with "Custom." or captured from markdown)
-    if ($Fields.customFields -and $Fields.customFields -is [hashtable]) {
-        foreach ($customFieldName in $Fields.customFields.Keys) {
-            $customFieldValue = $Fields.customFields[$customFieldName]
+    if ($Fields.ContainsKey('customFields') -and $Fields['customFields'] -is [hashtable]) {
+        foreach ($customFieldName in $Fields['customFields'].Keys) {
+            $customFieldValue = $Fields['customFields'][$customFieldName]
             if ($null -ne $customFieldValue -and -not [string]::IsNullOrWhiteSpace($customFieldValue.ToString())) {
-                $patch += @{
-                    op    = 'add'
-                    path  = "/fields/$customFieldName"
-                    value = $customFieldValue.ToString()
-                }
+                $apiFields[$customFieldName] = $customFieldValue.ToString()
             }
         }
     }
     
-    # Add parent if provided
-    if ($ParentId) {
-        $patch += @{
-            op    = 'add'
-            path  = '/relations/-'
-            value = @{
-                rel  = 'System.LinkTypes.Hierarchy-Reverse'
-                url  = "https://dev.azure.com/$Organization/_apis/wit/workitems/$ParentId"
-            }
-        }
-    }
-    
-    $workItem = New-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemType $Type -Patch $patch -PatToken:$PatToken
+    $workItem = New-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemType $Type -Fields $apiFields -ParentId:$ParentId -PatToken:$PatToken
     return $workItem
 }
 

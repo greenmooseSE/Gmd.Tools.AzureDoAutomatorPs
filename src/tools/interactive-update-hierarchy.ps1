@@ -50,7 +50,7 @@ Root directory for state configuration. Default: current working directory.
 # Exports Epic 1577, opens in editor, then guides through preview and apply
 
 .EXAMPLE
-.\interactive-update-hierarchy.ps1 -Organization "falco-it" -Project "GMD" -EpicId 1577 -MarkdownFile "./hierarchy-modified.md" -SkipEditor
+.\src\tools\interactive-update-hierarchy.ps1 -Organization "falco-it" -Project "GMD" -EpicId 1577 -MarkdownFile "./hierarchy-modified.md" -SkipEditor
 
 # Imports specific modified markdown and applies changes
 
@@ -230,12 +230,20 @@ try {
             Write-Host "4. DO NOT change WorkItemId values" -ForegroundColor DarkYellow
             Write-Host "5. Save and close the editor when done" -ForegroundColor Gray
             Write-Host "`nPress any key to open editor..." -ForegroundColor Yellow
-            $null = $Host.UI.RawUserInterface.ReadKey("NoEcho,IncludeKeyDown")
+            try {
+                $null = $Host.UI.RawUserInterface.ReadKey("NoEcho,IncludeKeyDown")
+            } catch {
+                $null = Read-Host "Press Enter to open editor"
+            }
             
             Invoke-Item $workFile  # Open with default editor
             
             Write-Host "`nPress any key when you've finished editing..." -ForegroundColor Yellow
-            $null = $Host.UI.RawUserInterface.ReadKey("NoEcho,IncludeKeyDown")
+            try {
+                $null = $Host.UI.RawUserInterface.ReadKey("NoEcho,IncludeKeyDown")
+            } catch {
+                $null = Read-Host "Press Enter after editing"
+            }
         }
         
         $MarkdownFile = $workFile
@@ -298,6 +306,8 @@ try {
     
     $preview = & .\ApplyValidatedChanges.ps1 `
         -ValidatedDiff $diff `
+        -Organization $Organization `
+        -Project $Project `
         -DryRun:$true
     
     Write-Host "`n📋 PREVIEW OF CHANGES:`n" -ForegroundColor Cyan
@@ -345,15 +355,26 @@ try {
     
     $result = & .\ApplyValidatedChanges.ps1 `
         -ValidatedDiff $diff `
+        -Organization $Organization `
+        -Project $Project `
         -DryRun:$false
     
-    Write-Host "`n✓ Changes applied successfully!" -ForegroundColor Green
+    if ($result.success) {
+        Write-Host "`n✓ Changes applied successfully!" -ForegroundColor Green
+    }
+    else {
+        Write-Host "`n✗ Apply completed with failure!" -ForegroundColor Red
+        if ($result.failureReason) {
+            Write-Host "Reason: $($result.failureReason)" -ForegroundColor Red
+        }
+    }
     
     Write-Host "`nResults:" -ForegroundColor Gray
     $result.operationsSummary | Format-Table @(
         @{ Label = "Type"; Expression = { $_.operationType }; Width = 12 },
-        @{ Label = "Item"; Expression = { $_.itemTitle }; Width = 40 },
-        @{ Label = "Result"; Expression = { $_.result }; Width = 20 }
+        @{ Label = "Item"; Expression = { $_.title }; Width = 40 },
+        @{ Label = "Result"; Expression = { $_.status }; Width = 10 },
+        @{ Label = "Error"; Expression = { $_.error }; Width = 50 }
     ) -AutoSize
     
     Write-Host "`n========== Update Complete ==========" -ForegroundColor Cyan

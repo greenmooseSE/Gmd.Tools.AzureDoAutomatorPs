@@ -65,6 +65,12 @@ $ErrorActionPreference = 'Stop'
 [string]$script:FIELD_INTEGRATED_IN_BUILD = 'Microsoft.VSTS.Build.IntegratedInBuild'
 [string]$script:FIELD_PRIORITY = 'Microsoft.VSTS.Common.Priority'
 
+# Custom deployment/release tracking fields (Features and Stories)
+[string]$script:FIELD_FIXED_IN = 'Custom.FixedIn'
+[string]$script:FIELD_DEPLOYED_TO_DEV = 'Custom.DeployedToDev'
+[string]$script:FIELD_DEPLOYED_TO_STAGING = 'Custom.DeployedToStaging'
+[string]$script:FIELD_DEPLOYED_TO_PRODUCTION = 'Custom.DeployedToProduction'
+
 # Story point field (common in Scrum)
 [string]$script:FIELD_STORY_POINTS = 'Microsoft.VSTS.Scheduling.StoryPoints'
 
@@ -140,7 +146,7 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_TASK = '^\#\#\#\#\s+Task:\s*(.+)$'       # #### Task: Title
 [regex]$script:REGEX_MARKDOWN_BUG = '^\#\#\#\#\s+Bug:\s*(.+)$'       # #### Bug: Title
 [regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI, Repro Steps, etc.)
-[regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1, tag2
+[regex]$script:REGEX_MARKDOWN_TAGS = '^\*\*tags\*\*:\s*(.+)$'     # **tags**: tag1; tag2 (semicolon-separated, sorted alphabetically)
 [regex]$script:REGEX_MARKDOWN_DESCRIPTION_START = '^\*\*Description\*\*:?\s*(.*)$'     # **Description** or **Description**: optional inline content
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
 [regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios

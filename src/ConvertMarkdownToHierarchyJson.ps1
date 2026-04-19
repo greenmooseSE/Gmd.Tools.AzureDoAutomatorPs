@@ -239,6 +239,12 @@ function Parse-MarkdownToWorkItems {
                 tags = $null
                 storyPoints = $null
                 effort = $null
+                priority = $null
+                originalEstimate = $null
+                fixedIn = $null
+                deployedToDev = $null
+                deployedToStaging = $null
+                deployedToProduction = $null
                 description = $null
                 customFields = @{}
                 children = @()
@@ -292,12 +298,42 @@ function Parse-MarkdownToWorkItems {
             
             $sp = Get-MetadataField -Line $line -FieldName "SP"
             if ($null -ne $sp) {
-                $currentItem.storyPoints = [int]$sp
+                $currentItem.storyPoints = [double]$sp
             }
             
             $effort = Get-MetadataField -Line $line -FieldName "Effort"
             if ($null -ne $effort) {
-                $currentItem.effort = [int]$effort
+                $currentItem.effort = [double]$effort
+            }
+            
+            $priority = Get-MetadataField -Line $line -FieldName "Priority"
+            if ($null -ne $priority) {
+                $currentItem.priority = [int]$priority
+            }
+            
+            $originalEstimate = Get-MetadataField -Line $line -FieldName "OriginalEstimate"
+            if ($null -ne $originalEstimate) {
+                $currentItem.originalEstimate = [double]$originalEstimate
+            }
+            
+            $fixedIn = Get-MetadataField -Line $line -FieldName "FixedIn"
+            if ($null -ne $fixedIn) {
+                $currentItem.fixedIn = $fixedIn
+            }
+            
+            $deployedToDevValue = Get-MetadataField -Line $line -FieldName "DeployedToDev"
+            if ($null -ne $deployedToDevValue) {
+                $currentItem.deployedToDev = [bool]::Parse($deployedToDevValue)
+            }
+            
+            $deployedToStagingValue = Get-MetadataField -Line $line -FieldName "DeployedToStaging"
+            if ($null -ne $deployedToStagingValue) {
+                $currentItem.deployedToStaging = [bool]::Parse($deployedToStagingValue)
+            }
+            
+            $deployedToProductionValue = Get-MetadataField -Line $line -FieldName "DeployedToProduction"
+            if ($null -ne $deployedToProductionValue) {
+                $currentItem.deployedToProduction = [bool]::Parse($deployedToProductionValue)
             }
             
             # Handle Description field
@@ -313,16 +349,13 @@ function Parse-MarkdownToWorkItems {
                 $fieldName = $Matches[1]
                 $fieldValue = $Matches[2].Trim()
                 # Skip standard fields that we've already processed
-                if ($fieldName -notin @('WorkItemId', 'State', 'tags', 'SP', 'Effort', 'Description')) {
-                    # If field value is empty or just whitespace, value continues on next lines
-                    if ([string]::IsNullOrWhiteSpace($fieldValue)) {
-                        $script:collectingCustomField = $true
-                        $script:customFieldName = $fieldName
-                        $script:customFieldBuffer = @()
-                    }
-                    else {
-                        $currentItem.customFields[$fieldName] = $fieldValue
-                    }
+                if ($fieldName -notin @('WorkItemId', 'State', 'tags', 'SP', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')) {
+                    # Always enter collecting mode so continuation lines (e.g. multi-line
+                    # Custom.ACScenarios written by ConvertHierarchyToMarkdown.ps1) are captured.
+                    # If the field value begins on the same line, seed the buffer with it.
+                    $script:collectingCustomField = $true
+                    $script:customFieldName = $fieldName
+                    $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
                 }
             }
         }
@@ -430,6 +463,12 @@ function Cleanup-Item {
     # Only include optional fields if present
     if ($null -ne $Item.storyPoints) { $cleaned.storyPoints = $Item.storyPoints }
     if ($null -ne $Item.effort) { $cleaned.effort = $Item.effort }
+    if ($null -ne $Item.priority) { $cleaned.priority = $Item.priority }
+    if ($null -ne $Item.originalEstimate) { $cleaned.originalEstimate = $Item.originalEstimate }
+    if (-not [string]::IsNullOrWhiteSpace($Item.fixedIn)) { $cleaned.fixedIn = $Item.fixedIn }
+    if ($null -ne $Item.deployedToDev) { $cleaned.deployedToDev = $Item.deployedToDev }
+    if ($null -ne $Item.deployedToStaging) { $cleaned.deployedToStaging = $Item.deployedToStaging }
+    if ($null -ne $Item.deployedToProduction) { $cleaned.deployedToProduction = $Item.deployedToProduction }
     if (-not [string]::IsNullOrWhiteSpace($Item.description)) { $cleaned.description = $Item.description }
     
     # Map custom fields to top-level properties for consistency with Azure DevOps export
