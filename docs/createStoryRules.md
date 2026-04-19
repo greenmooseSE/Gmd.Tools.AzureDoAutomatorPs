@@ -6,6 +6,10 @@
 # Story fields to set
 - All fields should be written with multi-line markdown.
 
+## Read-only story fields
+- **State**: Should only reflect state from AzureDO, new stories may leave this empty.
+- **WorkItemId**: Should only reflect identifier from AzureDO for existing stories, should NEVER be generated. For new stories this should be left empty.
+
 ## Description
 - Should contain 3-line persona layout (`**As a** ... **I want** ... **So that** ...`)
 - May contain headers with content e.g. `### Problem` and `## Solution`.
@@ -15,7 +19,7 @@
 - Acceptance Criteria **must be written as a markdown table** with 4 columns:
   | ✅ | What is Verified | Test(s) | Notes |
   |---|-----------------|---------|-------|
-  | [ ] | (Describe what is verified) | (Test name or method) | (Any notes) |
+  | ▢ | (Describe what should be verified) | (Test name or method, filled in after implementation) | (Any notes, filled in after implementation) |
 - Prefer items that can be verified automatically; only diverge if the story nature doesn't allow it (e.g., "Create CI pipeline").
 - Include ONLY explicit criteria specific to this story's business logic or requirements.
 - **Do NOT include general criteria** such as:
@@ -62,3 +66,10 @@ Possible values: 0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 8, 13, 20, 40, 10
 - Always include a tag indicating which epic it belongs to (should also exist in epic).
 - If feature is not a "maintenance" feature, use a tag to "group" stories per epic.
 - Shorten long words e.g., `prio` instead of `priority`.
+
+## Story details
+### REST endpoints
+- Each rest endpoint should be specified with a detailed and complete OpenAPI v3 Spec, including example strings, formats etc.
+### Database
+- Use detailed schema suitable for SqlServer, including table names, col names, col types, indexes short description etc.
+- Assume latest version of Entity Framework is used to map C# objects to database, so include any configuration details or attribute usage etc. for this to work.

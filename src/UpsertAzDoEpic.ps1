@@ -30,7 +30,7 @@ Cannot be used with -FailIfExist (these are mutually exclusive).
 Optional description for the Epic
 
 .PARAMETER Effort
-Optional effort value for the Epic (must be a non-negative integer)
+Optional effort value for the Epic (must be a non-negative number; decimals such as 0.5 are supported)
 
 .PARAMETER FailIfExist
 Optional switch for create-only mode when not using -Id. Only applicable without -Id.
@@ -76,7 +76,7 @@ param(
 
     [string]$Description,
 
-    [int]$Effort,
+    [double]$Effort,
 
     [switch]$FailIfExist,
 
@@ -132,7 +132,7 @@ if (-not $PSBoundParameters.ContainsKey('Id') -and [string]::IsNullOrWhiteSpace(
 }
 
 if ($PSBoundParameters.ContainsKey('Effort') -and $Effort -lt 0) {
-    Write-Error "Parameter 'Effort' must be a non-negative integer. Provided: $Effort"
+    Write-Error "Parameter 'Effort' must be a non-negative number. Provided: $Effort"
 }
 
 # Get PAT token if not provided

@@ -1,16 +1,17 @@
 <#
 .SYNOPSIS
-Delete an Azure DevOps Epic, optionally including all its children.
+Delete an Azure DevOps Feature work item, optionally including all its children.
 
 .DESCRIPTION
-This is a DESTRUCTIVE operation that deletes an Epic work item. Requires confirmation at runtime
+This is a DESTRUCTIVE operation that deletes a Feature work item. Requires confirmation at runtime
 unless -Force switch is used.
 
-Without -Recursive, only the Epic itself is deleted. If the Epic has child work items they will
-become orphaned (still exist but with no parent). A warning is shown when children are detected.
+Without -Recursive, only the Feature itself is deleted. If the Feature has child work items (Stories,
+Tasks, Bugs) they will become orphaned (still exist but with no parent). A warning is shown when
+children are detected.
 
-With -Recursive, all child work items (Features, Stories, Tasks, etc.) are deleted first,
-then the Epic itself is deleted.
+With -Recursive, all child work items are deleted first (Stories, Tasks, Bugs), then the Feature
+itself is deleted.
 
 Before deletion, displays all work items to be deleted for review.
 
@@ -20,12 +21,12 @@ The Azure DevOps organization name (required)
 .PARAMETER Project
 The Azure DevOps project name (required)
 
-.PARAMETER EpicId
-The Epic work item ID to delete (required)
+.PARAMETER FeatureId
+The Feature work item ID to delete (required)
 
 .PARAMETER Recursive
-Switch: If specified, recursively deletes all child work items before deleting the Epic.
-Without this switch only the Epic itself is deleted and children are orphaned.
+Switch: If specified, recursively deletes all child work items before deleting the Feature.
+Without this switch only the Feature itself is deleted and children are orphaned.
 
 .PARAMETER Force
 Switch: If specified, skips confirmation prompt. Use with caution!
@@ -38,21 +39,20 @@ environment variable (expected to be encrypted).
 Summary hashtable with deleted work item count and details
 
 .EXAMPLE
-Delete Epic only (children become orphaned):
-    $result = .\RemoveAzDoEpic.ps1 -Organization "myorg" -Project "myproject" -EpicId 100
+Delete Feature only (children become orphaned):
+    $result = .\RemoveAzDoFeature.ps1 -Organization "myorg" -Project "myproject" -FeatureId 100
 
-Delete Epic and all children recursively:
-    $result = .\RemoveAzDoEpic.ps1 -Organization "myorg" -Project "myproject" -EpicId 100 -Recursive
+Delete Feature and all children recursively:
+    $result = .\RemoveAzDoFeature.ps1 -Organization "myorg" -Project "myproject" -FeatureId 100 -Recursive
 
-Delete Epic and all children without confirmation:
-    $result = .\RemoveAzDoEpic.ps1 -Organization "myorg" -Project "myproject" -EpicId 100 -Recursive -Force
+Delete Feature and all children without confirmation:
+    $result = .\RemoveAzDoFeature.ps1 -Organization "myorg" -Project "myproject" -FeatureId 100 -Recursive -Force
 
 .NOTES
 - *** DESTRUCTIVE OPERATION ***
 - Requires Azure DevOps REST API access
 - Requires PAT token with work items read/write scope
 - Will not proceed without user confirmation unless -Force is specified
-- AI-generated work items created for testing should be the primary use case
 #>
 
 #Requires -Version 7.0
@@ -65,7 +65,7 @@ param(
     [string]$Project,
 
     [Parameter(Mandatory = $true)]
-    [int]$EpicId,
+    [int]$FeatureId,
 
     [switch]$Recursive,
 
@@ -103,12 +103,11 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
     }
 }
 
-# Validate required parameters
-if (-not (Test-AzDoWorkItemIdValid $EpicId)) {
-    Write-Error "Parameter 'EpicId' must be a positive integer."
+if (-not (Test-AzDoWorkItemIdValid $FeatureId)) {
+    Write-Error "Parameter 'FeatureId' must be a positive integer."
 }
 
-$null = & ssLogIt.ps1 -Level Info -Message "*** DESTRUCTIVE OPERATION: Preparing to delete Epic (ID: $EpicId)$(if ($Recursive) { ' and all children' }) ***"
+$null = & ssLogIt.ps1 -Level Info -Message "*** DESTRUCTIVE OPERATION: Preparing to delete Feature (ID: $FeatureId)$(if ($Recursive) { ' and all children' }) ***"
 
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
@@ -116,25 +115,24 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 }
 
 try {
-    # Get the Epic itself
-    $epic = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $EpicId -PatToken $PatToken
+    # Get the Feature itself
+    $feature = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $FeatureId -PatToken $PatToken
 
-    if ($null -eq $epic) {
-        Write-Error "Epic with ID $EpicId not found."
+    if ($null -eq $feature) {
+        Write-Error "Feature with ID $FeatureId not found."
     }
 
-    $epicTitle = $epic.fields.'System.Title'
+    $featureTitle = $feature.fields.'System.Title'
 
     # Get descendants for either listing or deletion
     $null = & ssLogIt.ps1 -Level Debug -Message "Retrieving descendant work items..."
-    $descendants = Get-AzDoAllDescendants -Organization $Organization -Project $Project -WorkItemId $EpicId -PatToken $PatToken
+    $descendants = Get-AzDoAllDescendants -Organization $Organization -Project $Project -WorkItemId $FeatureId -PatToken $PatToken
 
     if ($Recursive) {
-        $totalItemsToDelete = $descendants.Count + 1  # +1 for the epic itself
+        $totalItemsToDelete = $descendants.Count + 1  # +1 for the feature itself
 
-        # Display items to be deleted
         $null = & ssLogIt.ps1 -Level Warn -Message "The following $totalItemsToDelete work item(s) will be deleted:"
-        $null = & ssLogIt.ps1 -Level Warn -Message "  Epic: ::FgRed::$epicTitle::FgDefault:: (ID: $EpicId)"
+        $null = & ssLogIt.ps1 -Level Warn -Message "  Feature: ::FgRed::$featureTitle::FgDefault:: (ID: $FeatureId)"
 
         if ($descendants.Count -gt 0) {
             $null = & ssLogIt.ps1 -PushStackLevel -Message "Descendants:"
@@ -148,23 +146,23 @@ try {
         }
     }
     else {
-        # Non-recursive: warn if Epic has children that will become orphaned
+        # Non-recursive: warn if Feature has children that will become orphaned
         if ($descendants.Count -gt 0) {
-            $null = & ssLogIt.ps1 -Level Warn -Message "WARNING: Epic ::FgYellow::$epicTitle::FgDefault:: (ID: $EpicId) has $($descendants.Count) child work item(s) that will become ORPHANED (no parent) after deletion."
+            $null = & ssLogIt.ps1 -Level Warn -Message "WARNING: Feature ::FgYellow::$featureTitle::FgDefault:: (ID: $FeatureId) has $($descendants.Count) child work item(s) that will become ORPHANED (no parent) after deletion."
             $null = & ssLogIt.ps1 -Level Warn -Message "Use -Recursive to delete all children as well."
         }
         $null = & ssLogIt.ps1 -Level Warn -Message "The following 1 work item will be deleted:"
-        $null = & ssLogIt.ps1 -Level Warn -Message "  Epic: ::FgRed::$epicTitle::FgDefault:: (ID: $EpicId)"
+        $null = & ssLogIt.ps1 -Level Warn -Message "  Feature: ::FgRed::$featureTitle::FgDefault:: (ID: $FeatureId)"
     }
 
     # Prompt for confirmation if not forced
     if (-not $Force) {
         $null = & ssLogIt.ps1 -Level Warn -Message ""
         if ($Recursive) {
-            Write-Host "Are you SURE you want to DELETE this Epic and $($descendants.Count) child item(s)?" -ForegroundColor Red
+            Write-Host "Are you SURE you want to DELETE this Feature and $($descendants.Count) child item(s)?" -ForegroundColor Red
         }
         else {
-            Write-Host "Are you SURE you want to DELETE this Epic?" -ForegroundColor Red
+            Write-Host "Are you SURE you want to DELETE this Feature?" -ForegroundColor Red
         }
         Write-Host "This action CANNOT be undone!" -ForegroundColor Red
         [string]$response = Read-Host "Type 'YES' to confirm deletion, any other input to cancel"
@@ -172,9 +170,9 @@ try {
         if ($response -ne 'YES') {
             $null = & ssLogIt.ps1 -Level Info -Message "Deletion cancelled by user"
             return @{
-                Cancelled      = $true
-                DeletedCount   = 0
-                SkippedCount   = 0
+                Cancelled    = $true
+                DeletedCount = 0
+                SkippedCount = 0
             }
         }
     }
@@ -205,27 +203,27 @@ try {
         $null = & ssLogIt.ps1 -PopStackLevel
     }
 
-    # Delete the Epic itself
+    # Delete the Feature itself
     try {
-        Remove-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $EpicId -PatToken $PatToken
-        $null = & ssLogIt.ps1 -Level Debug -Message "Deleted Epic: $epicTitle (ID: $EpicId)"
+        Remove-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $FeatureId -PatToken $PatToken
+        $null = & ssLogIt.ps1 -Level Debug -Message "Deleted Feature: $featureTitle (ID: $FeatureId)"
         $deletedCount++
     }
     catch {
-        $null = & ssLogIt.ps1 -Level Error -Message "Failed to delete Epic $EpicId : $_" -Exception $_
+        $null = & ssLogIt.ps1 -Level Error -Message "Failed to delete Feature $FeatureId : $_" -Exception $_
         throw
     }
 
     $null = & ssLogIt.ps1 -Level Info -Message "Deletion complete: ::FgGreen::$deletedCount deleted::FgDefault::, ::FgRed::$skippedCount skipped::FgDefault::"
 
     return @{
-        Cancelled      = $false
-        DeletedCount   = $deletedCount
-        SkippedCount   = $skippedCount
+        Cancelled    = $false
+        DeletedCount = $deletedCount
+        SkippedCount = $skippedCount
     }
 }
 catch {
-    $null = & ssLogIt.ps1 -Level Error -Message "Failed to delete Epic: $_" -Exception $_
+    $null = & ssLogIt.ps1 -Level Error -Message "Failed to delete Feature: $_" -Exception $_
     Write-Error $_
     throw
 }

@@ -4,11 +4,12 @@ Retrieve Azure DevOps Epic hierarchy with Features and Stories
 
 .DESCRIPTION
 Fetches an Epic and builds a complete hierarchy showing:
-- Epic with Description and Effort
-- All Features under the Epic with Description and Effort
+- Epic with State, Description and Effort
+- All Features under the Epic with State, Description and Effort
 - All Stories under each Feature with full User Story details:
   Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
   StoryPoints, ExtraInformation, Tags
+- All Tasks and Bugs under each Story
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -204,8 +205,8 @@ try {
                     try {
                         $null = & ssLogIt.ps1 -Level Debug -Message "Processing Story (ID: $storyId)"
 
-                        # Get full story details
-                        $storyDetails = & "$PSScriptRoot/GetAzDoUserStory.ps1" -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
+                        # Get full story details including Tasks and Bugs
+                        $storyDetails = & "$PSScriptRoot/GetAzDoHierarchyForStory.ps1" -Organization $Organization -Project $Project -StoryId $storyId -PatToken $PatToken
 
                         if ($null -ne $storyDetails) {
                             $storiesArray += $storyDetails
@@ -219,6 +220,7 @@ try {
 
             $featureObject = @{
                 Id = $featureId
+                State = $feature.fields.'System.State'
                 Title = $featureTitle
                 Description = if ($feature.fields.PSObject.Properties.Name -contains 'System.Description') { $feature.fields.'System.Description' } else { $null }
                 Effort = if ($feature.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $feature.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
@@ -236,6 +238,7 @@ try {
     # Build the hierarchy object
     $hierarchyObject = @{
         Id = $epicWorkItem.id
+        State = $epicWorkItem.fields.'System.State'
         Title = $epicTitle
         Description = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $epicWorkItem.fields.'System.Description' } else { $null }
         Effort = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $epicWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }

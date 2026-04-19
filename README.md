@@ -9,8 +9,9 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - **Creating/Updating** Epics, Features, Stories, and Tasks
 - **Getting/Setting** work item properties (description, acceptance criteria, story points, effort)
 - **Managing Tags** (add, replace, remove)
+- **Managing Iterations** (retrieving, creating future iterations based on existing patterns)
 - **Generating hierarchies** from markdown files
-- **Deleting** work items (Epics with cascading children, or individual Tasks) with safety confirmations
+- **Deleting** work items with optional recursive child deletion (`-Recursive`) and safety confirmations (Epics, Features, Stories, Bugs, Tasks)
 
 ## Table of Contents
 
@@ -20,14 +21,23 @@ This project provides a complete automation toolkit for Azure DevOps work item l
   - [Verify Helper Scripts](#2-verify-helper-scripts)
 - [Module Architecture](#module-architecture)
 - [Automation Scripts](#automation-scripts)
+- [Iteration Management](#iteration-management)
 - [Markdown Hierarchy Workflow](#markdown-hierarchy-workflow)
 - [Markdown Hierarchy Template Generation](#markdown-hierarchy-template-generation)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
+- [State Configuration Management](#state-configuration-management)
+- [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
+- [Download and Compare Workflow](#download-and-compare-workflow)
+- [Recipes](#recipes)
+  - [Generate Azure DevOps Hierarchy from Markdown](#generate-azure-devops-hierarchy-from-markdown)
+  - [Update Hierarchy Structure in Azure DevOps](#update-hierarchy-structure-in-azure-devops)
 - [MCP Server Integration](#mcp-server-integration)
 - [Testing](#testing)
+  - [Test Hierarchy Helper](#test-hierarchy-helper)
+  - [Test Markdown Generator](#test-markdown-generator)
 - [Contributing](#contributing)
 
 ## Prerequisites
@@ -89,6 +99,7 @@ Low-level REST API wrapper with retry logic:
 - `Get-AzDoWorkItemById`: Retrieve specific work items
 - `New-AzDoWorkItem`: Create new work items
 - `Update-AzDoWorkItem`: Update existing work items
+- `Move-AzDoWorkItem`: Reparent work items to a new parent (supports hierarchy reorganization)
 - `Remove-AzDoWorkItem`: Delete work items
 - `New-AzDoComment`: Add comment to a work item
 - Built-in retry logic for transient failures
@@ -150,7 +161,13 @@ $feature = .\UpsertAzDoFeature.ps1 `
 - `Id` (optional): Feature ID for direct update. Cannot be used with -FailIfExist
 - `Description` (optional): Feature description
 - `ParentEpicId` (optional): Parent Epic ID (used only when creating)
-- `Effort` (optional): Effort value in story points (non-negative integer)
+- `Effort` (optional): Effort value (non-negative number; decimals supported, e.g. 2.5)
+- `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
+- `OriginalEstimate` (optional): Original estimate in hours (non-negative number)
+- `FixedIn` (optional): Text field for the version or build where the feature was completed
+- `DeployedToDev` (optional): Boolean — whether the feature has been deployed to Dev
+- `DeployedToStaging` (optional): Boolean — whether the feature has been deployed to Staging
+- `DeployedToProduction` (optional): Boolean — whether the feature has been deployed to Production
 - `FailIfExist` (switch): Create-only mode; fails if feature exists. Cannot be used with -Id
 - `PatToken` (optional): Override default PAT token
 
@@ -213,6 +230,12 @@ $story = .\UpsertAzDoStory.ps1 `
 - `AcScenarios` (optional): Acceptance criteria scenarios
 - `ExtraInformation` (optional): Extra information text
 - `StoryPoints` (optional): Story points (non-negative integer)
+- `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
+- `OriginalEstimate` (optional): Original estimate in hours (non-negative number)
+- `FixedIn` (optional): Text field for the version or build where the story was completed
+- `DeployedToDev` (optional): Boolean — whether the story has been deployed to Dev
+- `DeployedToStaging` (optional): Boolean — whether the story has been deployed to Staging
+- `DeployedToProduction` (optional): Boolean — whether the story has been deployed to Production
 - `ParentFeatureId` (optional): Parent Feature ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
@@ -266,7 +289,7 @@ $task = .\UpsertAzDoTask.ps1 `
 - `Title` (required for create, optional for ID-based update): Task title
 - `Id` (optional): Task ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Task description
-- `Effort` (optional): Effort value (non-negative integer)
+- `Effort` (optional): Effort value (non-negative number; decimals supported, e.g. 0.5)
 - `State` (optional): Task state (e.g., "To Do", "In Progress", "Done")
 - `ParentStoryId` (optional): Parent Story ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
@@ -278,7 +301,7 @@ $task = .\UpsertAzDoTask.ps1 `
   - With `-FailIfExist`: Creates only if title doesn't exist; fails if found
 
 #### `RemoveAzDoTask.ps1`
-Delete a Task work item with optional confirmation prompt.
+Delete a Task work item with optional confirmation prompt. Tasks are leaf-level items with no children.
 
 ```powershell
 # Delete Task with confirmation prompt (safe default)
@@ -400,20 +423,28 @@ Write-Host "System Info: $($bug.fields.'Microsoft.VSTS.TCM.SystemInfo')"
 - Complete Bug work item object as JSON with all fields including Priority, ReproSteps, SystemInfo, StoryPoints, FoundInBuild, IntegratedInBuild, comments, and tags
 
 #### `RemoveAzDoBug.ps1`
-Delete a Bug work item with optional confirmation prompt.
+Delete a Bug work item with optional recursive deletion of child Tasks.
 
 ```powershell
-# Delete Bug with confirmation prompt (safe default)
+# Delete Bug only (child Tasks become orphaned, warning shown if children exist)
 $result = .\RemoveAzDoBug.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -BugId 789
 
-# Delete Bug without confirmation prompt
+# Delete Bug and all child Tasks
 $result = .\RemoveAzDoBug.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -BugId 789 `
+    -Recursive
+
+# Delete Bug and all child Tasks without confirmation
+$result = .\RemoveAzDoBug.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -BugId 789 `
+    -Recursive `
     -Force
 ```
 
@@ -421,13 +452,16 @@ $result = .\RemoveAzDoBug.ps1 `
 - `Organization` (required): Azure DevOps organization
 - `Project` (required): Project name
 - `BugId` (required): Bug ID to delete
+- `Recursive` (switch): Delete all child Tasks before deleting the Bug
 - `Force` (switch): Skip confirmation prompt
 - `PatToken` (optional): Override default PAT token
 
 **Behavior:**
-- Without `-Force`: Displays bug details and prompts for confirmation
+- Without `-Recursive`: Deletes only the Bug; warns if child Tasks exist (they become orphaned)
+- With `-Recursive`: Deletes all child Tasks first, then the Bug
+- Without `-Force`: Prompts for confirmation (requires "YES" response)
 - With `-Force`: Deletes immediately without confirmation
-- Returns summary with deletion status as JSON
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `BugId`, `BugTitle`
 
 #### `GetAzDoWorkItem.ps1`
 Retrieve complete work item information.
@@ -981,39 +1015,134 @@ Story
     ├── Id, State, Title, Description, Tags
 ```
 
+#### `ConvertHierarchyToMarkdown.ps1`
+Export a User Story hierarchy to markdown format with state field and writable state validation.
+
+This script enables the export-modify-reimport workflow by converting a story hierarchy to markdown while respecting the state configuration rules. States that are not in the writable states list are marked as read-only with warning comments.
+
+Usage:
+```powershell
+# Get story hierarchy
+$hierarchy = .\GetAzDoHierarchyForStory.ps1 -StoryId 100
+
+# Export to markdown with state field
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -Organization "falco-it" `
+    -Project "GMD"
+
+# Save to file
+$markdown | Out-File "story-export.md"
+
+# With custom repository root for state configuration
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -Organization "contoso" `
+    -Project "web" `
+    -RepositoryRoot "C:\myrepo"
+```
+
+**Parameters:**
+- `Hierarchy` (required): Story hierarchy object from GetAzDoHierarchyForStory.ps1
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `RepositoryRoot` (optional): Root directory for state configuration files (default: current directory)
+
+**Features:**
+- Preserves WorkItemId in markdown metadata for round-trip export-import operations
+- Exports state field in markdown metadata (`**State**: [value]`)
+- Marks editable states (in writable states list) without warnings
+- Marks non-editable states with ⚠️ indicator and HTML warning comment
+- Gracefully handles incomplete or missing state configurations using sensible defaults
+- Formats tasks and bugs beneath the story
+- Preserves all work item metadata (description, acceptance criteria, story points, tags, etc.)
+- HTML comments warn users that non-writable state changes will be ignored during reimport
+
+**Output Markdown Structure:**
+```markdown
+<!-- WARNING: State 'Closed' is NOT in the writable states list...
+     During reimport, any state changes will be ignored. Do NOT modify the state field. -->
+
+### Story: Title
+
+**tags**: tag1, tag2
+**SP**: 5
+**State**: Closed ⚠️ (read-only)
+**Description**
+Story description here...
+
+#### Acceptance Criteria
+...
+
+#### AC Scenarios
+...
+
+#### Task: Task Title
+**State**: Active
+**Description**
+Task description...
+```
+
 #### `NewAzDoHierarchyFromMarkdown.ps1`
-Create complete work item hierarchy from markdown file.
+Create complete work item hierarchy from markdown file or content string. After creation, **WorkItemId** lines are written back to the file so subsequent runs update existing items instead of creating duplicates.
 
 Markdown format:
 ```markdown
-# Epic Title (optional, for nested structure)
+# Epic: My Epic Title
+**WorkItemId**: 100  (written back after first run)
+**tags**: tag1, tag2
+**Effort**: 10
+**Description**
+Multi-line epic description
 
-## Feature 1 Title
-- Story 1 Title
-  - AC: First acceptance criterion
-  - AC: Second acceptance criterion
-  - SP: 5
-- Story 2 Title
-  - SP: 8
+## Feature: Feature Title
+**WorkItemId**: 101
+**tags**: tag1
+**Effort**: 5
+**Description**
+Feature description
 
-## Feature 2 Title
-- Story 3 Title
+### Story: Story Title
+**WorkItemId**: 102
+**tags**: tag1
+**SP**: 5
+**Description**
+**As a** user
+**I want** to do something
+**So that** value is delivered
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ☐ | Feature works for happy path |  |  |
+
+#### AC Scenarios
+1. **Scenario**: Happy path
+   Given setup state
+   When action occurs
+   Then expected result
+
+#### Extra Information
+Additional notes or links
+
+#### Task: Task Title
+**tags**: tag1
+**Priority**: 2
+**OriginalEstimate**: 4
+**Description**
+Task details
 ```
 
 Usage:
 ```powershell
-# Read markdown content
-$content = Get-Content ".\hierarchy.md" -Raw
+# Pass file path directly via -MarkdownContent (auto-detected, writes IDs back)
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownContent .\my-hierarchy.md
 
-# Dry run preview (uses environment variables for org/project)
-$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -MarkdownContent $content `
-    -DryRun
+# Or use -MarkdownFile explicitly (also writes IDs back)
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
 
-# Create hierarchy with validation
-$result = .\NewAzDoHierarchyFromMarkdown.ps1 `
-    -MarkdownContent $content `
-    -EpicId 100
+# Dry run preview
+.\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md" -DryRun
 
 # Access results
 Write-Host "Created: $($result.CreatedItems.Count) items"
@@ -1025,28 +1154,35 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token (optional, uses encryption if set)
 
 **Features:**
-- Pre-validates entire structure before creating items (fail-fast)
-- Supports optional Epic parent
-- Parses acceptance criteria and story points from markdown
+- Fields mapped to correct Azure DevOps fields: Description, AcceptanceCriteria (`#### Acceptance Criteria`), AC Scenarios (`#### AC Scenarios`), Extra Information (`#### Extra Information`)
+- Bold-formatted lines in descriptions (e.g. `**As a**`) are kept in Description, not treated as metadata
+- WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
+- Supports optional Epic parent via `-EpicId`
 - DryRun mode shows planned operations without creation
-- Comprehensive error reporting
 
 #### `RemoveAzDoEpic.ps1`
-Delete an Epic and all child work items (DESTRUCTIVE OPERATION).
+Delete an Epic, optionally including all child work items (DESTRUCTIVE OPERATION).
 
-Usage:
 ```powershell
-# Delete with confirmation prompt (safe default)
+# Delete Epic only (children become orphaned, warning shown if children exist)
 $result = .\RemoveAzDoEpic.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -EpicId 100
 
-# Delete without confirmation (use with caution!)
+# Delete Epic and all children recursively
 $result = .\RemoveAzDoEpic.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -EpicId 100 `
+    -Recursive
+
+# Delete Epic and all children without confirmation
+$result = .\RemoveAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -EpicId 100 `
+    -Recursive `
     -Force
 
 # Check results
@@ -1055,12 +1191,82 @@ $result.SkippedCount   # Number of items that failed to delete
 $result.Cancelled      # Whether user cancelled operation
 ```
 
-**Safety Features:**
-- Lists all work items to be deleted before proceeding
-- Requires user confirmation (type "YES") unless -Force specified
-- Displays deletion progress
-- Returns summary of results
-- Logs all operations for audit trail
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `EpicId` (required): Epic ID to delete
+- `Recursive` (switch): Delete all child Features, Stories, and Tasks before deleting the Epic
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Epic; warns if child work items exist (they become orphaned)
+- With `-Recursive`: Lists all descendants, deletes children first (leaf-to-root), then the Epic
+- Without `-Force`: Requires user confirmation (type "YES")
+- With `-Force`: Deletes immediately without confirmation
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
+
+#### `RemoveAzDoFeature.ps1`
+Delete a Feature, optionally including all child work items (DESTRUCTIVE OPERATION).
+
+```powershell
+# Delete Feature only (children become orphaned, warning shown if children exist)
+$result = .\RemoveAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureId 200
+
+# Delete Feature and all children recursively
+$result = .\RemoveAzDoFeature.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -FeatureId 200 `
+    -Recursive -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `FeatureId` (required): Feature ID to delete
+- `Recursive` (switch): Delete all child Stories, Tasks, and Bugs before deleting the Feature
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Feature; warns if child work items exist (they become orphaned)
+- With `-Recursive`: Lists all descendants, deletes children first (leaf-to-root), then the Feature
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
+
+#### `RemoveAzDoStory.ps1`
+Delete a Story, optionally including child Tasks (DESTRUCTIVE OPERATION).
+
+```powershell
+# Delete Story only (child Tasks become orphaned, warning shown if children exist)
+$result = .\RemoveAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryId 300
+
+# Delete Story and all child Tasks
+$result = .\RemoveAzDoStory.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -StoryId 300 `
+    -Recursive -Force
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `StoryId` (required): Story ID to delete
+- `Recursive` (switch): Delete all child Tasks before deleting the Story
+- `Force` (switch): Skip confirmation prompt
+- `PatToken` (optional): Override default PAT token
+
+**Behavior:**
+- Without `-Recursive`: Deletes only the Story; warns if child Tasks exist (they become orphaned)
+- With `-Recursive`: Deletes all child Tasks first, then the Story
+- Returns summary hashtable with `Cancelled`, `DeletedCount`, `SkippedCount`
 
 ## Environment Variables
 
@@ -1088,7 +1294,768 @@ The repository includes an example hierarchy file that matches the parser format
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
 
+## State Configuration Management
+
+The State Configuration system enables team-specific rules for which work item states are editable during hierarchy exports and reimports. This supports multiple organizations and projects with organization/project-scoped configuration files and sensible defaults.
+
+### Overview
+
+State configuration defines "writable states" for each work item type, allowing teams to:
+- Control which Azure DevOps states can be modified during export-import operations
+- Define organization/project-specific state rules
+- Use sensible defaults when no configuration is provided
+- Store configuration in version control for team collaboration
+- Support environment-specific overrides for CI/CD pipelines
+
+### Configuration File Format
+
+Configuration files are stored at the repository root using the naming pattern: `azdoStateConfig-{organization}-{project}.json`
+
+**Example: `azdoStateConfig-falco-it-GMD.json`**
+
+```json
+{
+  "writableStates": {
+    "Epic": ["New", "Active"],
+    "Feature": ["New", "Active"],
+    "Story": ["New", "Active"],
+    "Task": ["New", "Active"],
+    "Bug": ["New", "Active"]
+  }
+}
+```
+
+### Loading Configuration
+
+Use the `LoadStateConfiguration.ps1` script to load and cache state configuration:
+
+```powershell
+# Load configuration for an organization and project
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD"
+$epicStates = $config.writableStates.Epic
+
+# Alternative: specify custom repository root
+$config = .\LoadStateConfiguration.ps1 -Organization "contoso" -Project "web" `
+    -RepositoryRoot "C:\myrepo"
+
+# Force reload from file (bypass cache)
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Default Behavior
+
+When a configuration file is not found, sensible defaults are automatically applied. Only "New" and "Active" states are writable by default. Terminal states like "Done" and "Closed" should never be modified during export-import operations:
+
+```powershell
+# Configuration file azdoStateConfig-temp-test.json not found?
+# Default configuration is returned with these states:
+
+@{
+    writableStates = @{
+        "Epic"    = @("New", "Active")
+        "Feature" = @("New", "Active")
+        "Story"   = @("New", "Active")
+        "Task"    = @("New", "Active")
+        "Bug"     = @("New", "Active")
+    }
+}
+```
+
+### Configuration Features
+
+- **Memory Caching**: Configuration is cached after first load to avoid repeated file I/O operations
+- **Organization/Project Scoping**: Separate configuration files per organization-project pair enable team-specific rules
+- **Version Control**: Configuration files should be committed to version control for team collaboration
+- **CI/CD Pipeline Support**: Future enhancement will support environment variable overrides for pipeline-specific configurations
+- **Structure Validation**: Invalid configuration (missing writableStates property) is detected and reported with clear error messages
+
+### Troubleshooting
+
+#### Configuration File Not Found
+
+**Symptom**: LoadStateConfiguration returns default states instead of custom configuration
+
+**Solution**:
+1. Verify the configuration file exists in the repository root
+2. Check the filename matches the pattern: `azdoStateConfig-{organization}-{project}.json`
+3. Ensure the organization and project names match exactly (case-sensitive recommended)
+4. Verify the file contains valid JSON with "writableStates" property
+
+```powershell
+# Debug: Check if configuration file exists
+Test-Path "./azdoStateConfig-falco-it-GMD.json"
+
+# Debug: Verify JSON is valid
+Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+```
+
+#### Invalid Configuration Error
+
+**Symptom**: "Failed to load configuration... The property 'writableStates' cannot be found"
+
+**Solution**:
+1. Ensure your configuration JSON includes the "writableStates" property at the root level
+2. Verify the JSON structure matches the format shown above
+3. Use a JSON validator to verify the file is valid JSON syntax
+
+```powershell
+# Example: Check configuration structure
+$config = Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+$config.writableStates  # Should output the work item types and states
+```
+
+#### Performance/Caching Issues
+
+**Symptom**: Changed configuration file is not reflected in subsequent script calls
+
+**Solution**: Use the `-Force` parameter to bypass the in-memory cache and reload from file:
+
+```powershell
+# Force reload configuration from file
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -Force
+```
+
+### Best Practices
+
+1. **Store in Version Control**: Commit configuration files to ensure team consistency
+2. **Name Consistently**: Use organization and project names from your Azure DevOps account
+3. **Document States**: Add comments to your configuration explaining why specific states are writable
+4. **Test Configuration**: Verify your configuration with small test hierarchies before large exports
+5. **Environment-Specific**: Consider different configurations for different environments (dev, staging, production)
+
+## Export-Modify-Reimport Workflow
+
+The Azure DevOps Automator supports a complete export-modify-reimport workflow that enables teams to:
+- Export work item hierarchies to markdown for external editing
+- Detect changes between original and modified versions
+- Apply validated changes back to Azure DevOps with transaction-like safety
+- Maintain work item IDs and parent-child relationships throughout the cycle
+
+### Complete Workflow
+
+**Step 1: Export Hierarchy to Markdown**
+
+Use `ConvertHierarchyToMarkdown.ps1` to export a hierarchy with work item IDs and state validation:
+
+```powershell
+# Export a Feature hierarchy to markdown
+$hierarchy = .\GetAzDoHierarchyForFeature.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -FeatureId 2216
+
+$markdown = .\ConvertHierarchyToMarkdown.ps1 `
+    -Hierarchy $hierarchy `
+    -ValidateStateChanges
+
+$markdown | Out-File "feature-export.md"
+```
+
+The exported markdown includes:
+- **WorkItemId** for round-trip identification
+- **State** field for writable state validation  
+- **Tags** and custom fields
+- Read-only warnings for non-writable states
+
+**Step 2: Modify the Markdown File**
+
+Users edit the markdown file externally:
+- Change titles, descriptions, story points
+- Add new work items (without WorkItemId)
+- Update tags and other fields
+- The markdown structure preserves parent-child relationships
+
+```markdown
+## Feature: Auth Feature
+**WorkItemId**: 2216
+**State**: Active
+**Effort**: 13
+**Description**
+Authentication module for user management
+
+### Story: Login
+**WorkItemId**: 2217
+**State**: Active
+**StoryPoints**: 5
+**Description**
+Implement user login functionality
+
+### Story: Password Reset
+**StoryPoints**: 3
+**Description**
+Add password recovery feature (no WorkItemId = new item)
+```
+
+**Step 3: Parse Modified Markdown**
+
+Use `ConvertMarkdownToHierarchyJson.ps1` to parse the modified markdown:
+
+```powershell
+$modifiedContent = Get-Content "feature-export.md" -Raw
+
+$modifiedHierarchy = .\ConvertMarkdownToHierarchyJson.ps1 `
+    -MarkdownContent $modifiedContent
+
+# Result: JSON hierarchy with all changes preserved
+```
+
+**Step 4: Detect Changes**
+
+Use `DetectHierarchyChanges.ps1` to compare original and modified versions:
+
+```powershell
+# Load original hierarchy from export
+$originalHierarchy = Get-Content "original-hierarchy.json" | ConvertFrom-Json
+
+# Detect changes with validation
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalHierarchy `
+    -ModifiedHierarchy $modifiedHierarchy `
+    -StateConfigPath "azdoStateConfig-falco-it-GMD.json"
+
+if ($diff.validationPassed) {
+    Write-Host "Safe to apply: $($diff.operations.Count) changes"
+} else {
+    Write-Host "Errors: $($diff.errors -join '; ')"
+}
+```
+
+The diff output includes:
+- **Field-level changes** with before/after values
+- **New work items** (identified by missing WorkItemId)
+- **Hierarchy reorganizations** (parent-child changes)
+- **Validation errors** preventing dangerous modifications
+- **Dependency order** for safe application
+
+**Step 5: Apply Changes Back**
+
+Use `ApplyValidatedChanges.ps1` to apply changes to Azure DevOps:
+
+```powershell
+# First, dry-run to see what would happen
+$result = .\ApplyValidatedChanges.ps1 `
+    -ValidatedDiff $diff `
+    -DryRun
+
+if ($result.success) {
+    Write-Host "Dry-run OK. Would apply $($result.appliedChanges) changes"
+    
+    # Now apply for real
+    $actualResult = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+    
+    if ($actualResult.success) {
+        Write-Host "Applied all changes successfully"
+        $actualResult.operationsSummary | Format-Table
+    } else {
+        Write-Host "Failed: $($actualResult.failureReason)"
+    }
+}
+```
+
+### Change Detection Validation
+
+Dangerous modifications are prevented with comprehensive validation:
+
+1. **Deletion Prevention**: Parent items with pending child modifications cannot be deleted
+2. **State Validation**: State changes respect configured writable states
+3. **Orphan Detection**: Changes that would create orphaned items are rejected
+4. **ID Verification**: Existing work item IDs are validated to exist in Azure DevOps
+5. **Circular References**: Parent-child cycles are detected and prevented
+
+### Hierarchy Reorganization (Reparenting)
+
+The workflow supports reorganizing work item hierarchies through reparenting—moving work items to different parents while preserving their identity:
+
+**Scenario: Consolidate Stories from Multiple Features**
+
+```powershell
+# Export epic with multiple features
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 -Organization "falco-it" -Project "GMD" -EpicId 1577
+$exported = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy
+$exported | Out-File "epic-export.md"
+
+# Edit markdown to consolidate all stories under one target feature:
+# - Move all stories from Feature A to Feature C
+# - Move all stories from Feature B to Feature C
+# - Keep original features (they become empty)
+
+$modified = Get-Content "epic-export.md" -Raw
+$modifiedJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $modified
+$original = $exported | ConvertFrom-Json
+
+# Detect the reorganization (will show "Move" operations for each story)
+$diff = .\DetectHierarchyChanges.ps1 -OriginalHierarchy $original -ModifiedHierarchy $modifiedJson
+
+# DryRun to preview
+$preview = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff -DryRun
+
+# Apply the reparenting
+$result = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+
+# Result in Azure DevOps:
+# - All stories now under Feature C
+# - Feature A, B, C still exist (A and B as empty)
+# - All story IDs and content preserved
+```
+
+### Safety Features
+
+- **Transaction-like behavior**: All changes succeed or none do (fail-fast approach)
+- **DryRun mode**: Preview changes without applying them
+- **Detailed reporting**: Every change is logged with before/after values
+- **No silent skips**: Errors halt the entire operation; never skip silently
+- **Rollback capability**: If any change fails, remaining changes are not attempted
+
+### Example: Complete Workflow
+
+```powershell
+# 1. Export
+$feature = .\GetAzDoHierarchyForFeature.ps1 -Organization "falco-it" -Project "GMD" -FeatureId 2216
+$original = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $feature | Out-File "export.md"
+$originalJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownFilePath "export.md"
+
+# ... User edits export.md ...
+
+# 2. Reimport
+$modified = Get-Content "export.md" -Raw
+$modifiedJson = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $modified
+
+# 3. Detect
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalJson `
+    -ModifiedHierarchy $modifiedJson
+
+# 4. Apply
+if ($diff.validationPassed) {
+    $result = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff -DryRun
+    if ($result.success) {
+        $final = .\ApplyValidatedChanges.ps1 -ValidatedDiff $diff
+        $final.operationsSummary | Where-Object { $_.status -eq 'Applied' }
+    }
+}
+```
+
+## Download and Compare Workflow
+
+Use this workflow when you have a local markdown plan (e.g. `testEpic.md`) and want to compare it with the current state in Azure DevOps — for example, to see what changed between your plan and what was actually created, or to review differences before applying changes.
+
+### Overview
+
+| Step | Script | Purpose |
+|------|--------|---------|
+| 1 | `src/tools/ExportAzDoHierarchyToMarkdown.ps1` | Download current AzDo hierarchy to a markdown file |
+| 2 | `src/tools/SortMarkdownHierarchy.ps1` | Sort both files by WorkItemId for clean diffing |
+| 3 | Diff tool (e.g. `code --diff`) | Side-by-side comparison |
+
+### Step 1: Download Current Hierarchy from Azure DevOps
+
+Use `ExportAzDoHierarchyToMarkdown.ps1` to download an Epic, Feature, or Story hierarchy to a markdown file:
+
+```powershell
+# Export an Epic hierarchy
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 2535 `
+    -OutputFile azDoEpic.md
+
+# Export a Feature hierarchy
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -FeatureId 2536 `
+    -OutputFile azDoFeature.md
+
+# Using environment variables for org/project
+$env:GMD_AZDO_ORGANIZATION = "falco-it"
+$env:GMD_AZDO_PROJECT = "GMD"
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 -EpicId 2535 -OutputFile azDoEpic.md
+```
+
+**Parameters:**
+- `Organization` (optional): Azure DevOps organization. Falls back to `GMD_AZDO_ORGANIZATION` env variable.
+- `Project` (optional): Azure DevOps project. Falls back to `GMD_AZDO_PROJECT` env variable.
+- `EpicId` / `FeatureId` / `StoryId` (one required): Work item ID to export.
+- `OutputFile` (required): Path to write the exported markdown. Overwritten if it exists.
+- `RepositoryRoot` (optional): Root directory for state configuration. Default: repository root.
+- `PatToken` (optional): PAT token override.
+
+### Step 2: Sort Both Files for Clean Diffing
+
+The local plan and the AzDo export may have work items in different orders. Use `SortMarkdownHierarchy.ps1` to normalize both files by sorting work items by WorkItemId at each level:
+
+```powershell
+# Sort both files (outputs testEpic-sorted.md and azDoEpic-sorted.md)
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md -MarkdownFile2 azDoEpic.md
+
+# Specify explicit output paths
+.\src\tools\SortMarkdownHierarchy.ps1 `
+    -MarkdownFile testEpic.md     -OutputFile testEpic-sorted.md `
+    -MarkdownFile2 azDoEpic.md    -OutputFile2 azDoEpic-sorted.md
+
+# Sort a single file only
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md
+```
+
+**Parameters:**
+- `MarkdownFile` (required): First markdown file to sort.
+- `OutputFile` (optional): Output for sorted first file. Default: original name with `-sorted` suffix (e.g. `testEpic.md` → `testEpic-sorted.md`).
+- `MarkdownFile2` (optional): Second markdown file to sort in the same call.
+- `OutputFile2` (optional): Output for sorted second file.
+
+**Sorting behaviour:**
+- Items with a `WorkItemId` are sorted ascending by ID.
+- Items without a `WorkItemId` (new items in your plan) are placed after sorted items, ordered alphabetically by title.
+- Trailing markdown whitespace (`  `) and state warning HTML comments are stripped for clean comparison.
+- Both files are serialized in the same canonical format, making content differences the focus of the diff.
+
+### Step 3: Diff the Sorted Files
+
+```powershell
+# VS Code side-by-side diff
+code --diff testEpic-sorted.md azDoEpic-sorted.md
+
+# Or use any diff tool
+diff testEpic-sorted.md azDoEpic-sorted.md
+```
+
+### Complete Workflow Example
+
+```powershell
+# 1. Download current AzDo state for Epic 2535
+.\src\tools\ExportAzDoHierarchyToMarkdown.ps1 -EpicId 2535 -OutputFile azDoEpic.md
+
+# 2. Sort both files for clean comparison
+.\src\tools\SortMarkdownHierarchy.ps1 -MarkdownFile testEpic.md -MarkdownFile2 azDoEpic.md
+
+# 3. Open side-by-side diff in VS Code
+code --diff testEpic-sorted.md azDoEpic-sorted.md
+```
+
+### What the diff will show
+
+| Difference | Meaning |
+|------------|---------|
+| `State: New` in AzDo only | AzDo items have state; local plan typically does not |
+| Tags with `;` in AzDo vs `,` in local | AzDo uses semicolons as tag separator |
+| Work item present in local only (no WorkItemId) | New item in your plan not yet created in AzDo |
+| Field value differences | Content was changed in your plan or directly in AzDo |
+| Item order differences | Only visible before sorting; sorting normalises this |
+
+## Recipes
+
+### Generate Azure DevOps Hierarchy from Markdown
+
+Use this recipe when you have a markdown file describing your planned work (Epics, Features, Stories, Tasks) and want to create or update the corresponding work items in Azure DevOps in one step.
+
+**Key behaviours:**
+- First run: creates all work items and writes the assigned `**WorkItemId**: <id>` back into the markdown file
+- Subsequent runs: uses those IDs to **update** existing items — no duplicates are ever created
+- DryRun mode lets you preview what will be created or updated before committing
+
+#### Prerequisites
+
+1. Set the required environment variables:
+
+```powershell
+$env:GMD_AZDO_ORGANIZATION = "your-org"
+$env:GMD_AZDO_PROJECT      = "your-project"
+# Store an encrypted PAT (see Setup section)
+```
+
+2. Have a markdown hierarchy file ready (use `GenerateAzDoMarkdownHierarchyTemplate.ps1` to scaffold one):
+
+```powershell
+# Generate a template to start from
+.\src\GenerateAzDoMarkdownHierarchyTemplate.ps1 -IncludeExample > my-hierarchy.md
+# Edit my-hierarchy.md with your Epic / Feature / Story titles
+```
+
+#### Step 1: Preview what will be created (DryRun)
+
+```powershell
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md" -DryRun
+```
+
+The output shows a breakdown of items to create vs. update without touching Azure DevOps.
+
+#### Step 2: Create the hierarchy
+
+```powershell
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
+```
+
+After this runs, `my-hierarchy.md` is updated in-place with `**WorkItemId**: <id>` lines inserted after each work item header. Example result:
+
+```markdown
+# Epic: My Project Epic
+**WorkItemId**: 2215
+**tags**: myProject
+**Description**
+Epic description...
+
+## Feature: User Authentication
+**WorkItemId**: 2216
+...
+```
+
+#### Step 3: Update existing items (subsequent runs)
+
+Run the **exact same command** again at any time. The IDs already in the file are used to update the existing work items rather than create new ones:
+
+```powershell
+# Same command — updates existing items because WorkItemIds are now in the file
+.\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
+```
+
+#### Notes
+
+- To nest the hierarchy under an existing Epic pass `-EpicId <id>`
+- Use `-UpdateExisting` to enable title-based matching as a fallback for items without a `WorkItemId` in the markdown
+- The markdown file is only written when `-MarkdownFile` is used (not when `-MarkdownContent` is passed as a string)
+
+---
+
+### Update Hierarchy Structure in Azure DevOps
+
+This recipe demonstrates how to reorganize your Azure DevOps work item hierarchy. Use this workflow when you need to:
+- Move stories from one feature to another
+- Consolidate multiple features into one
+- Reorganize work items while preserving their identity and metadata
+- Make bulk structural changes with full validation and preview
+
+**Overview of the three-step process:**
+1. **Export** the hierarchy from Azure DevOps to markdown
+2. **Modify** the markdown structure (change parent-child relationships)
+3. **Reimport** the changes back to Azure DevOps
+
+#### Step 1: Export Existing Hierarchy to Markdown
+
+Export your current hierarchy from Azure DevOps:
+
+```powershell
+# First, find the Epic ID you want to work with
+$epic = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicTitle "My Epic Name"
+
+# Export the hierarchy to markdown format
+$hierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId $epic.Id
+
+$markdown = .\ConvertHierarchyToMarkdown.ps1 -Hierarchy $hierarchy
+
+# Save to file for editing
+$markdown | Out-File "hierarchy-export.md" -Encoding UTF8
+```
+
+**What the exported markdown looks like:**
+```markdown
+# Epic: System Architecture Redesign (ID: 1577)
+
+## Feature: API Layer Refactoring (ID: 1578)
+- Story: Redesign REST API endpoints (ID: 1579)
+- Story: Implement GraphQL support (ID: 1580)
+
+## Feature: Database Optimization (ID: 1581)
+- Story: Migrate to NoSQL (ID: 1582)
+- Story: Add caching layer (ID: 1583)
+```
+
+#### Step 2: Modify the Markdown Structure
+
+Edit the markdown file to reorganize your work items. You can:
+- **Move stories** to different features by changing the indentation
+- **Change feature order** by reordering sections
+- **Keep work item IDs** intact (they're preserved in the markdown)
+
+**Example: Consolidate all stories into a single feature**
+
+Original structure:
+```markdown
+# Epic: System Redesign (ID: 1577)
+
+## Feature: API Layer (ID: 1578)
+- Story: Refactor endpoints (ID: 1579)
+- Story: Add GraphQL (ID: 1580)
+
+## Feature: Database (ID: 1581)
+- Story: Migrate data (ID: 1582)
+- Story: Add caching (ID: 1583)
+```
+
+Modified structure (all stories under Feature: Database):
+```markdown
+# Epic: System Redesign (ID: 1577)
+
+## Feature: API Layer (ID: 1578)
+# (now empty)
+
+## Feature: Database (ID: 1581)
+- Story: Refactor endpoints (ID: 1579)
+- Story: Add GraphQL (ID: 1580)
+- Story: Migrate data (ID: 1582)
+- Story: Add caching (ID: 1583)
+```
+
+**What you can modify:**
+- ✅ Move work items to different parents
+- ✅ Add new work items (add new story/feature lines)
+- ✅ Update descriptions and story points (edit text after the ID)
+- ✅ Reorder work items
+- ✅ Change field values
+
+**What you cannot modify:**
+- ❌ Change work item IDs (they're part of the round-trip mechanism)
+- ❌ Change the work item type (Story stays a Story, Feature stays a Feature)
+
+#### Step 3: Reimport Changes Back to Azure DevOps
+
+After modifying the markdown, reimport your changes back to Azure DevOps with full validation and preview:
+
+**Option A: Interactive Script (Recommended)**
+
+Use the interactive script for guided workflow with automatic editor support and safety prompts:
+
+```powershell
+# Automatically exports, opens editor, previews, and applies changes
+.\src\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# Or with pre-existing markdown file
+.\src\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md"
+
+# Or with debug mode to preview changes without applying
+.\src\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md" `
+    -RunAsDebug
+
+# Or with existing original markdown (skip re-fetching from Azure DevOps)
+.\src\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577 `
+    -MarkdownFile "./hierarchy-modified.md" `
+    -OriginalMarkdownPath "./hierarchy-export-original.md"
+```
+
+**interactive-update-hierarchy.ps1 Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `-Organization` | string | Yes | Azure DevOps organization name |
+| `-Project` | string | Yes | Azure DevOps project name |
+| `-EpicId` / `-FeatureId` / `-StoryId` | int | Yes (one) | Work item ID to export and modify |
+| `-MarkdownFile` | string | No | Path to markdown file with modifications. If omitted, opens editor for you |
+| `-OriginalMarkdownPath` | string | No | Path to existing original hierarchy markdown. If provided, skips fetching from Azure DevOps (useful for iterating on changes without repeated API calls) |
+| `-SkipEditor` | switch | No | Don't open markdown file in editor (useful for automated workflows) |
+| `-RunAsDebug` | switch | No | Debug mode: runs through all steps but stops after preview without applying changes. Skips user confirmation prompt |
+| `-RepositoryRoot` | string | No | Root directory for state configuration. Default: current working directory |
+
+**Option B: Manual Step-by-Step**
+
+```powershell
+# Step 3a: Get the ORIGINAL hierarchy from Azure DevOps (not from markdown)
+$originalHierarchy = .\GetAzDoHierarchyForEpic.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# Step 3b: Read the MODIFIED markdown file
+$modifiedMarkdown = Get-Content "hierarchy-export.md" -Raw
+
+# Step 3c: Convert modified markdown to JSON structure
+$modifiedHierarchy = .\ConvertMarkdownToHierarchyJson.ps1 `
+    -MarkdownContent $modifiedMarkdown
+
+# Step 3d: Detect what changed between original and modified
+$diff = .\DetectHierarchyChanges.ps1 `
+    -OriginalHierarchy $originalHierarchy `
+    -ModifiedHierarchy $modifiedHierarchy
+
+# Step 3e: Preview changes WITH DryRun (always do this first!)
+Write-Host "Preview of changes (DRY RUN):" -ForegroundColor Cyan
+$preview = .\ApplyValidatedChanges.ps1 `
+    -ValidatedDiff $diff `
+    -DryRun:$true
+
+Write-Host "Operations to be applied:" -ForegroundColor Yellow
+$preview.operations | Format-Table @(
+    @{ Label = "Type"; Expression = { $_.operationType } },
+    @{ Label = "Item"; Expression = { $_.itemTitle } },
+    @{ Label = "Status"; Expression = { $_.status } }
+) -AutoSize
+
+# Step 3f: After reviewing preview, apply the changes
+$confirm = Read-Host "Apply these changes? (yes/no)"
+if ($confirm -eq "yes") {
+    Write-Host "`nApplying changes..." -ForegroundColor Cyan
+    $result = .\ApplyValidatedChanges.ps1 `
+        -ValidatedDiff $diff `
+        -DryRun:$false
+    Write-Host "✓ Changes applied successfully!" -ForegroundColor Green
+}
+```
+
+#### Complete Recipe Using Interactive Script
+
+For the easiest workflow, use the interactive script which handles all three steps:
+
+```powershell
+# Run the interactive update script
+.\src\tools\interactive-update-hierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -EpicId 1577
+
+# The script will:
+# 1. Export the current hierarchy from Azure DevOps
+# 2. Open it in your default editor for modification
+# 3. Wait for you to finish editing and close the editor
+# 4. Show a preview of all changes (DRY RUN)
+# 5. Ask for confirmation before applying
+# 6. Apply the validated changes
+# 7. Show results summary
+```
+
+#### Workflow Tips
+
+**Best Practices:**
+1. **Always use DryRun first** - Preview changes before applying them
+2. **Export first, then modify** - Keep the original exported file as backup
+3. **Test with a small hierarchy** - Validate the workflow on simpler structures before complex ones
+4. **Validate your markdown** - Use proper formatting (verify indentation and structure)
+5. **Preserve work item IDs** - Never manually change the work item ID numbers
+
+**Common Scenarios:**
+
+| Scenario | Steps | Result |
+|----------|-------|--------|
+| Move stories to different feature | Export → Modify parent → Reimport | Stories reparented, IDs preserved |
+| Consolidate features | Export → Move all stories to target feature → Reimport | Empty source features, stories in target |
+| Combine two epics | Export first epic → Manually update parent IDs → Reimport | All items now under one epic |
+| Add new work items | Export → Add new story/feature lines → Reimport | New items created linked to parents |
+
+**Validation Rules:**
+- All work item IDs must be unique
+- Parent-child relationships must be valid (Story can't be parent of Feature)
+- Work item types cannot change through modifications
+- State changes are validated against configured writable states
+
 ## MCP Server Integration
+
 
 The Azure DevOps Automator project includes full Model Context Protocol (MCP) support, enabling all tools to be consumed by AI assistants and automation frameworks over HTTP.
 
@@ -1113,7 +2080,7 @@ The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All
 - **Set Operations** (6): Update properties (story points, effort, tags, description)
 - **New Operations** (2): Create comments and reactions
 - **Upsert Operations** (5): Create/update Epics, Features, Stories, Tasks, Bugs
-- **Remove Operations** (5): Delete work items and comments
+- **Remove Operations** (7): Delete work items and comments (Epic, Feature, Story, Bug, Task, Comment, CommentReaction)
 - **Update Operations** (2): Modify existing comments and tags
 - **Find Operations** (1): Search for work items by title
 - **Generate/Validate** (3):
@@ -1123,17 +2090,17 @@ The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All
 
 ### Starting the MCP Server
 
-The `tools/runMcpServerHttp.ps1` script starts the MCP server with HTTP configuration:
+The `src/tools/runMcpServerHttp.ps1` script starts the MCP server with HTTP configuration:
 
 ```powershell
 # Start on default port 8081
-.\tools\runMcpServerHttp.ps1
+.\src\tools\runMcpServerHttp.ps1
 
 # Start on custom port
-.\tools\runMcpServerHttp.ps1 -HttpPort 3000
+.\src\tools\runMcpServerHttp.ps1 -HttpPort 3000
 
 # Start with verbose logging
-.\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
+.\src\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
 ```
 
 The server will be accessible at:
@@ -1144,7 +2111,7 @@ http://localhost:8081
 ### MCP Server Files
 
 - **Config**: `src/mcpConfig.yaml` - Tool definitions and mappings
-- **Launcher**: `tools/runMcpServerHttp.ps1` - Start server script
+- **Launcher**: `src/tools/runMcpServerHttp.ps1` - Start server script
 - **Validator**: `test/ValidateMcpConfigTest.ps1` - Validate config
 - **MCP Runtime**: `submodules/Gmd.Tools.McpServerPs/` - MCP server engine
 
@@ -1265,6 +2232,168 @@ $env:GMD_AZDO_PROJECT = "your-project"
 
 **Note:** Integration tests create temporary test data (Epic, Features, Stories) and automatically clean up by deleting the test Epic at the end.
 
+### Test Hierarchy Helper
+
+The `CreateTestHierarchy.ps1` helper simplifies creating temporary test hierarchies for export/import testing:
+
+#### Purpose
+Factory function for creating test work item hierarchies in Azure DevOps, used by integration tests to verify functionality against real hierarchies.
+
+#### Features
+- **Deterministic naming**: Test Epic created with "TEST-\<timestamp\>-\<description\>" prefix
+- **Configurable hierarchy**: Define Features → Stories → Tasks structure in code
+- **Automatic cleanup**: Built-in cleanup on creation failure with try/finally pattern
+- **Tagging**: All created items tagged with "testWi" for easy orphan detection
+- **Structured return**: Object with created work item IDs for verification
+
+#### Usage Example
+
+```powershell
+# Import the helper
+$spec = @{
+    features = @(
+        @{
+            title       = "Auth Feature"
+            effort      = 8
+            description = "Authentication feature"
+            stories     = @(
+                @{
+                    title        = "Login"
+                    storyPoints  = 3
+                    description  = "User login"
+                    tasks        = @(
+                        @{ title = "Setup OAuth"; effort = 2 }
+                    )
+                }
+            )
+            tasks       = @()
+        }
+    )
+    bugs = @(
+        @{ title = "Login timeout bug"; description = "Session expires too fast" }
+    )
+}
+
+# Create test hierarchy
+$result = ./test/CreateTestHierarchy.ps1 `
+    -Organization "falco-it" `
+    -Project "GMD" `
+    -Description "ExportImportTest" `
+    -HierarchySpec $spec
+
+# Use created items for testing
+Write-Host "Created Epic: $($result.Epic.Id)"
+Write-Host "Features: $($result.Features.Count)"
+Write-Host "Stories: $($result.Stories.Count)"
+Write-Host "All work items: $($result.AllWorkItemIds -join ',')"
+
+# Verify creation succeeded
+if ($result.Success) {
+    try {
+        # Run your test operations with $result.Epic.Id, etc.
+        
+        # Validate export contains all items
+        # Verify export format
+    }
+    finally {
+        # Cleanup: Delete the test Epic and all children
+        ./src/RemoveAzDoEpic.ps1 `
+            -Organization "falco-it" `
+            -Project "GMD" `
+            -EpicId $result.Epic.Id `
+            -Recursive `
+            -Force
+    }
+} else {
+    Write-Error "Failed to create test hierarchy: $($result.Errors -join '; ')"
+}
+```
+
+#### Return Object Structure
+
+```powershell
+@{
+    Success         = $true|$false
+    Epic            = @{ Id = 123; Title = "TEST-..."; Url = "..." }
+    Features        = @{ "Feature Title" = @{ Id = 456; Title = "..."; Url = "..." }; ... }
+    Stories         = @{ "Story Title" = @{ Id = 789; Title = "..."; ParentId = 456; Url = "..." }; ... }
+    Tasks           = @{ "Task Title" = @{ Id = 101; Title = "..."; ParentId = 789; Url = "..." }; ... }
+    Bugs            = @{ "Bug Title" = @{ Id = 102; Title = "..."; Url = "..." }; ... }
+    AllWorkItemIds  = @(123, 456, 789, 101, 102)  # For easy cleanup
+    Errors          = @()  # Any errors encountered during creation
+}
+```
+
+#### Integration Tests Using CreateTestHierarchy
+
+View the story AB#2226 test file for comprehensive examples:
+
+```powershell
+.\test\storyAcTests\2226CreateTestHierarchyManagementSystem\2226CreateTestHierarchyTest.ps1
+```
+
+These tests demonstrate:
+- Creating simple hierarchies and verifying queryability
+- Complex hierarchies with multiple levels (1 Epic, 2 Features, 5 Stories, 3 Tasks, 1 Bug)
+- Reliable cleanup removing all created items
+
+### Test Markdown Generator
+
+The `CreateTestMarkdown.ps1` helper generates a complete synthetic markdown hierarchy file
+without requiring any live Azure DevOps connection. Use it to produce ready-to-consume
+markdown input for testing parsers, importers, and other markdown-driven tooling.
+
+#### Purpose
+
+Generates a fully-populated markdown hierarchy (Epic → Features → Stories/Bugs → Tasks)
+using made-up but realistic values. All writable fields defined by the markdown template
+(`GenerateAzDoMarkdownHierarchyTemplate.ps1`) are populated. Values differ between items
+using a timestamp seed so each run produces unique item names.
+
+#### Features
+
+- **No Azure DevOps connection required**: Generates markdown locally
+- **All writable fields populated**: tags, Effort, SP, Priority, OriginalEstimate, Description, Acceptance Criteria, AC Scenarios, Extra Information
+- **Configurable counts**: Control the number of Features, Stories, Bugs, and Tasks per level
+- **Optional no-task items**: `CreateSomeStoriesAndBugsWithoutTasks` creates at least one Story and one Bug per Feature with no Tasks (tests edge-case handling)
+- **testWi tag**: All generated items include the `testWi` tag for identification
+- **Parser-validated format**: Output passes `ConvertMarkdownToHierarchyJson.ps1` parsing without errors
+
+#### Usage
+
+```powershell
+# Generate with defaults (2 Features, 2 Stories/Feature, 2 Bugs/Feature, 2 Tasks each)
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "My Test Epic" `
+    -MdOutputFile ".\tmp\test-hierarchy.md"
+
+# Generate minimal hierarchy (1 Feature, 1 Story, 1 Bug, 1 Task each)
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "Minimal Test" `
+    -MdOutputFile ".\tmp\minimal.md" `
+    -FeatureCount 1 -StoryPerFeatureCount 1 -BugPerFeatureCount 1 `
+    -TaskPerStory 1 -TaskPerBug 1
+
+# Include items without tasks for edge-case testing
+.\test\CreateTestMarkdown.ps1 `
+    -EpicTitle "Edge Case Test" `
+    -MdOutputFile ".\tmp\edge.md" `
+    -CreateSomeStoriesAndBugsWithoutTasks
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `-EpicTitle` | string | Yes | — | Title for the single Epic |
+| `-MdOutputFile` | string | Yes | — | Output file path (directories created automatically) |
+| `-FeatureCount` | int | No | 2 | Number of Features under the Epic |
+| `-StoryPerFeatureCount` | int | No | 2 | Number of Stories under each Feature |
+| `-BugPerFeatureCount` | int | No | 2 | Number of Bugs under each Feature |
+| `-TaskPerStory` | int | No | 2 | Number of Tasks under each Story |
+| `-TaskPerBug` | int | No | 2 | Number of Tasks under each Bug |
+| `-CreateSomeStoriesAndBugsWithoutTasks` | switch | No | off | Last Story and last Bug in each Feature are created without Tasks |
+
 ## Error Handling
 
 All scripts follow strict error handling practices:
@@ -1312,7 +2441,10 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
 │   ├── UpdateAzDoWorkItemTags.ps1           (Update/add/remove tags - modern replacement)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)
-│   ├── RemoveAzDoEpic.ps1                   (Delete Epic and children)
+│   ├── RemoveAzDoEpic.ps1                   (Delete Epic, optionally with children)
+│   ├── RemoveAzDoFeature.ps1                (Delete Feature, optionally with children)
+│   ├── RemoveAzDoStory.ps1                  (Delete Story, optionally with child Tasks)
+│   ├── RemoveAzDoBug.ps1                    (Delete Bug, optionally with child Tasks)
 │   ├── RunSystemTest.ps1                    (System test suite)
 │   └── VerifyAzDoPat.ps1                    (Verify PAT read access)
 ├── test/
@@ -1464,7 +2596,161 @@ foreach ($id in $storyIds) {
 }
 ```
 
+## Iteration Management
+
+### Overview
+
+Iteration management scripts help automate the creation and management of project iterations (sprints).
+
+#### `GetAzDoIterations.ps1`
+
+Retrieve all iterations from an Azure DevOps project. Iterations are returned in chronological order by start date.
+
+```powershell
+# Get all iterations from default organization/project
+$iterations = .\GetAzDoIterations.ps1
+$iterations | Format-Table -Property name, attributes
+
+# Get iterations from specific organization/project
+$iterations = .\GetAzDoIterations.ps1 `
+    -Organization "myorg" `
+    -Project "myproject"
+```
+
+**Parameters:**
+- `Organization` (optional): Azure DevOps organization. Uses GMD_AZDO_ORGANIZATION if not provided.
+- `Project` (optional): Azure DevOps project. Uses GMD_AZDO_PROJECT if not provided.
+- `PatToken` (optional): PAT token for authentication. Uses GMD_AZDO_MACHINE_WORKITEMSRW environment variable if not provided.
+
+**Returns:**
+Array of iteration objects containing:
+- `id`: Unique iteration identifier
+- `name`: Iteration name
+- `path`: Iteration path in hierarchy
+- `startDate`: Start date
+- `finishDate`: End date
+- `state`: Current state (e.g., "Active", "Completed", "Future")
+
+#### `CreateAzDoFutureIterations.ps1`
+
+Automatically create iterations starting from a specified date with configurable length and naming template. Supports custom iteration durations (weeks or months) and flexible naming patterns with date formats and optional counter placeholders. Iterations are created under a specified parent path in the iteration hierarchy.
+
+```powershell
+# Create monthly iterations starting 2026-01-04 under parent "2026"
+.\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04"
+
+# Preview with DryRun before creating
+.\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -DryRun
+
+# Create monthly iterations with StopAt date (prevents creating 2027 iterations)
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -StopAt "2026-12-31" `
+    -MonthsAhead 12
+
+# Create 2-week iterations with custom counter naming under parent path
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationLength "2w" `
+    -IterationNameTemplate "W{counterPadded}" `
+    -CounterStart 1
+
+# Create monthly iterations with custom template
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationNameTemplate "Sprint {counterNonPadded}" `
+    -CounterStart 1
+
+# Create quarterly iterations
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -IterationLength "3m" `
+    -IterationNameTemplate "Q{counterNonPadded} {yyyy}" `
+    -CounterStart 1 `
+    -MonthsAhead 12
+
+# Create iterations for specific organization/project
+.\CreateAzDoFutureIterations.ps1 `
+    -ParentPath "2026" `
+    -StartAt "2026-01-04" `
+    -Organization "myorg" `
+    -Project "myproject" `
+    -MonthsAhead 12
+
+# View planned iterations without creating
+$result = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -DryRun
+$result.plannedIterations | Format-Table
+```
+
+**Parameters:**
+- `ParentPath` (required): Parent path for creating iterations (e.g., "2026", "GMD/2026/Q1"). Defines the iteration hierarchy level where iterations will be created.
+- `StartAt` (required): Date to start creating iterations from (format: yyyy-MM-dd, e.g., 2026-01-04).
+- `StopAt` (optional): Date to stop creating iterations. Prevents creating iterations that would start on or after this date (format: yyyy-MM-dd, e.g., 2026-12-31). If not specified, iterations are created based on MonthsAhead parameter.
+- `IterationLength` (optional, default: "1m"): Iteration duration with unit suffix:
+  - "1m", "2m", "3m", etc. for months
+  - "1w", "2w", "4w", etc. for weeks
+- `IterationNameTemplate` (optional, default: "{yyyy-MM}"): Template for iteration names with support for:
+  - Date format specifiers: {yyyy}, {MM}, {dd}, {yyyy-MM}, {yyyy-MM-dd}, etc. (standard .NET date format)
+  - {counterNonPadded}: Counter without padding (1, 2, 10)
+  - {counterPadded}: Counter with zero-padding (01, 02, 10)
+- `CounterStart` (optional): Starting value for counter. Required if template contains counter placeholders, not allowed otherwise.
+- `MonthsAhead` (optional, default: 6): Number of iteration periods to create (must be 1-24).
+- `Organization` (optional): Azure DevOps organization. Uses GMD_AZDO_ORGANIZATION if not provided.
+- `Project` (optional): Azure DevOps project. Uses GMD_AZDO_PROJECT if not provided.
+- `PatToken` (optional): PAT token for authentication. Uses GMD_AZDO_MACHINE_WORKITEMSRW environment variable if not provided.
+- `DryRun` (optional, switch): Preview planned iterations without creating them.
+
+**Returns:**
+Object with summary containing:
+- `plannedIterations`: Array of iterations that were created or would be created
+- `totalCreated`: Number of iterations created (0 in DryRun)
+- `message`: Summary message
+
+**Validation Rules:**
+- `ParentPath` is required and cannot be empty
+- `StartAt` is required and must be in yyyy-MM-dd format
+- `StopAt` (if provided) must be in yyyy-MM-dd format and must be after `StartAt`
+- `IterationLength` must match format like "1m", "2w", "3m"
+- If `IterationNameTemplate` contains counter placeholders, `CounterStart` is mandatory
+- `CounterStart` cannot be specified if template doesn't contain counter placeholders
+- If `IterationLength` is not default (1m), `IterationNameTemplate` is required (to avoid ambiguous naming)
+- `MonthsAhead` must be between 1 and 24
+
+**Behavior:**
+- Creates new iterations starting from the specified `StartAt` date
+- Stops creating iterations when start date reaches or exceeds `StopAt` date (if specified)
+- Only creates iterations if they don't already exist by name and date range
+- Uses fail-fast approach: validates entire structure before creating any items
+- Supports flexible iteration naming via template substitution
+- Counter values increment for each iteration when template includes counter placeholders
+- Iterations are created under the specified parent path in the iteration hierarchy
+
+**Example Workflow:**
+
+```powershell
+# Step 1: Verify existing iterations
+$iterations = .\GetAzDoIterations.ps1
+Write-Host "Found $($iterations.Count) existing iterations"
+
+# Step 2: Preview what will be created with StopAt limit
+$preview = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -StopAt "2026-12-31" -DryRun
+$preview.plannedIterations | Format-Table -Property name, startDate, endDate
+
+# Step 3: Create iterations
+$result = .\CreateAzDoFutureIterations.ps1 -ParentPath "2026" -StartAt "2026-01-04" -StopAt "2026-12-31"
+Write-Host $result.message
+
+# Step 4: Verify results
+$allIterations = .\GetAzDoIterations.ps1
+Write-Host "Now have $($allIterations.Count) total iterations"
+```
+
 ## Markdown Hierarchy Workflow
+
 
 This project provides a complete workflow for planning and executing work item hierarchies through markdown files:
 
@@ -1666,35 +2952,35 @@ To prevent headers in descriptions from being confused with hierarchy markers:
 ```markdown
 # Epic: Epic Title
 
-**tags**: tag1, tag2\
-**Effort**: 21\
-**Description**\
+**tags**: tag1, tag2  
+**Effort**: 21  
+**Description**  
 Multi-line description with headers at level 3 or higher
 ### Header in Epic Description
 More content here
 
 ## Feature: Feature Title
 
-**tags**: tag1, tag2\
-**Effort**: 13\
-**Description**\
+**tags**: tag1, tag2  
+**Effort**: 13  
+**Description**  
 Feature description with headers at level 3 or higher
 ### Implementation Details
 Additional context
 
 ### Story: Story Title
 
-**tags**: tag1, tag2\
-**SP**: 5\
-**Description**\
+**tags**: tag1, tag2  
+**SP**: 5  
+**Description**  
 Story description with headers at level 4 or higher
 #### Acceptance Criteria
 - [ ] Criterion 1
 
 #### AC Scenarios
-1. **Scenario**: First scenario\
-  Given...\
-  When...\
+1. **Scenario**: First scenario  
+  Given...  
+  When...  
   Then...
 
 #### Extra Information
@@ -1703,16 +2989,16 @@ Story description with headers at level 4 or higher
 
 #### Formatting Guidelines
 
-**Newlines in Descriptions**: Use trailing backslash (`\`) at the end of lines to enforce newlines:
+**Newlines in Descriptions**: Use 2 spaces (`  `) at the end of lines to enforce newlines:
 
 ```markdown
 ## Feature: Example
 
-**tags**: documentation, guide\
-**Description**\
-This is the first line\
-This is the second line (backslash above enforces newline)\
-This is the third line
+**tags**: documentation, guide  
+**Description**  
+This is the first line  
+This is the second line (2 spaces above enforces newline)  
+This is the third line  
 ```
 
 **Supported Properties**
@@ -1727,33 +3013,55 @@ This is the third line
 **Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
 ```markdown
 #### AC Scenarios
-1. **Scenario**: User logs in\
-  Given user is on login page\
-  When user enters valid credentials\
-  Then user is logged in\
+1. **Scenario**: User logs in  
+  Given user is on login page  
+  When user enters valid credentials  
+  Then user is logged in  
   And dashboard is displayed
 
-2. **Scenario**: Login fails with invalid password\
-  Given user is on login page\
-  When user enters invalid password\
+2. **Scenario**: Login fails with invalid password  
+  Given user is on login page  
+  When user enters invalid password  
   Then error message is shown
 ```
 
-**Story Points (SP)**:
+**Story Points (SP)** - Stories and Bugs only (decimals supported, e.g. 0.5, 1.5):
 ```markdown
-**SP**: 8
+**SP**: 0.5
 ```
 
-**Effort** - Available for Epics and Features (non-negative integer):
+**Effort** - Epics and Features only (decimals supported, e.g. 2.5):
 ```markdown
-**Effort**: 21
+**Effort**: 2.5
+```
+
+**Priority** - Features, Stories, Bugs, and Tasks (1=highest, 4=lowest):
+```markdown
+**Priority**: 2
+```
+
+**OriginalEstimate** - Features, Stories, and Tasks (hours, non-negative number):
+```markdown
+**OriginalEstimate**: 8
+```
+
+**FixedIn** - Features and Stories (text, version or build where completed):
+```markdown
+**FixedIn**: 2026.4.1
+```
+
+**DeployedToDev / DeployedToStaging / DeployedToProduction** - Features and Stories (boolean):
+```markdown
+**DeployedToDev**: true
+**DeployedToStaging**: false
+**DeployedToProduction**: false
 ```
 
 **Extra Information (EI)**:
 ```markdown
 #### Extra Information
 - Reference documentation: https://docs.example.com
-- Consider security implications\
+- Consider security implications  
 - Apply rate limiting on API endpoints
 ```
 
@@ -1773,7 +3081,7 @@ See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-re
 - Numbered Gherkin scenarios with proper Given/When/Then structure
 - Story points estimation
 - Real-world use cases (Customer Portal Redesign with authentication, ticketing, and knowledge base features)
-- Trailing backslashes for enforcing newlines in markdown
+- Trailing 2 space characters for enforcing newlines in markdown
 - **Tasks under Stories** - Examples of leaf-level work items
 
 ### Creating Tasks Within Stories
@@ -1982,8 +3290,8 @@ $bugDetails = .\GetAzDoBug.ps1 `
     -Project "myproj" `
     -BugId $bug.id
 
-# Delete a Bug
-.\RemoveAzDoBug.ps1 -Organization "myorg" -Project "myproj" -BugId $bug.id -Force
+# Delete a Bug (and its child Tasks)
+.\RemoveAzDoBug.ps1 -Organization "myorg" -Project "myproj" -BugId $bug.id -Recursive -Force
 ```
 
 ### Usage

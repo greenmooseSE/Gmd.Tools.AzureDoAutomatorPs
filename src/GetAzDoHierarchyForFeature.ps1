@@ -4,7 +4,7 @@ Retrieve Azure DevOps Feature hierarchy with Stories and Tasks
 
 .DESCRIPTION
 Fetches a Feature and builds a complete hierarchy showing:
-- Feature with Description and Effort
+- Feature with State, Description and Effort
 - All Stories under the Feature with full Story details:
   Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
   StoryPoints, ExtraInformation, Tags
@@ -242,6 +242,7 @@ try {
     # Build the hierarchy object
     $hierarchyObject = @{
         Id = $featureWorkItem.id
+        State = $featureWorkItem.fields.'System.State'
         Title = $featureTitle
         Description = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $featureWorkItem.fields.'System.Description' } else { $null }
         Effort = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $featureWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
