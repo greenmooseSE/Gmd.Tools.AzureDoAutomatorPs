@@ -87,7 +87,12 @@ $template = @"
 # **tags**: (comma-separated, camelCase)
 # **Effort**: (number, Epics/Features only)
 # **SP**: (number, Stories/Bugs only)
-# **Priority**: (1-2-3, Tasks/Bugs only)
+# **Priority**: (1-4, Tasks/Bugs/Features/Stories; 1=highest)
+# **OriginalEstimate**: (hours, Tasks/Features/Stories)
+# **FixedIn**: (text, Features/Stories; version or build where item was completed)
+# **DeployedToDev**: (true/false, Features/Stories)
+# **DeployedToStaging**: (true/false, Features/Stories)
+# **DeployedToProduction**: (true/false, Features/Stories)
 # **Description**
 # Multi-line description with proper header levels
 
@@ -145,6 +150,12 @@ If applicable, describe the technical approach or design patterns.
 
 **tags**: epicName, feature1  
 **Effort**: 8  
+**Priority**: 3  
+**OriginalEstimate**: 16  
+**FixedIn**:   
+**DeployedToDev**: false  
+**DeployedToStaging**: false  
+**DeployedToProduction**: false  
 **Description**  
 Clear description of the feature's purpose and scope.  
 Explain what users can do with this feature.  
@@ -158,6 +169,12 @@ Include any key technical decisions or design choices.
 
 **tags**: epicName, feature1, userFacing  
 **SP**: 3  
+**Priority**: 3  
+**OriginalEstimate**: 8  
+**FixedIn**:   
+**DeployedToDev**: false  
+**DeployedToStaging**: false  
+**DeployedToProduction**: false  
 **Description**  
 **As a** [user type/persona]  
 **I want** [specific action or capability]  
@@ -203,6 +220,12 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 
 **tags**: epicName, feature1, userFacing  
 **SP**: 2  
+**Priority**: 3  
+**OriginalEstimate**: 4  
+**FixedIn**:   
+**DeployedToDev**: false  
+**DeployedToStaging**: false  
+**DeployedToProduction**: false  
 **Description**  
 **As a** [another persona]  
 **I want** [related capability]  
@@ -224,6 +247,12 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 
 **tags**: epicName, feature2, infrastructure  
 **Effort**: 5  
+**Priority**: 3  
+**OriginalEstimate**: 8  
+**FixedIn**:   
+**DeployedToDev**: false  
+**DeployedToStaging**: false  
+**DeployedToProduction**: false  
 **Description**  
 Features can be created without Stories if they represent infrastructure or  
 foundational work. This feature sets up any supporting systems needed.  
@@ -232,6 +261,12 @@ foundational work. This feature sets up any supporting systems needed.
 
 **tags**: epicName, feature2  
 **SP**: 3  
+**Priority**: 3  
+**OriginalEstimate**: 8  
+**FixedIn**:   
+**DeployedToDev**: false  
+**DeployedToStaging**: false  
+**DeployedToProduction**: false  
 **Description**  
 **As a** [system maintainer]  
 **I want** [infrastructure capability]  

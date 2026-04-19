@@ -309,26 +309,44 @@ foreach ($modItemKey in $modifiedFlat.Keys) {
                 }
             }
 
-            if ($fieldChanges.Count -gt 0 -or $modItem.parentId -ne $origItem.parentId) {
-                # Detect change type
-                $opType = if ($modItem.parentId -ne $origItem.parentId) { 'Move' } else { 'Update' }
-                
-                $operation = @{
-                    operationType  = $opType
-                    workItemType   = $modItem.type
-                    itemId         = $modItem.workItemId
-                    title          = $modItem.title
-                    changes        = $fieldChanges
-                    parentIdBefore = $origItem.parentId
-                    parentIdAfter  = $modItem.parentId
-                    dependsOn      = @()
+            $isMove   = $modItem.parentId -ne $origItem.parentId
+            $isUpdate = $fieldChanges.Count -gt 0
+
+            if ($isMove -or $isUpdate) {
+                if ($isUpdate) {
+                    # Field-level changes: always emit an Update operation (runs before Move in dependency order)
+                    $updateOperation = @{
+                        operationType  = 'Update'
+                        workItemType   = $modItem.type
+                        itemId         = $modItem.workItemId
+                        title          = $modItem.title
+                        changes        = $fieldChanges
+                        parentIdBefore = $origItem.parentId
+                        parentIdAfter  = $origItem.parentId
+                        dependsOn      = @()
+                    }
+                    $script:operations += $updateOperation
                 }
-                
-                if ($modItem.parentId) {
-                    $operation.dependsOn += $modItem.parentId
+
+                if ($isMove) {
+                    # Parent reparent: emit a dedicated Move operation with no field changes
+                    $moveOperation = @{
+                        operationType  = 'Move'
+                        workItemType   = $modItem.type
+                        itemId         = $modItem.workItemId
+                        title          = $modItem.title
+                        changes        = @{}
+                        parentIdBefore = $origItem.parentId
+                        parentIdAfter  = $modItem.parentId
+                        dependsOn      = @()
+                    }
+
+                    if ($modItem.parentId) {
+                        $moveOperation.dependsOn += $modItem.parentId
+                    }
+
+                    $script:operations += $moveOperation
                 }
-                
-                $script:operations += $operation
             }
         }
         else {

@@ -177,6 +177,32 @@ commands:
         default: false
         mapTo: DryRun
 
+  # ===== STATE MANAGEMENT OPERATIONS =====
+  - id: load-state-configuration
+    script: ./LoadStateConfiguration.ps1
+    description: "Load and cache state configuration for work item types. Configuration defines which states are writable for each work item type (Epic, Feature, Story, Task, Bug). Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: Organization
+        type: string
+        required: true
+        mapTo: Organization
+      - name: Project
+        type: string
+        required: true
+        mapTo: Project
+      - name: RepositoryRoot
+        type: string
+        required: false
+        mapTo: RepositoryRoot
+        description: "Root directory where configuration files are stored (default: current directory)"
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
+        description: "Ignore cache and reload configuration from file"
+
   # ===== SET OPERATIONS =====
   - id: set-story-points
     script: ./SetAzDoStoryPoints.ps1
@@ -548,33 +574,98 @@ commands:
 
   - id: remove-epic
     script: ./RemoveAzDoEpic.ps1
-    description: "Delete an Epic and cascade delete all child Features and Stories. Uses organization/project from environment variables."
+    description: "Delete an Epic work item. Without -Recursive only the Epic itself is deleted (children become orphaned). With -Recursive all child Features, Stories, and Tasks are deleted first. Uses organization/project from environment variables."
     passStyle: named
     params:
       - name: EpicId
         type: int
         required: true
         mapTo: EpicId
+      - name: Recursive
+        type: bool
+        required: false
+        default: false
+        mapTo: Recursive
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
+
+  - id: remove-feature
+    script: ./RemoveAzDoFeature.ps1
+    description: "Delete a Feature work item. Without -Recursive only the Feature itself is deleted (children become orphaned, a warning is shown). With -Recursive all child Stories and Tasks are deleted first. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: FeatureId
+        type: int
+        required: true
+        mapTo: FeatureId
+      - name: Recursive
+        type: bool
+        required: false
+        default: false
+        mapTo: Recursive
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
+
+  - id: remove-story
+    script: ./RemoveAzDoStory.ps1
+    description: "Delete a Story work item. Without -Recursive only the Story itself is deleted (child Tasks become orphaned, a warning is shown). With -Recursive all child Tasks are deleted first. Uses organization/project from environment variables."
+    passStyle: named
+    params:
+      - name: StoryId
+        type: int
+        required: true
+        mapTo: StoryId
+      - name: Recursive
+        type: bool
+        required: false
+        default: false
+        mapTo: Recursive
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
 
   - id: remove-task
     script: ./RemoveAzDoTask.ps1
-    description: "Delete a Task work item. Uses organization/project from environment variables."
+    description: "Delete a Task work item. Tasks are leaf-level items with no children. Uses organization/project from environment variables."
     passStyle: named
     params:
       - name: TaskId
         type: int
         required: true
         mapTo: TaskId
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
 
   - id: remove-bug
     script: ./RemoveAzDoBug.ps1
-    description: "Delete a Bug work item. Uses organization/project from environment variables."
+    description: "Delete a Bug work item. Without -Recursive only the Bug itself is deleted (child Tasks become orphaned, a warning is shown). With -Recursive all child Tasks are deleted first. Uses organization/project from environment variables."
     passStyle: named
     params:
       - name: BugId
         type: int
         required: true
         mapTo: BugId
+      - name: Recursive
+        type: bool
+        required: false
+        default: false
+        mapTo: Recursive
+      - name: Force
+        type: bool
+        required: false
+        default: false
+        mapTo: Force
 
   # ===== UPDATE OPERATIONS =====
   - id: update-comment
@@ -661,13 +752,18 @@ commands:
 
   - id: create-workitems-from-markdown
     script: ./NewAzDoHierarchyFromMarkdown.ps1
-    description: "Create or update work item hierarchy in Azure DevOps from markdown content (Epic/Feature/Story/Task). Uses organization/project from environment variables."
+    description: "Create or update work item hierarchy in Azure DevOps from markdown content or file (Epic/Feature/Story/Task). Writes WorkItemId back to the markdown file after creation so subsequent runs update existing items. Uses organization/project from environment variables."
     passStyle: named
     params:
       - name: MarkdownContent
         type: string
-        required: true
+        required: false
         mapTo: MarkdownContent
+      - name: MarkdownFile
+        type: string
+        required: false
+        mapTo: MarkdownFile
+        description: "Path to markdown file. WorkItemIds are written back to this file after creation to enable idempotent re-runs."
       - name: EpicId
         type: int
         required: false

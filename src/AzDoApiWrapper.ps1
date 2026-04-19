@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 
 [int]$script:RETRY_MAX_ATTEMPTS = 3
 [int]$script:RETRY_DELAY_MS = 1000
-[int]$script:API_TIMEOUT_SECONDS = 30
+[int]$script:API_TIMEOUT_SECONDS = 120
 
 # ============================================================================
 # Private Helper Functions
@@ -108,18 +108,25 @@ function Invoke-AzDoApiRequest {
                 [int]$statusCode = 0
                 [string]$responseBody = ""
 
-                # Extract HTTP status code and response body if available
-                if ($_.Exception.Response) {
-                    $statusCode = [int]$_.Exception.Response.StatusCode
+                # Extract HTTP status code and response body if available.
+                # Use PSObject.Properties to avoid Set-StrictMode errors when the exception
+                # type (e.g. HttpRequestException in .NET 6+) lacks a .Response property.
+                [object]$exResponse = if ($_.Exception.PSObject.Properties['Response']) { $_.Exception.Response } else { $null }
+                if ($null -ne $exResponse) {
+                    $statusCode = [int]$exResponse.StatusCode
                     
                     try {
-                        $streamReader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+                        $streamReader = [System.IO.StreamReader]::new($exResponse.GetResponseStream())
                         $responseBody = $streamReader.ReadToEnd()
                         $streamReader.Close()
                     }
                     catch {
                         # Could not read response body
                     }
+                }
+                elseif ($_.Exception.PSObject.Properties['StatusCode'] -and $null -ne $_.Exception.StatusCode) {
+                    # HttpRequestException in .NET 6+ exposes StatusCode directly
+                    $statusCode = [int]$_.Exception.StatusCode
                 }
 
                 # Determine if error is transient (retry-able)
@@ -552,6 +559,122 @@ function Update-AzDoWorkItem {
         }
         catch {
             Write-Error "Failed to update work item $WorkItemId : $($_.Exception.Message)"
+            throw
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Move a work item to a different parent (reparent)
+
+.DESCRIPTION
+Reparent an existing work item by removing its current parent relationship and establishing a new one.
+This enables moving work items between features, epics, or changing their position in the hierarchy.
+
+Changes parent by:
+1. Retrieving the current work item to find existing parent relation
+2. Removing the old System.LinkTypes.Hierarchy-Reverse relation (if exists)
+3. Adding a new System.LinkTypes.Hierarchy-Reverse relation to the new parent
+
+.PARAMETER Organization
+The Azure DevOps organization name
+
+.PARAMETER Project
+The project name
+
+.PARAMETER WorkItemId
+The work item ID to move
+
+.PARAMETER NewParentId
+The ID of the new parent work item
+
+.PARAMETER PatToken
+Optional PAT token. If not provided, retrieves from environment.
+
+.OUTPUTS
+Updated work item object with new parent relation
+
+.EXAMPLE
+$moved = Move-AzDoWorkItem -Organization "myorg" -Project "myproject" -WorkItemId 100 -NewParentId 50
+
+.NOTES
+- If the work item has no current parent, only a new parent link is added
+- If reparenting fails at any point, an exception is thrown
+#>
+function Move-AzDoWorkItem {
+    [CmdletBinding()]
+    [OutputType([object])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Organization,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Project,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WorkItemId,
+
+        [Parameter(Mandatory = $true)]
+        [int]$NewParentId,
+
+        [string]$PatToken
+    )
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($PatToken)) {
+            $PatToken = Get-AzDoPatToken -Decrypt
+        }
+
+        $headers = New-AzDoAuthHeader -PatToken $PatToken
+        $headers['Content-Type'] = 'application/json-patch+json'
+
+        $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId`?api-version=7.1-preview.3"
+
+        try {
+            # Get current work item to find existing parent relation
+            $currentItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $WorkItemId -PatToken $PatToken
+
+            $patchOps = @()
+
+            # Find and remove existing parent relation (System.LinkTypes.Hierarchy-Reverse)
+            if ($null -ne $currentItem.relations -and $currentItem.relations.Count -gt 0) {
+                $parentRelationIndex = -1
+                for ($i = 0; $i -lt $currentItem.relations.Count; $i++) {
+                    if ($currentItem.relations[$i].rel -eq 'System.LinkTypes.Hierarchy-Reverse') {
+                        $parentRelationIndex = $i
+                        break
+                    }
+                }
+
+                # If parent relation found, remove it
+                if ($parentRelationIndex -ge 0) {
+                    $patchOps += @{
+                        op   = 'remove'
+                        path = "/relations/$parentRelationIndex"
+                    }
+                }
+            }
+
+            # Add new parent relation
+            $newParentUrl = "https://dev.azure.com/$Organization/$Project/_apis/wit/workItems/$NewParentId"
+            $patchOps += @{
+                op    = 'add'
+                path  = '/relations/-'
+                value = @{
+                    rel        = 'System.LinkTypes.Hierarchy-Reverse'
+                    url        = $newParentUrl
+                    attributes = @{
+                        comment = 'linked as parent'
+                    }
+                }
+            }
+
+            # Apply PATCH operations
+            return Invoke-AzDoApiRequest -Uri $uri -Method 'Patch' -Headers $headers -Body $patchOps
+        }
+        catch {
+            ssLogIt.ps1 -Level Error -Message "Failed to move work item $WorkItemId to parent $NewParentId : $($_.Exception.Message)"
             throw
         }
     }

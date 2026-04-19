@@ -32,16 +32,16 @@ Parent process validates server health and displays exit status.
 
 .EXAMPLE
 Start MCP server on default port 8081:
-    .\tools\runMcpServerHttp.ps1
+    .\src\tools\runMcpServerHttp.ps1
 
 Start MCP server on custom port:
-    .\tools\runMcpServerHttp.ps1 -HttpPort 3000
+    .\src\tools\runMcpServerHttp.ps1 -HttpPort 3000
 
 Start with verbose logging:
-    .\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
+    .\src\tools\runMcpServerHttp.ps1 -HttpPort 8081 -Verbose
 
 Skip smoke tests:
-    .\tools\runMcpServerHttp.ps1 -HttpPort 8081 -NoSmokeTest
+    .\src\tools\runMcpServerHttp.ps1 -HttpPort 8081 -NoSmokeTest
 
 .NOTES
 - Requires the submodule Gmd.Tools.McpServerPs to be initialized
@@ -63,7 +63,7 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 # Resolve paths
-$scriptRoot = Split-Path -Path $PSScriptRoot -Parent
+$scriptRoot = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
 $configPath = Join-Path -Path $scriptRoot -ChildPath "src\mcpConfig.yaml"
 $runMcpServerScript = Join-Path -Path $scriptRoot -ChildPath "submodules\Gmd.Tools.McpServerPs\src\RunMcpServer.ps1"
 
@@ -132,8 +132,8 @@ Write-Host "🚀 Starting MCP Server in separate process..." -ForegroundColor Gr
 
 # Start process and capture it
 
-$scriptPath = Resolve-path "$PSScriptRoot/../submodules/Gmd.Tools.McpServerPs/src/RunMcpServer.ps1";
-$configPath = Resolve-path "$PSScriptRoot/../src/mcpConfig.yaml";
+$scriptPath = Resolve-path "$PSScriptRoot/../../submodules/Gmd.Tools.McpServerPs/src/RunMcpServer.ps1";
+$configPath = Resolve-path "$PSScriptRoot/../../src/mcpConfig.yaml";
 Start-Process -FilePath (Get-Command pwsh.exe).Path `
     -ArgumentList @("-File", 
     $scriptPath, 

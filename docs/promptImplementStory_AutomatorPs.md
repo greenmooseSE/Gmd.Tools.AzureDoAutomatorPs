@@ -39,11 +39,12 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 
 ## Documentation & Completion
 - Check if README.md needs updates based on implementation
-- Add ONE comment to the story with:
+- Add ONE comment in the story (at AzureDO) with:
   - Brief summary of what was implemented
   - Table of test files/methods that verify the AC Scenarios
 - Update existing comment instead of adding new ones
 - Do NOT commit changes (user must do this manually)
+- Validate and check items (✅) in both fields "Acceptance Criteria" and "AC Scenarios"
 
 ## Validation Checklist
 - [ ] All AC items are checked off in AzureDO story field (or marked as not implemented with explanation)
@@ -53,6 +54,7 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 - [ ] No test work items left behind (verified cleanup)
 - [ ] Created feature branch if on develop
 - [ ] README.md updated (if applicable)
+- [ ] mcpConfig.yaml updated (if applicable)
 - [ ] Story comment added with implementation summary and test table
 - [ ] All external-facing types/members have XML documentation comments
 - [ ] The functionality has been implemented and verified for  all work item types (epic/feature/story/task/bug), in all related scripts utilizing these types.

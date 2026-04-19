@@ -30,7 +30,25 @@ Cannot be used with -FailIfExist (these are mutually exclusive).
 Optional description for the Feature
 
 .PARAMETER Effort
-Optional effort value for the Feature (must be a non-negative integer)
+Optional effort value for the Feature (must be a non-negative number; decimals such as 0.5 are supported)
+
+.PARAMETER Priority
+Optional priority for the Feature (1-4, where 1 is highest priority)
+
+.PARAMETER OriginalEstimate
+Optional original estimate in hours (non-negative number) for time tracking
+
+.PARAMETER FixedIn
+Optional text field indicating the version or build where this Feature was fixed/completed
+
+.PARAMETER DeployedToDev
+Optional boolean indicating whether the Feature has been deployed to the Dev environment
+
+.PARAMETER DeployedToStaging
+Optional boolean indicating whether the Feature has been deployed to the Staging environment
+
+.PARAMETER DeployedToProduction
+Optional boolean indicating whether the Feature has been deployed to the Production environment
 
 .PARAMETER ParentEpicId
 Optional parent Epic work item ID. If provided, the Feature will be created as a child of this Epic (for create operations only).
@@ -83,7 +101,19 @@ param(
 
     [string]$Description,
 
-    [int]$Effort,
+    [double]$Effort,
+
+    [int]$Priority,
+
+    [double]$OriginalEstimate,
+
+    [string]$FixedIn,
+
+    [bool]$DeployedToDev,
+
+    [bool]$DeployedToStaging,
+
+    [bool]$DeployedToProduction,
 
     [int]$ParentEpicId,
 
@@ -126,7 +156,15 @@ if (-not $PSBoundParameters.ContainsKey('Id') -and [string]::IsNullOrWhiteSpace(
 }
 
 if ($PSBoundParameters.ContainsKey('Effort') -and $Effort -lt 0) {
-    Write-Error "Parameter 'Effort' must be a non-negative integer. Provided: $Effort"
+    Write-Error "Parameter 'Effort' must be a non-negative number. Provided: $Effort"
+}
+
+if ($PSBoundParameters.ContainsKey('Priority') -and ($Priority -lt 1 -or $Priority -gt 4)) {
+    Write-Error "Parameter 'Priority' must be between 1 and 4 (1=highest). Provided: $Priority"
+}
+
+if ($PSBoundParameters.ContainsKey('OriginalEstimate') -and $OriginalEstimate -lt 0) {
+    Write-Error "Parameter 'OriginalEstimate' must be a non-negative number. Provided: $OriginalEstimate"
 }
 
 # Get PAT token if not provided
@@ -163,8 +201,32 @@ try {
                 $updateFields[$script:FIELD_EFFORT] = $Effort
             }
 
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $updateFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $updateFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $updateFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, or Effort)."
+                Write-Error "At least one field must be provided for update (Title, Description, Effort, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, or DeployedToProduction)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -210,6 +272,30 @@ try {
                 $updateFields[$script:FIELD_EFFORT] = $Effort
             }
 
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $updateFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $updateFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $updateFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
+            }
+
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
             # But since we matched by title, we typically don't change it
             if ($updateFields.Count -eq 0) {
@@ -242,6 +328,30 @@ try {
 
             if ($PSBoundParameters.ContainsKey('Effort')) {
                 $createFields[$script:FIELD_EFFORT] = $Effort
+            }
+
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $createFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $createFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $createFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
             }
 
             # Validate parent Epic if specified

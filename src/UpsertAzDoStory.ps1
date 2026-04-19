@@ -39,7 +39,25 @@ Optional acceptance criteria scenarios for the Story
 Optional extra information for the Story
 
 .PARAMETER StoryPoints
-Optional story point value (must be a non-negative integer)
+Optional story point value (must be a non-negative number; decimals such as 0.5 are supported)
+
+.PARAMETER Priority
+Optional priority for the Story (1-4, where 1 is highest priority)
+
+.PARAMETER OriginalEstimate
+Optional original estimate in hours (non-negative number) for time tracking
+
+.PARAMETER FixedIn
+Optional text field indicating the version or build where this Story was fixed/completed
+
+.PARAMETER DeployedToDev
+Optional boolean indicating whether the Story has been deployed to the Dev environment
+
+.PARAMETER DeployedToStaging
+Optional boolean indicating whether the Story has been deployed to the Staging environment
+
+.PARAMETER DeployedToProduction
+Optional boolean indicating whether the Story has been deployed to the Production environment
 
 .PARAMETER ParentFeatureId
 Optional parent Feature work item ID. If provided, the Story will be created as a child of this Feature (for create operations only).
@@ -98,7 +116,19 @@ param(
 
     [string]$ExtraInformation,
 
-    [int]$StoryPoints,
+    [double]$StoryPoints,
+
+    [int]$Priority,
+
+    [double]$OriginalEstimate,
+
+    [string]$FixedIn,
+
+    [bool]$DeployedToDev,
+
+    [bool]$DeployedToStaging,
+
+    [bool]$DeployedToProduction,
 
     [int]$ParentFeatureId,
 
@@ -156,7 +186,15 @@ if (-not $PSBoundParameters.ContainsKey('Id') -and [string]::IsNullOrWhiteSpace(
 }
 
 if ($PSBoundParameters.ContainsKey('StoryPoints') -and $StoryPoints -lt 0) {
-    Write-Error "Parameter 'StoryPoints' must be a non-negative integer. Provided: $StoryPoints"
+    Write-Error "Parameter 'StoryPoints' must be a non-negative number. Provided: $StoryPoints"
+}
+
+if ($PSBoundParameters.ContainsKey('Priority') -and ($Priority -lt 1 -or $Priority -gt 4)) {
+    Write-Error "Parameter 'Priority' must be between 1 and 4 (1=highest). Provided: $Priority"
+}
+
+if ($PSBoundParameters.ContainsKey('OriginalEstimate') -and $OriginalEstimate -lt 0) {
+    Write-Error "Parameter 'OriginalEstimate' must be a non-negative number. Provided: $OriginalEstimate"
 }
 
 # Get PAT token if not provided
@@ -205,8 +243,32 @@ try {
                 $updateFields[$script:FIELD_STORY_POINTS] = $StoryPoints
             }
 
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $updateFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $updateFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $updateFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, AcceptanceCriteria, AcScenarios, ExtraInformation, or StoryPoints)."
+                Write-Error "At least one field must be provided for update (Title, Description, AcceptanceCriteria, AcScenarios, ExtraInformation, StoryPoints, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, or DeployedToProduction)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -264,6 +326,30 @@ try {
                 $updateFields[$script:FIELD_STORY_POINTS] = $StoryPoints
             }
 
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $updateFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $updateFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $updateFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
+            }
+
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
             # But since we matched by title, we typically don't change it
             if ($updateFields.Count -eq 0) {
@@ -308,6 +394,30 @@ try {
 
             if ($PSBoundParameters.ContainsKey('StoryPoints')) {
                 $createFields[$script:FIELD_STORY_POINTS] = $StoryPoints
+            }
+
+            if ($PSBoundParameters.ContainsKey('Priority')) {
+                $createFields[$script:FIELD_PRIORITY] = $Priority
+            }
+
+            if ($PSBoundParameters.ContainsKey('OriginalEstimate')) {
+                $createFields[$script:FIELD_ORIGINAL_ESTIMATE] = $OriginalEstimate
+            }
+
+            if ($PSBoundParameters.ContainsKey('FixedIn')) {
+                $createFields[$script:FIELD_FIXED_IN] = $FixedIn
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToDev')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_DEV] = $DeployedToDev
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToStaging')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_STAGING] = $DeployedToStaging
+            }
+
+            if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
+                $createFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
             }
 
             # Validate parent Feature if specified
