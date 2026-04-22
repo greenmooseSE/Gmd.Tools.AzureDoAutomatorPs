@@ -145,6 +145,20 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
     throw "Environment variable GMD_AZDO_PROJECT is not set"
 }
 
+# HTML-encodes < characters in rich-text field values that are NOT part of a standard HTML
+# element. AzDo description fields are stored as HTML; unknown tags like <FooBar> are stripped
+# by the sanitizer, so they must be sent as &lt;FooBar> to be displayed as literal text.
+# Recognised HTML elements (br, p, strong, em, …) are left untouched so they continue to
+# render correctly in the AzDo UI.
+function Encode-NonHtmlAngleBrackets {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+    # Standard HTML element names that must NOT be encoded.
+    [string]$htmlTagNames = 'a|abbr|address|article|aside|audio|b|blockquote|br|button|caption|cite|code|col|colgroup|dd|del|details|dfn|div|dl|dt|em|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|i|img|input|ins|kbd|label|legend|li|main|mark|menu|nav|ol|optgroup|option|p|pre|q|s|samp|section|select|small|source|span|strong|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|u|ul|var|video'
+    # Encode any < that is not the start of a recognised HTML opening or closing tag.
+    return $Text -replace "(?i)<(?!/?($htmlTagNames)(\s|>|/))", '&lt;'
+}
+
 # Helper function to normalize title for matching (strip version suffixes like "(001)")
 function Normalize-TitleForMatching {
     param(
@@ -168,7 +182,10 @@ function Get-WorkItemChangeState {
 
     function Normalize-HtmlValue {
         param([string]$Value)
-        # Strip HTML tags and decode basic entities for comparison
+        # Strip HTML tags and decode basic entities for comparison.
+        # AzDo returns rich-text fields as HTML; strip all tags for plain-text comparison.
+        # Angle-bracket identifiers (e.g. <StmtsDir>) are stored by AzDo as &lt;StmtsDir&gt;,
+        # so they survive the strip and are restored by the &lt; decode below.
         if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
         $stripped = $Value -replace '<[^>]+>', ''
         $stripped = $stripped -replace '&nbsp;', ' '
@@ -564,7 +581,7 @@ function Convert-HierarchyFeature {
     $feature = @{
         title              = $Item['title']
         workItemId         = $Item['workItemId']
-        description        = $Item['description']
+        description        = Encode-NonHtmlAngleBrackets $Item['description']
         effort             = $Item['effort']
         priority           = $Item['priority']
         originalEstimate   = $Item['originalEstimate']
@@ -593,11 +610,11 @@ function Convert-HierarchyStory {
     $story = @{
         title                = $Item['title']
         workItemId           = $Item['workItemId']
-        description          = $Item['description']
+        description          = Encode-NonHtmlAngleBrackets $Item['description']
         storyPoints          = $Item['storyPoints']
-        acceptanceCriteria   = $Item['acceptanceCriteria']
-        acScenarios          = $Item['acScenarios']
-        extraInformation     = $Item['extraInformation']
+        acceptanceCriteria   = Encode-NonHtmlAngleBrackets $Item['acceptanceCriteria']
+        acScenarios          = Encode-NonHtmlAngleBrackets $Item['acScenarios']
+        extraInformation     = Encode-NonHtmlAngleBrackets $Item['extraInformation']
         priority             = $Item['priority']
         originalEstimate     = $Item['originalEstimate']
         fixedIn              = $Item['fixedIn']
@@ -616,7 +633,7 @@ function Convert-HierarchyStory {
                 $story.tasks += @(@{
                     title            = $child['title']
                     workItemId       = $child['workItemId']
-                    description      = $child['description']
+                    description      = Encode-NonHtmlAngleBrackets $child['description']
                     priority         = $child['priority']
                     originalEstimate = $child['originalEstimate']
                     remainingWork    = $child['remainingWork']
@@ -629,7 +646,7 @@ function Convert-HierarchyStory {
                 $story.bugs += @(@{
                     title       = $child['title']
                     workItemId  = $child['workItemId']
-                    description = $child['description']
+                    description = Encode-NonHtmlAngleBrackets $child['description']
                     storyPoints = $child['storyPoints']
                     tags        = $bugTags
                 })
@@ -650,7 +667,7 @@ function Convert-WorkItemsToLegacyFormat {
             $epic = @{
                 title       = $item['title']
                 workItemId  = $item['workItemId']
-                description = $item['description']
+                description = Encode-NonHtmlAngleBrackets $item['description']
                 effort      = $item['effort']
                 tags        = $epicTags
                 features    = [array]@()

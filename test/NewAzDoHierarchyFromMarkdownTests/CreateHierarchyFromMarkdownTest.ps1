@@ -146,6 +146,48 @@ try {
         Record-Test -Scenario "Re-run updates existing items without duplication" -Passed $false -Details "Skipped - Scenario 1 failed"
         Write-Host "  ⚠ SKIPPED - Scenario 1 must pass first" -ForegroundColor Yellow
     }
+
+    # ============================================================================
+    # SCENARIO 3: Verify that angle-bracket tokens like <FooBar> survive in AzDo descriptions
+    # ============================================================================
+    Write-Host "`n[SCENARIO 3] Verify <FooBar> angle-bracket token survives in AzDo description" -ForegroundColor Yellow
+
+    if ($null -ne $createdEpicId) {
+        try {
+            $hierarchy3 = & "$SRC_DIR\GetAzDoHierarchyForEpic.ps1" `
+                -Organization $Organization `
+                -Project $Project `
+                -EpicId $createdEpicId `
+                -ErrorAction Stop
+
+            # The story description contains "<FooBar> angle-bracket token" (written by CreateTestMarkdown.ps1).
+            # AzDo stores the description as HTML; Encode-NonHtmlAngleBrackets sends &lt;FooBar> so AzDo
+            # persists the entity and returns it as &lt;FooBar> in the HTML field.
+            $story3 = $hierarchy3.Features[0].Stories[0]
+            [string]$storyDescHtml = $story3.Description
+
+            # Strip HTML tags to get plain text, then check for the literal token.
+            [string]$plainText = $storyDescHtml -replace '<[^>]+>', ''
+            $plainText = $plainText -replace '&lt;', '<'
+            $plainText = $plainText -replace '&gt;', '>'
+            $plainText = $plainText.Trim()
+
+            if ($plainText -notmatch [regex]::Escape('<FooBar>')) {
+                throw "Expected '<FooBar>' to be present in story description plain text but it was absent.`nPlain text: $plainText`nRaw HTML: $storyDescHtml"
+            }
+            Write-Host "  ✓ <FooBar> angle-bracket token is preserved in AzDo story description"
+
+            Record-Test -Scenario "Angle-bracket token <FooBar> survives in AzDo description" -Passed $true -Details "Plain text: $plainText"
+        }
+        catch {
+            Record-Test -Scenario "Angle-bracket token <FooBar> survives in AzDo description" -Passed $false -Details $_.ToString()
+            Write-Host "  ✗ FAILED: $_" -ForegroundColor Red
+        }
+    }
+    else {
+        Record-Test -Scenario "Angle-bracket token <FooBar> survives in AzDo description" -Passed $false -Details "Skipped - Scenario 1 failed"
+        Write-Host "  ⚠ SKIPPED - Scenario 1 must pass first" -ForegroundColor Yellow
+    }
 }
 finally {
     # Cleanup: remove test work items
