@@ -208,6 +208,7 @@ function Build-StoryBlock {
 **So that** $Benefit  
 
 Additional context for this story generated at $Seq.  
+<br /><FooBar> angle-bracket token for story $Seq.  
 
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
@@ -265,6 +266,7 @@ Repro steps for bug generated at $($Seq):
 1. Set up the precondition described above.  
 2. Trigger the action.  
 3. Observe unexpected behaviour.  
+<br /><FooBar> angle-bracket token for bug $($Seq).  
 
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |

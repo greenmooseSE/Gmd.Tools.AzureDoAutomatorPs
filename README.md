@@ -25,6 +25,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Markdown Hierarchy Workflow](#markdown-hierarchy-workflow)
 - [Markdown Hierarchy Template Generation](#markdown-hierarchy-template-generation)
 - [Creating Work Item Hierarchies from Markdown](#creating-work-item-hierarchies-from-markdown)
+- [Special Handling](#special-handling)
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
@@ -3083,6 +3084,24 @@ See [example-hierarchy.md](./example-hierarchy.md) for a complete, production-re
 - Real-world use cases (Customer Portal Redesign with authentication, ticketing, and knowledge base features)
 - Trailing 2 space characters for enforcing newlines in markdown
 - **Tasks under Stories** - Examples of leaf-level work items
+
+### Special Handling
+
+#### HTML Tags and Angle-Bracket Identifiers
+
+Azure DevOps stores description fields as HTML. Its sanitizer silently strips any tag it does not
+recognise — so `<FooBar>` written in a description would disappear. To prevent this,
+`NewAzDoHierarchyFromMarkdown.ps1` encodes every `<` that is **not** the start of a standard HTML
+element (`<br>`, `<p>`, `<strong>`, etc.) to `&lt;` before writing to Azure DevOps. Recognised
+HTML elements are left unchanged so they continue to render correctly in the Azure DevOps UI.
+
+When exporting a hierarchy from Azure DevOps to markdown (`ConvertHierarchyToMarkdown.ps1`), all
+`<` characters in field values are encoded as `&lt;`. This ensures that identifiers such as
+`<StmtsDir>` or `<AccountName>` that appear as literal text in descriptions are preserved visibly
+in markdown renderers instead of being silently hidden as unknown HTML tags.
+
+> Note: Only `<` is encoded on export; `>` at the start of a line is a markdown blockquote
+> character and is left unchanged.
 
 ### Creating Tasks Within Stories
 

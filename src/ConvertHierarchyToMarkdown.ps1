@@ -123,7 +123,13 @@ function Add-MarkdownLineBreaks {
     if ([string]::IsNullOrEmpty($Text)) {
         return ""
     }
-    
+
+    # Encode bare < as &lt; so tag-like identifiers (e.g. <StmtsDir>/path) display
+    # correctly in rendered markdown instead of being treated as hidden HTML tags.
+    # Only < is encoded; > is intentionally left as-is because > at the start of a
+    # line is a markdown blockquote and must not be changed to &gt;.
+    $Text = $Text -replace '<', '&lt;'
+
     # Split text by newlines
     $lines = $Text -split "`n"
     $result = @()

@@ -201,6 +201,7 @@ function Parse-MarkdownToWorkItems {
     [bool]$script:collectingCustomField = $false
     [string]$script:customFieldName = $null
     [array]$script:customFieldBuffer = @()
+    [bool]$script:isHashHeaderField = $false
     
     # Regex that matches a proper metadata line: **FieldName**: value  OR  **Description** (no colon)
     # This intentionally excludes bold text in descriptions like **As a** system administrator
@@ -269,16 +270,14 @@ function Parse-MarkdownToWorkItems {
             $script:collectingCustomField = $true
             $script:customFieldName = $specialSection
             $script:customFieldBuffer = @()
+            $script:isHashHeaderField = $true
         }
-        elseif ($null -ne $currentItem -and $line -match $metadataLineRegex) {
+        elseif ($null -ne $currentItem -and -not $script:collectingCustomField -and -not $collectingDescription -and $line -match $metadataLineRegex) {
             # Metadata line (e.g. **tags**: ..., **SP**: 5, **Description**)
-            # Finalize any pending custom field
-            if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
-                $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
-                $script:collectingCustomField = $false
-            }
-            
-            $collectingDescription = $false
+            # Only reached when not currently collecting a custom field or description content.
+            # Bold lines like **Foo**: bar inside descriptions/fields are caught by the collection
+            # branches below (collectingCustomField / collectingDescription), which fire when this
+            # block is excluded by the guard conditions.
             
             # Extract all metadata fields
             $workItemId = Get-MetadataField -Line $line -FieldName "WorkItemId"
@@ -339,8 +338,8 @@ function Parse-MarkdownToWorkItems {
             # Handle Description field
             if ($line -match '^\*\*Description\*\*') {
                 $collectingDescription = $true
-                # Description might continue on same line
-                if ($line -match '^\*\*Description\*\*\s+(.+)$') {
+                # Description might continue on same line: **Description** text  OR  **Description**: text
+                if ($line -match '^\*\*Description\*\*[\s:]+(.+)$') {
                     $descriptionBuffer += $Matches[1]
                 }
             }
@@ -356,13 +355,18 @@ function Parse-MarkdownToWorkItems {
                     $script:collectingCustomField = $true
                     $script:customFieldName = $fieldName
                     $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
+                    $script:isHashHeaderField = $false
                 }
             }
         }
         elseif ($null -ne $currentItem -and $script:collectingCustomField) {
-            # Collecting multi-line custom field value
-            if ($line -match $metadataLineRegex -or (Get-WorkItemInfo -Line $line)) {
-                # Hit next metadata or work item, finalize current custom field
+            # Collecting multi-line custom field value.
+            # For metadata-line custom fields (isHashHeaderField=false): a new metadata line ends
+            # this field and is reprocessed. For hash-header sections (Acceptance Criteria, AC
+            # Scenarios, Extra Information; isHashHeaderField=true): bold lines like **Foo**: bar
+            # are content and must not terminate collection.
+            if ($line -match $metadataLineRegex -and -not $script:isHashHeaderField) {
+                # Hit next metadata field – finalize current custom field and reprocess this line
                 $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
                 $script:collectingCustomField = $false
                 # This line will be reprocessed in next iteration
@@ -374,17 +378,11 @@ function Parse-MarkdownToWorkItems {
             }
         }
         elseif ($null -ne $currentItem -and $collectingDescription) {
-            # Part of description (until next proper metadata line or work item header)
-            if ($line -match $metadataLineRegex -or (Get-WorkItemInfo -Line $line)) {
-                # Hit next metadata or work item, finalize current description
-                $collectingDescription = $false
-                # This line will be reprocessed in next iteration
-                $lineNum--
-            }
-            else {
-                # Add to description (including blank lines and bold-formatted lines like **As a**)
-                $descriptionBuffer += $line
-            }
+            # Collecting description content.
+            # Bold-formatted lines like **Foo**: bar are treated as description content, NOT metadata.
+            # Only work item headers (handled above) or special-section headers (handled above)
+            # end description collection – no termination check needed here.
+            $descriptionBuffer += $line
         }
         elseif ($null -ne $currentItem -and -not [string]::IsNullOrWhiteSpace($line)) {
             # Non-metadata, non-header line outside description mode
