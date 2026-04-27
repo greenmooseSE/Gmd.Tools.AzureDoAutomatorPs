@@ -107,6 +107,8 @@ param(
 
     [int]$ParentStoryId,
 
+    [hashtable]$Fields,
+
     [switch]$FailIfExist,
 
     [string]$PatToken
@@ -120,6 +122,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+. "$PSScriptRoot/ValidateUpsertFields.ps1"
 
 # Apply environment variable defaults if parameters not provided
 if ([string]::IsNullOrWhiteSpace($Organization)) {
@@ -176,6 +179,14 @@ if ($PSBoundParameters.ContainsKey('CompletedWork') -and $CompletedWork -lt 0) {
     Write-Error "Parameter 'CompletedWork' must be a non-negative number. Provided: $CompletedWork"
 }
 
+# Validate -Fields and -State against appSettings.json config
+if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+    Assert-FieldsNotReadOnly -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_TASK -Fields $Fields
+}
+if ($PSBoundParameters.ContainsKey('State')) {
+    Assert-StateIsWritable -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_TASK -State $State
+}
+
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
@@ -197,6 +208,11 @@ try {
 
             # Update mode - update only provided fields
             $updateFields = @{}
+
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
 
             if ($PSBoundParameters.ContainsKey('Title')) {
                 $updateFields[$script:FIELD_SYSTEM_TITLE] = $Title
@@ -265,6 +281,11 @@ try {
             # Update mode: update the existing Task by ID
             $updateFields = @{}
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $updateFields[$script:FIELD_DESCRIPTION] = $Description
             }
@@ -313,6 +334,11 @@ try {
             # Task with this title does not exist, create new one
             $createFields = @{
                 $script:FIELD_SYSTEM_TITLE = $Title
+            }
+
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $createFields[$k] = $Fields[$k] }
             }
 
             if ($PSBoundParameters.ContainsKey('Description')) {

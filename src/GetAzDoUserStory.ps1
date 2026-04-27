@@ -149,6 +149,9 @@ try {
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
+        OriginalEstimate = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.OriginalEstimate') { $workItem.fields.'Microsoft.VSTS.Scheduling.OriginalEstimate' } else { $null }
+        RemainingWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.RemainingWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.RemainingWork' } else { $null }
+        CompletedWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.CompletedWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.CompletedWork' } else { $null }
         CustomFields = $customFields
     }
 

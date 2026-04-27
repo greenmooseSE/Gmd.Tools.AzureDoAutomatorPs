@@ -270,7 +270,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Config-driven field read and write in API operations (004)
 **WorkItemId**: 2616
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 3  
@@ -298,18 +298,18 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | GetAzDoWorkItem.ps1 returns AIImplemented, CodeReviewed, FunctionallyTested for a Feature work item |  |  |
-| ☐ | GetAzDoUserStory.ps1 returns OriginalEstimate, RemainingWork, CompletedWork, ACScenarios |  |  |
-| ☐ | GetAzDoBug.ps1 returns ReproSteps, SystemInfo, Severity, FoundIn |  |  |
-| ☐ | GetAzDoWorkItem.ps1 returns the current State value for any work item type |  |  |
-| ☐ | UpsertAzDoStory.ps1 -Fields parameter can set OriginalEstimate and RemainingWork |  |  |
-| ☐ | UpsertAzDoFeature.ps1 -Fields parameter can set AIImplemented and DeployedToDev |  |  |
-| ☐ | UpsertAzDoStory.ps1 -State parameter transitions a story to a writable state (e.g., "Under Development") |  |  |
-| ☐ | UpsertAzDoFeature.ps1 -State parameter transitions a feature to a writable state (e.g., "Active") |  |  |
-| ☐ | Passing a readOnly state (e.g., "Released") via -State causes a fail-fast error before any API call |  |  |
-| ☐ | Passing a readOnly field (e.g., System.CreatedDate) in -Fields causes a fail-fast error |  |  |
-| ☐ | Explicit parameters (e.g., -Title) take precedence over -Fields entries for the same field |  |  |
-| ☐ | Existing scripts calling Upsert without -Fields continue to work unchanged |  |  |
+| ✅ | GetAzDoWorkItem.ps1 returns AIImplemented, CodeReviewed, FunctionallyTested for a Feature work item |  |  |
+| ✅ | GetAzDoUserStory.ps1 returns OriginalEstimate, RemainingWork, CompletedWork, ACScenarios | GivenUserStoryWithTimeFields_WhenBuildingSubset |  |
+| ✅ | GetAzDoBug.ps1 returns ReproSteps, SystemInfo, Severity, FoundIn | GivenBugWithReproSteps_WhenEnriched |  |
+| ✅ | GetAzDoWorkItem.ps1 returns the current State value for any work item type |  |  |
+| ✅ | UpsertAzDoStory.ps1 -Fields parameter can set OriginalEstimate and RemainingWork |  |  |
+| ✅ | UpsertAzDoFeature.ps1 -Fields parameter can set AIImplemented and DeployedToDev |  |  |
+| ✅ | UpsertAzDoStory.ps1 -State parameter transitions a story to a writable state (e.g., "Under Development") |  |  |
+| ✅ | UpsertAzDoFeature.ps1 -State parameter transitions a feature to a writable state (e.g., "Active") |  |  |
+| ✅ | Passing a readOnly state (e.g., "Released") via -State causes a fail-fast error before any API call | GivenReadOnlyStateReleased_WhenValidating |  |
+| ✅ | Passing a readOnly field (e.g., System.CreatedDate) in -Fields causes a fail-fast error | GivenReadOnlyFieldSystemId_WhenValidating |  |
+| ✅ | Explicit parameters (e.g., -Title) take precedence over -Fields entries for the same field |  |  |
+| ✅ | Existing scripts calling Upsert without -Fields continue to work unchanged |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Read all custom fields from a Feature work item  
