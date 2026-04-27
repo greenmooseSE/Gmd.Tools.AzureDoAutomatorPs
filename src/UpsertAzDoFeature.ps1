@@ -117,6 +117,10 @@ param(
 
     [int]$ParentEpicId,
 
+    [hashtable]$Fields,
+
+    [string]$State,
+
     [switch]$FailIfExist,
 
     [string]$PatToken
@@ -130,6 +134,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+. "$PSScriptRoot/ValidateUpsertFields.ps1"
 
 # Validate ssLogIt.ps1 exists
 if (-not (Get-Command -Name 'ssLogIt.ps1' -ErrorAction SilentlyContinue)) {
@@ -167,6 +172,14 @@ if ($PSBoundParameters.ContainsKey('OriginalEstimate') -and $OriginalEstimate -l
     Write-Error "Parameter 'OriginalEstimate' must be a non-negative number. Provided: $OriginalEstimate"
 }
 
+# Validate -Fields and -State against appSettings.json config
+if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+    Assert-FieldsNotReadOnly -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_FEATURE -Fields $Fields
+}
+if ($PSBoundParameters.ContainsKey('State')) {
+    Assert-StateIsWritable -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_FEATURE -State $State
+}
+
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
@@ -188,6 +201,11 @@ try {
 
             # Update mode - update only provided fields
             $updateFields = @{}
+
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
 
             if ($PSBoundParameters.ContainsKey('Title')) {
                 $updateFields[$script:FIELD_SYSTEM_TITLE] = $Title
@@ -225,8 +243,12 @@ try {
                 $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
             }
 
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $updateFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, Effort, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, or DeployedToProduction)."
+                Write-Error "At least one field must be provided for update (Title, Description, Effort, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, DeployedToProduction, State, or -Fields)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -264,6 +286,11 @@ try {
             # Update mode: update the existing Feature by ID
             $updateFields = @{}
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $updateFields[$script:FIELD_DESCRIPTION] = $Description
             }
@@ -296,6 +323,10 @@ try {
                 $updateFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
             }
 
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $updateFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
             # But since we matched by title, we typically don't change it
             if ($updateFields.Count -eq 0) {
@@ -320,6 +351,11 @@ try {
             # Feature with this title does not exist, create new one
             $createFields = @{
                 $script:FIELD_SYSTEM_TITLE = $Title
+            }
+
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $createFields[$k] = $Fields[$k] }
             }
 
             if ($PSBoundParameters.ContainsKey('Description')) {
@@ -352,6 +388,10 @@ try {
 
             if ($PSBoundParameters.ContainsKey('DeployedToProduction')) {
                 $createFields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = $DeployedToProduction
+            }
+
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $createFields[$script:FIELD_SYSTEM_STATE] = $State
             }
 
             # Validate parent Epic if specified

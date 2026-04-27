@@ -108,6 +108,13 @@ try {
     $logMessage = "Successfully retrieved Bug: $bugTitle (ID: $BugId)"
     $null = & ssLogIt.ps1 -Level Info -Message "$logMessage"
 
+    # Add named properties for Bug-specific fields
+    $bug | Add-Member -NotePropertyName 'ReproSteps'  -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.TCM.ReproSteps') { $bug.fields.'Microsoft.VSTS.TCM.ReproSteps' } else { $null }) -Force
+    $bug | Add-Member -NotePropertyName 'SystemInfo'  -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.TCM.SystemInfo') { $bug.fields.'Microsoft.VSTS.TCM.SystemInfo' } else { $null }) -Force
+    $bug | Add-Member -NotePropertyName 'Severity'    -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.Severity') { $bug.fields.'Microsoft.VSTS.Common.Severity' } else { $null }) -Force
+    $bug | Add-Member -NotePropertyName 'FoundIn'     -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.FoundIn') { $bug.fields.'Microsoft.VSTS.Build.FoundIn' } else { $null }) -Force
+    $bug | Add-Member -NotePropertyName 'State'       -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'System.State') { $bug.fields.'System.State' } else { $null }) -Force
+
     return $bug
 }
 catch {
