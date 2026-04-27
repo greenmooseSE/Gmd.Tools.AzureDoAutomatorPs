@@ -1,0 +1,2 @@
+* Prefer end-to-end, self-contained stories.
+* Avoid "infrastructure-only" stories: when an AI agent proposes work-items, prefer the smallest, simplest change needed to enable the feature. Each story should add the minimal scope and be independently verifiable via automated tests and BDD scenarios.

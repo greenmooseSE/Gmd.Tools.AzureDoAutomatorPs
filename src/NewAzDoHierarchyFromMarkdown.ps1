@@ -206,9 +206,15 @@ function Get-WorkItemChangeState {
         return 'Create'
     }
 
+    # AzDo omits null/unset fields from its JSON response, so $ExistingItem.fields is a
+    # PSCustomObject where accessing a missing property throws. Convert to a hashtable so
+    # that missing keys naturally return $null instead.
+    $existingFields = @{}
+    $ExistingItem.fields.PSObject.Properties | ForEach-Object { $existingFields[$_.Name] = $_.Value }
+
     foreach ($fieldName in $MarkdownFields.Keys) {
         $markdownValue = $MarkdownFields[$fieldName]
-        $azDoValue = $ExistingItem.fields.$fieldName
+        $azDoValue = $existingFields[$fieldName]
 
         # Treat $null and empty string as equivalent
         [string]$normalizedMarkdown = if ($null -eq $markdownValue) { '' } else { [string]$markdownValue }
