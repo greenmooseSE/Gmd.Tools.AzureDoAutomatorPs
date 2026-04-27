@@ -82,6 +82,8 @@ param(
 
     [string]$State,
 
+    [string]$AssignedTo,
+
     [switch]$FailIfExist,
 
     [string]$PatToken
@@ -153,6 +155,12 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
 }
 
+# Resolve -AssignedTo email to identity before any API call
+[object]$resolvedIdentity = $null
+if ($PSBoundParameters.ContainsKey('AssignedTo') -and -not [string]::IsNullOrWhiteSpace($AssignedTo)) {
+    $resolvedIdentity = & "$PSScriptRoot/ResolveAzDoIdentity.ps1" -Organization $Organization -Email $AssignedTo -PatToken $PatToken
+}
+
 try {
     # Check if -Id was provided (determine create vs update)
     if ($PSBoundParameters.ContainsKey('Id')) {
@@ -191,8 +199,12 @@ try {
                 $updateFields[$script:FIELD_SYSTEM_STATE] = $State
             }
 
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, Effort, State, or -Fields)."
+                Write-Error "At least one field must be provided for update (Title, Description, Effort, State, AssignedTo, or -Fields)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -247,6 +259,10 @@ try {
                 $updateFields[$script:FIELD_SYSTEM_STATE] = $State
             }
             
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
+            }
+
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
             # But since we matched by title, we typically don't change it
             if ($updateFields.Count -eq 0) {
@@ -288,6 +304,10 @@ try {
 
             if ($PSBoundParameters.ContainsKey('State')) {
                 $createFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
+            if ($null -ne $resolvedIdentity) {
+                $createFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
             }
 
             $logMessage = "Creating new Epic with title ::FgGreen::$Title::FgDefault::"

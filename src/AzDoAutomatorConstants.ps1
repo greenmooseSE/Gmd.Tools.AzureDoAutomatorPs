@@ -51,6 +51,7 @@ $ErrorActionPreference = 'Stop'
 [string]$script:FIELD_SYSTEM_AREA = 'System.AreaPath'
 [string]$script:FIELD_SYSTEM_ITERATION = 'System.IterationPath'
 [string]$script:FIELD_SYSTEM_TAGS = 'System.Tags'
+[string]$script:FIELD_SYSTEM_ASSIGNED_TO = 'System.AssignedTo'
 
 # Description and content fields
 [string]$script:FIELD_DESCRIPTION = 'System.Description'
