@@ -409,5 +409,36 @@ and manage connected applications.
 "@
 }
 
+# Append field reference section from appSettings.json
+[string]$appSettingsPath = Join-Path $PSScriptRoot '../appSettings.json'
+if (-not (Test-Path $appSettingsPath)) {
+    $appSettingsPath = Join-Path $PSScriptRoot 'appSettings.json'
+}
+if (Test-Path $appSettingsPath) {
+    try {
+        $cfg = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
+        $fieldRef = "`n`n# ===== SUPPORTED FIELDS REFERENCE =====`n"
+        $fieldRef += "# All writable fields available via -Fields hashtable, keyed by referenceName.`n"
+        foreach ($org in $cfg.organizations.PSObject.Properties) {
+            foreach ($proj in $org.Value.projects.PSObject.Properties) {
+                $fieldsByType = $proj.Value.fields
+                if ($null -eq $fieldsByType) { continue }
+                foreach ($wiType in $fieldsByType.PSObject.Properties) {
+                    $writableFields = @($wiType.Value | Where-Object { $_.readOnly -ne $true })
+                    if ($writableFields.Count -eq 0) { continue }
+                    $fieldRef += "`n# $($wiType.Name) fields:`n"
+                    foreach ($f in $writableFields) {
+                        $typeHint = if ($f.PSObject.Properties.Name -contains 'type') { $f.type } else { 'string' }
+                        $fieldRef += "#   $($f.label) ($($f.referenceName)) [$typeHint]`n"
+                    }
+                }
+            }
+        }
+        $template += $fieldRef
+    } catch {
+        # Field reference generation is best-effort; do not fail the template output
+    }
+}
+
 # Output to stdout
 $template

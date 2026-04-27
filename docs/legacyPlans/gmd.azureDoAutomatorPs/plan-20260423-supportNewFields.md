@@ -366,7 +366,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Update MCP config and template generator for all supported fields (005)
 **WorkItemId**: 2617
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 1  
@@ -390,11 +390,11 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | mcpConfig.yaml upsert-story command includes a Fields parameter of type object |  |  |
-| ☐ | mcpConfig.yaml upsert-feature command description mentions AIImplemented, DeployedToDev, FixedIn |  |  |
-| ☐ | mcpConfig.yaml upsert-bug command description mentions ReproSteps, SystemInfo, Severity |  |  |
-| ☐ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output lists all writable fields per work item type |  |  |
-| ☐ | Every writable field in appSettings.json for a work item type is mentioned in the corresponding MCP Upsert command description |  |  |
+| ✅ | mcpConfig.yaml upsert-story command includes a Fields parameter of type object | GivenMcpConfig_WhenReadUpsertStory_ItShouldHaveFieldsParameter |  |
+| ✅ | mcpConfig.yaml upsert-feature command description mentions AIImplemented, DeployedToDev, FixedIn | GivenMcpConfig_WhenReadUpsertFeatureDescription_* |  |
+| ✅ | mcpConfig.yaml upsert-bug command description mentions ReproSteps, SystemInfo, Severity | GivenMcpConfig_WhenReadUpsertBugDescription_* |  |
+| ✅ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output lists all writable fields per work item type | GivenTemplate_WhenGenerated_ItShouldListAllWritableFieldsForUserStory |  |
+| ✅ | Every writable field in appSettings.json for a work item type is mentioned in the corresponding MCP Upsert command description | GivenTemplate_WhenGenerated_ItShouldListAllWritableFieldsForUserStory |  |
 
 #### AC Scenarios
 1. **Scenario**: MCP client discovers writable fields for upsert-story  
