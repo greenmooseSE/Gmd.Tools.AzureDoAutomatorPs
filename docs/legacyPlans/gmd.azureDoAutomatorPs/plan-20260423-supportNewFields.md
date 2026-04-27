@@ -188,7 +188,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Config-driven field parsing and generation in markdown workflow (003)
 **WorkItemId**: 2615
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 3  
@@ -217,15 +217,15 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | Boolean field `**AI Implemented**: true` is parsed to a boolean true value in JSON |  |  |
-| ☐ | Double field `**Original Estimate**: 8` is parsed to numeric 8.0 in JSON |  |  |
-| ☐ | String field `**Fixed In**: v2.1.0` is parsed to string "v2.1.0" in JSON |  |  |
+| ✅ | Boolean field `**AI Implemented**: true` is parsed to a boolean true value in JSON |  |  |
+| ✅ | Double field `**Original Estimate**: 8` is parsed to numeric 8.0 in JSON |  |  |
+| ✅ | String field `**Fixed In**: v2.1.0` is parsed to string "v2.1.0" in JSON |  |  |
 | ☐ | HTML field `**Extra Information**` followed by multiline content is captured as HTML string |  |  |
-| ☐ | ReadOnly fields (e.g., WorkItemId) are parsed from markdown but not included in API write payloads |  |  |
-| ☐ | Unknown field labels (not in config) produce a warning but do not cause script failure |  |  |
-| ☐ | ConvertHierarchyToMarkdown.ps1 outputs all populated fields using configured labels |  |  |
-| ☐ | Field output order in generated markdown follows the order defined in appSettings.json |  |  |
-| ☐ | Markdown files without appSettings.json-defined fields are still parsed correctly (backward compatible) |  |  |
+| ✅ | ReadOnly fields (e.g., WorkItemId) are parsed from markdown but not included in API write payloads |  |  |
+| ✅ | Unknown field labels (not in config) produce a warning but do not cause script failure |  |  |
+| ✅ | ConvertHierarchyToMarkdown.ps1 outputs all populated fields using configured labels |  |  |
+| ✅ | Field output order in generated markdown follows the order defined in appSettings.json |  |  |
+| ✅ | Markdown files without appSettings.json-defined fields are still parsed correctly (backward compatible) |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Parse Feature markdown with all custom boolean fields  

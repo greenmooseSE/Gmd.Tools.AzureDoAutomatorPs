@@ -268,6 +268,47 @@ function Resolve-ExistingWorkItemId {
     return $null
 }
 
+# Maps config-field reference names to corresponding Upsert script parameter names.
+# Fields not listed here are not yet supported by existing Upsert scripts (Story 004 adds generic -Fields).
+$script:_cfgToUpsertParam = @{
+    'Microsoft.VSTS.Scheduling.OriginalEstimate' = 'OriginalEstimate'
+    'Microsoft.VSTS.Scheduling.StoryPoints'      = 'StoryPoints'
+    'Microsoft.VSTS.Scheduling.Effort'           = 'Effort'
+    'Custom.FixedIn'                             = 'FixedIn'
+    'Custom.DeployedToDev'                       = 'DeployedToDev'
+    'Custom.DeployedToStaging'                   = 'DeployedToStaging'
+    'Custom.DeployedToProduction'                = 'DeployedToProduction'
+}
+
+<#
+.SYNOPSIS
+Merges writable configFields from a parsed work item into the Upsert params hashtable.
+Only fields with known Upsert param names are transferred; others are logged as unsupported.
+An existing param value (set by explicit named property handling) is never overridden.
+#>
+function Merge-ConfigFieldsToParams {
+    param([hashtable]$Params, [object]$Item)
+
+    $cfgFields = $null
+    if ($Item -is [hashtable] -and $Item.ContainsKey('configFields')) {
+        $cfgFields = $Item['configFields']
+    } elseif ($Item.PSObject.Properties.Name -contains 'configFields') {
+        $cfgFields = $Item.configFields
+    }
+    if ($null -eq $cfgFields -or $cfgFields.Count -eq 0) { return }
+
+    foreach ($refName in $cfgFields.Keys) {
+        $paramName = $script:_cfgToUpsertParam[$refName]
+        if ([string]::IsNullOrWhiteSpace($paramName)) {
+            $null = & ssLogIt.ps1 -Level Debug -Message "configField '$refName' has no Upsert param mapping yet; skipped (Story 004 will add generic -Fields support)."
+            continue
+        }
+        if (-not $Params.ContainsKey($paramName)) {
+            $Params[$paramName] = $cfgFields[$refName]
+        }
+    }
+}
+
 # Builds the field comparison hashtable for an Epic from its markdown representation.
 function Get-EpicMarkdownFields {
     param([object]$Epic)
@@ -1031,6 +1072,8 @@ try {
             if ($null -ne $feature.deployedToProduction) {
                 $featureParams['DeployedToProduction'] = $feature.deployedToProduction
             }
+            # Merge config-driven fields from configFields into featureParams
+            Merge-ConfigFieldsToParams -Params $featureParams -Item $feature
 
             # Skip upsert when item exists and content is identical
             [bool]$shouldUpsertFeature = $true
@@ -1124,6 +1167,8 @@ try {
                     if ($null -ne $story.deployedToProduction) {
                         $storyParams['DeployedToProduction'] = $story.deployedToProduction
                     }
+                    # Merge config-driven fields from configFields into storyParams
+                    Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                     $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
                     $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
@@ -1172,6 +1217,8 @@ try {
                     if ($null -ne $story.deployedToProduction) {
                         $storyParams['DeployedToProduction'] = $story.deployedToProduction
                     }
+                    # Merge config-driven fields from configFields into storyParams
+                    Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                     # Check if there are any fields to update (beyond the standard org/project/id/token)
                     $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
@@ -1299,6 +1346,8 @@ try {
         if ($null -ne $feature.deployedToProduction) {
             $featureParams['DeployedToProduction'] = $feature.deployedToProduction
         }
+        # Merge config-driven fields from configFields into featureParams
+        Merge-ConfigFieldsToParams -Params $featureParams -Item $feature
 
         if ($PSBoundParameters.ContainsKey('EpicId')) {
             $featureParams['ParentEpicId'] = $EpicId
@@ -1393,6 +1442,8 @@ try {
                 if ($null -ne $story.deployedToProduction) {
                     $storyParams['DeployedToProduction'] = $story.deployedToProduction
                 }
+                # Merge config-driven fields from configFields into storyParams
+                Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                 $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
                 $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
@@ -1441,6 +1492,8 @@ try {
                 if ($null -ne $story.deployedToProduction) {
                     $storyParams['DeployedToProduction'] = $story.deployedToProduction
                 }
+                # Merge config-driven fields from configFields into storyParams
+                Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                 $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
                 $storyChangeState = Get-WorkItemChangeState -MarkdownFields (Get-StoryMarkdownFields -Story $story) -ExistingItem $existingStory
