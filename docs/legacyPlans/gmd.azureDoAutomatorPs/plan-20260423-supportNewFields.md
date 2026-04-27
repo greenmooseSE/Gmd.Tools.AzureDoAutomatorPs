@@ -57,7 +57,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Create unified appSettings.json with field and state definitions (001)
 **WorkItemId**: 2613
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 2  
@@ -89,18 +89,18 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | appSettings.json exists at repo root and validates against expected schema |  |  |
-| ☐ | Field definitions for Epic contain at least 15 fields including System.Id |  |  |
-| ☐ | Field definitions for Feature include all Custom.* fields (AIImplemented, CodeReviewed, FunctionallyTested, DeployedToDev, DeployedToStaging, DeployedToProduction, ExtraInformation, FeatureAcceptanceTests, FixedIn) |  |  |
-| ☐ | Field definitions for User Story include ACScenarios, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork |  |  |
-| ☐ | Field definitions for Bug include ReproSteps, SystemInfo, FoundIn, Severity |  |  |
-| ☐ | Field definitions for Task include Activity, OriginalEstimate, RemainingWork, CompletedWork |  |  |
-| ☐ | Each field object contains referenceName, label, description, type, and readOnly properties |  |  |
-| ☐ | State definitions for each work item type match the REST API states with correct readOnly flags |  |  |
-| ☐ | States in "Completed" and "Removed" categories are marked readOnly: true |  |  |
-| ☐ | LoadStateConfiguration.ps1 reads writable states from appSettings.json grouped by org/project |  |  |
-| ☐ | LoadStateConfiguration.ps1 falls back to legacy azdoStateConfig file when appSettings.json is absent |  |  |
-| ☐ | System.Id is present as a readOnly field in every work item type with label "WorkItemId" |  |  |
+| ✅ | appSettings.json exists at repo root and validates against expected schema | `appSettings.json exists at repo root`, `appSettings.json is valid JSON` |  |
+| ✅ | Field definitions for Epic contain at least 15 fields including System.Id | `Epic field list has at least 15 entries including System.Id` |  |
+| ✅ | Field definitions for Feature include all Custom.* fields (AIImplemented, CodeReviewed, FunctionallyTested, DeployedToDev, DeployedToStaging, DeployedToProduction, ExtraInformation, FeatureAcceptanceTests, FixedIn) | `Feature field list contains all required Custom.* fields` |  |
+| ✅ | Field definitions for User Story include ACScenarios, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork | `User Story field list contains ...` |  |
+| ✅ | Field definitions for Bug include ReproSteps, SystemInfo, FoundIn, Severity | `Bug field list contains ReproSteps, SystemInfo, FoundIn, Severity` |  |
+| ✅ | Field definitions for Task include Activity, OriginalEstimate, RemainingWork, CompletedWork | `Task field list contains Activity, OriginalEstimate, RemainingWork, CompletedWork` |  |
+| ✅ | Each field object contains referenceName, label, description, type, and readOnly properties | `every field object has referenceName, label, description, type, and readOnly` |  |
+| ✅ | State definitions for each work item type match the REST API states with correct readOnly flags | `state definitions exist for all five work item types`, `Feature Released and Removed are readOnly; New is not` |  |
+| ✅ | States in "Completed" and "Removed" categories are marked readOnly: true | `states in Completed and Removed categories have readOnly true` |  |
+| ✅ | LoadStateConfiguration.ps1 reads writable states from appSettings.json grouped by org/project | `GivenAppSettingsJson_WhenLoadingStates_ItShouldReturnWritableStatesForAllTypes` |  |
+| ✅ | LoadStateConfiguration.ps1 falls back to legacy azdoStateConfig file when appSettings.json is absent | `GivenNoAppSettingsJson_WhenLegacyFileExists_ItShouldLoadFromLegacyFile` |  |
+| ✅ | System.Id is present as a readOnly field in every work item type with label "WorkItemId" | `System.Id is readOnly integer with label WorkItemId for every work item type` |  |
 
 #### AC Scenarios
 1. **Scenario**: Load field definitions for User Story from appSettings.json  

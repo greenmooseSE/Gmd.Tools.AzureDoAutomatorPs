@@ -3,25 +3,16 @@
 Load and cache state configuration from JSON files scoped by organization and project
 
 .DESCRIPTION
-Loads state configuration from repository root using organization and project naming pattern.
-Configuration defines which states are writable for each work item type.
+Loads state configuration from repository root. Supports two configuration formats:
+
+1. Unified appSettings.json (preferred): organizations.{org}.projects.{project}.states.{WorkItemType}
+   Contains state objects with name, category, and readOnly flag.
+   States in "Completed" or "Removed" categories are readOnly; all others are writable.
+
+2. Legacy azdoStateConfig-{org}-{project}.json (fallback when appSettings.json is absent):
+   Contains a writableStates hashtable mapping work item type to list of writable state names.
+
 Results are cached in memory to avoid repeated file I/O.
-
-Configuration file format: azdoStateConfig-{organization}-{project}.json
-Example filename: azdoStateConfig-falco-it-GMD.json
-
-If configuration file is missing, sensible defaults are applied.
-
-Configuration structure:
-{
-  "writableStates": {
-    "Epic": ["New", "Active"],
-    "Feature": ["New", "Active", "Closed"],
-    "Story": ["New", "Active", "Done"],
-    "Task": ["New", "Active", "Closed"],
-    "Bug": ["New", "Active", "Closed"]
-  }
-}
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -41,15 +32,14 @@ PSObject with structure:
   @{
     writableStates = @{
       "Epic" = @("New", "Active")
-      "Feature" = @("New", "Active", "Closed")
-      "Story" = @("New", "Active", "Done")
-      "Task" = @("New", "Active", "Closed")
-      "Bug" = @("New", "Active", "Closed")
+      "Feature" = @("New", "Active", "Planning")
+      "Story" = @("New", "Design", "Under Development")
+      "Task" = @("New", "Active")
+      "Bug" = @("New", "Under Development")
     }
   }
 
 .EXAMPLE
-# Load configuration for organization and project
 $config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD"
 $writableStates = $config.writableStates
 $epicStates = $writableStates.Epic
@@ -62,9 +52,9 @@ $config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -
 
 .NOTES
 - First load caches configuration in memory via script scope variable
-- Returns defaults if configuration file is missing
+- Prefers appSettings.json; falls back to legacy azdoStateConfig file when absent
+- Returns built-in defaults if neither configuration file is present
 - Configuration files should be stored in version control
-- Support for environment variable overrides via future enhancement
 #>
 
 #Requires -Version 7.0
@@ -114,6 +104,50 @@ function Get-DefaultStateConfiguration {
     }
 }
 
+function ConvertFrom-AppSettingsStates {
+    <#
+    .SYNOPSIS
+    Converts appSettings.json state definitions for an org/project into writableStates hashtable.
+    Returns $null if the org/project path is not found in the provided settings object.
+    #>
+    param(
+        [object]$AppSettings,
+        [string]$Organization,
+        [string]$Project
+    )
+
+    $orgEntry = $AppSettings.organizations.$Organization
+    if ($null -eq $orgEntry) {
+        return $null
+    }
+
+    $projectEntry = $orgEntry.projects.$Project
+    if ($null -eq $projectEntry) {
+        return $null
+    }
+
+    $statesDef = $projectEntry.states
+    if ($null -eq $statesDef) {
+        return $null
+    }
+
+    $writableStates = @{}
+    $statesDef.PSObject.Properties | ForEach-Object {
+        $workItemType = $_.Name
+        $stateObjects = $_.Value
+        $writableList = @($stateObjects | Where-Object { $_.readOnly -eq $false } | ForEach-Object { $_.name })
+        # Normalize key: appSettings uses "User Story" but legacy uses "Story" — keep both names to preserve compat
+        $writableStates[$workItemType] = $writableList
+    }
+
+    # Add "Story" alias if "User Story" is defined (legacy callers may use "Story" as the key)
+    if ($writableStates.ContainsKey('User Story') -and -not $writableStates.ContainsKey('Story')) {
+        $writableStates['Story'] = $writableStates['User Story']
+    }
+
+    return @{ writableStates = $writableStates }
+}
+
 function Invoke-LoadStateConfiguration {
     [CmdletBinding()]
     param(
@@ -124,33 +158,50 @@ function Invoke-LoadStateConfiguration {
     )
 
     $cacheKey = "$Organization-$Project"
-    
+
     # Check cache first
     if (-not $SkipCache -and $script:_StateConfigurationCache.ContainsKey($cacheKey)) {
         ssLogIt.ps1 -Level Debug -Message "Configuration for $Organization/$Project found in cache"
         return $script:_StateConfigurationCache[$cacheKey]
     }
 
-    # Build configuration filename
+    # --- Attempt 1: read from unified appSettings.json ---
+    $appSettingsPath = Join-Path $RepositoryRoot 'appSettings.json'
+    if (Test-Path -Path $appSettingsPath) {
+        ssLogIt.ps1 -Level Debug -Message "Found appSettings.json at $appSettingsPath; attempting to load state config from it"
+        try {
+            $appSettingsContent = Get-Content -Path $appSettingsPath -Raw -Encoding UTF8 -ErrorAction Stop
+            $appSettings = $appSettingsContent | ConvertFrom-Json -ErrorAction Stop
+            $config = ConvertFrom-AppSettingsStates -AppSettings $appSettings -Organization $Organization -Project $Project
+            if ($null -ne $config) {
+                ssLogIt.ps1 -Level Info -Message "State configuration loaded from appSettings.json for $Organization/$Project"
+                $script:_StateConfigurationCache[$cacheKey] = $config
+                return $config
+            }
+            ssLogIt.ps1 -Level Debug -Message "appSettings.json does not contain state definitions for $Organization/$Project; falling back"
+        }
+        catch {
+            ssLogIt.ps1 -Level Debug -Message "Failed to parse appSettings.json: $_. Falling back to legacy config."
+        }
+    }
+
+    # --- Attempt 2: read from legacy azdoStateConfig-{org}-{project}.json ---
     $configFileName = "azdoStateConfig-$Organization-$Project.json"
     $configFilePath = Join-Path $RepositoryRoot $configFileName
 
-    # Check if configuration file exists
     if (Test-Path -Path $configFilePath) {
         ssLogIt.ps1 -Level Info -Message "Loading state configuration from $configFilePath"
-        
+
         try {
             $configContent = Get-Content -Path $configFilePath -Raw -Encoding UTF8 -ErrorAction Stop
             $config = $configContent | ConvertFrom-Json -ErrorAction Stop
-            
-            # Validate configuration structure
+
             if ($null -eq $config.writableStates) {
                 throw "Configuration is missing 'writableStates' property"
             }
-            
+
             ssLogIt.ps1 -Level Info -Message "State configuration loaded successfully from $configFileName"
-            
-            # Cache the configuration
+
             $script:_StateConfigurationCache[$cacheKey] = $config
             return $config
         }
@@ -159,15 +210,13 @@ function Invoke-LoadStateConfiguration {
             throw
         }
     }
-    else {
-        # File not found, use defaults
-        ssLogIt.ps1 -Level Info -Message "Configuration file $configFileName not found at $RepositoryRoot. Applying sensible defaults."
-        $config = Get-DefaultStateConfiguration
-        
-        # Cache the default configuration
-        $script:_StateConfigurationCache[$cacheKey] = $config
-        return $config
-    }
+
+    # --- Attempt 3: built-in defaults ---
+    ssLogIt.ps1 -Level Info -Message "No configuration found for $Organization/$Project at $RepositoryRoot. Applying sensible defaults."
+    $config = Get-DefaultStateConfiguration
+
+    $script:_StateConfigurationCache[$cacheKey] = $config
+    return $config
 }
 
 # Main execution
