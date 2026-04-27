@@ -141,7 +141,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Rename "SP" markdown label to "Story Points" (002)
 **WorkItemId**: 2614
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 0.5  
@@ -163,11 +163,11 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | ConvertMarkdownToHierarchyJson.ps1 parses `**Story Points**: 5` and produces the correct JSON property |  |  |
-| ☐ | ConvertHierarchyToMarkdown.ps1 outputs `**Story Points**: {value}` instead of `**SP**: {value}` |  |  |
-| ☐ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output references "Story Points" and not "SP" |  |  |
-| ☐ | NewAzDoHierarchyFromMarkdown.ps1 passes the parsed Story Points value to the Upsert script |  |  |
-| ☐ | No occurrences of `**SP**:` remain in any .ps1 or .md file in the repository (except legacy plan files) |  |  |
+| ✅ | ConvertMarkdownToHierarchyJson.ps1 parses `**Story Points**: 5` and produces the correct JSON property |  |  |
+| ✅ | ConvertHierarchyToMarkdown.ps1 outputs `**Story Points**: {value}` instead of `**SP**: {value}` |  |  |
+| ✅ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output references "Story Points" and not "SP" |  |  |
+| ✅ | NewAzDoHierarchyFromMarkdown.ps1 passes the parsed Story Points value to the Upsert script |  |  |
+| ✅ | No occurrences of `**SP**:` remain in any .ps1 or .md file in the repository (except legacy plan files) |  |  |
 
 #### AC Scenarios
 1. **Scenario**: Parse markdown with "Story Points" label  

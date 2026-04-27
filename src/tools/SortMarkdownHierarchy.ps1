@@ -221,7 +221,7 @@ function Format-ItemAsMarkdown {
 
     # SP (story points — for stories)
     if ($null -ne $Item['storyPoints']) {
-        [void]$sb.AppendLine("**SP**: $($Item['storyPoints'])")
+        [void]$sb.AppendLine("**Story Points**: $($Item['storyPoints'])")
     }
 
     # Effort (for epics/features)

@@ -31,7 +31,7 @@ The feature consists of four main components: export, configuration management, 
 ### Story: (001) Implement State Configuration Schema and Loader
 
 **tags**: azdoExportImport, configuration  
-**SP**: 3  
+**Story Points**: 3  
 **Description**  
 **As a** system maintainer    
 **I want** to load and validate state configuration from JSON files scoped by organization and project    
@@ -101,7 +101,7 @@ azdoStateConfig-falco-it-GMD.json:
 ### Story: (002) Support State Field in Export with Writable State Validation
 
 **tags**: azdoExportImport, configuration, export  
-**SP**: 3  
+**Story Points**: 3  
 **Description**  
 **As a** user    
 **I want** exported work items to include their current state and only allow modification if the state is in the writable states list    
@@ -147,7 +147,7 @@ The export functionality must include state information in markdown metadata and
 ### Story: (003) Export Hierarchy to Markdown with WorkItemId Preservation
 
 **tags**: azdoExportImport, export  
-**SP**: 5  
+**Story Points**: 5  
 **Description**  
 **As a** user    
 **I want** to export a complete hierarchy starting from any work item with all child work items, preserving work item IDs in the markdown    
@@ -198,7 +198,7 @@ Extend `ExportAzDoHierarchy.ps1` to include WorkItemId in metadata and ensure al
 ### Story: (004) Support Custom Fields and Extended Metadata in Export
 
 **tags**: azdoExportImport, export, customFields  
-**SP**: 3  
+**Story Points**: 3  
 **Description**  
 **As a** user    
 **I want** custom fields to be included in the export so that all relevant work item information is available for modification    
@@ -229,7 +229,7 @@ Extend export to capture custom field values defined in Azure DevOps.
 ### Story: (005) Parse Modified Markdown and Reconstruct Work Item Tree
 
 **tags**: azdoExportImport, reimport, parse  
-**SP**: 4  
+**Story Points**: 4  
 **Description**  
 **As a** system    
 **I want** to parse markdown that has been edited and reconstruct the work item hierarchy tree with all changes    
@@ -278,7 +278,7 @@ Build a robust parser that handles markdown created and edited by humans, preser
 ### Story: (006) Detect and Validate Changes Between Original and Modified Hierarchies
 
 **tags**: azdoExportImport, reimport, changeDiff  
-**SP**: 5  
+**Story Points**: 5  
 **Description**  
 **As a** system    
 **I want** to compare original exported hierarchy with modified markdown and detect exactly which fields changed for each work item    
@@ -333,7 +333,7 @@ Create a comprehensive diff engine that identifies field-level changes and hiera
 ### Story: (007) Apply Validated Changes Back to Azure DevOps
 
 **tags**: azdoExportImport, reimport, apply  
-**SP**: 5  
+**Story Points**: 5  
 **Description**  
 **As a** system    
 **I want** to apply validated changes from reimported markdown back to Azure DevOps with transaction-like safety    
@@ -401,7 +401,7 @@ Orchestrate change application ensuring dependencies are satisfied. Implement co
 ### Story: (008) Create Test Hierarchy Management System
 
 **tags**: azdoExportImport, testing  
-**SP**: 3  
+**Story Points**: 3  
 **Description**  
 **As a** test framework    
 **I want** to create temporary test hierarchies in Azure DevOps for each test run and clean them up afterwards    
@@ -459,7 +459,7 @@ Create PowerShell functions for test setup and cleanup. Functions should support
 ### Story: (009) Add Integration Tests for Export-Import Round-Trip
 
 **tags**: azdoExportImport, testing, integration  
-**SP**: 4  
+**Story Points**: 4  
 **Description**  
 **As a** developer    
 **I want** to run integration tests that export a hierarchy, modify it, reimport it, and verify the result matches expectations    

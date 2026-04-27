@@ -70,7 +70,7 @@ $markdownContent = @"
 
 ### Story: TaskTagsTestStory_$(Get-Date -Format 'yyyyMMddHHmmss')
 **tags**: story-tag-1, story-tag-2
-**SP**: 8
+**Story Points**: 8
 
 #### Task: TaskTagsTest_Task1_$(Get-Date -Format 'yyyyMMddHHmmss')
 **Description**: First test task with tags

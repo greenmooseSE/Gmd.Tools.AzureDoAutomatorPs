@@ -201,7 +201,7 @@ function Build-StoryBlock {
 ### Story: $Title
 
 **tags**: $Tags  
-**SP**: $SP  
+**Story Points**: $SP  
 **Description**  
 **As a** $Persona  
 **I want** to $Action  
@@ -255,7 +255,7 @@ function Build-BugBlock {
 ### Bug: $Title
 
 **tags**: $Tags  
-**SP**: $SP  
+**Story Points**: $SP  
 **Priority**: $Priority  
 **Description**  
 **As a** $Persona  
