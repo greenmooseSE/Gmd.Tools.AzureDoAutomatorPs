@@ -115,6 +115,16 @@ try {
     $bug | Add-Member -NotePropertyName 'FoundIn'     -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.FoundIn') { $bug.fields.'Microsoft.VSTS.Build.FoundIn' } else { $null }) -Force
     $bug | Add-Member -NotePropertyName 'State'       -NotePropertyValue (if ($bug.fields.PSObject.Properties.Name -contains 'System.State') { $bug.fields.'System.State' } else { $null }) -Force
 
+    [object]$assignedToRaw = if ($bug.fields.PSObject.Properties.Name -contains 'System.AssignedTo') { $bug.fields.'System.AssignedTo' } else { $null }
+    [object]$assignedToObj = $null
+    if ($null -ne $assignedToRaw) {
+        $assignedToObj = [PSCustomObject]@{
+            DisplayName = if ($assignedToRaw.PSObject.Properties.Name -contains 'displayName') { $assignedToRaw.displayName } else { $null }
+            UniqueName  = if ($assignedToRaw.PSObject.Properties.Name -contains 'uniqueName') { $assignedToRaw.uniqueName } else { $null }
+        }
+    }
+    $bug | Add-Member -NotePropertyName 'AssignedTo' -NotePropertyValue $assignedToObj -Force
+
     return $bug
 }
 catch {

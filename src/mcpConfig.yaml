@@ -362,6 +362,11 @@ commands:
         required: false
         description: "Transition the Epic to a writable state. Validated against appSettings.json before any API call."
         mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Epic to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
       - name: Fields
         type: object
         required: false
@@ -403,6 +408,11 @@ commands:
         required: false
         description: "Transition the Feature to a writable state. Validated against appSettings.json before any API call."
         mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Feature to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
       - name: Fields
         type: object
         required: false
@@ -456,6 +466,11 @@ commands:
         required: false
         description: "Transition the User Story to a writable state. Validated against appSettings.json before any API call."
         mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this User Story to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
       - name: Fields
         type: object
         required: false
@@ -504,10 +519,11 @@ commands:
         type: string
         required: false
         mapTo: State
-      - name: ParentStoryId
-        type: int
+      - name: AssignedTo
+        type: string
         required: false
-        mapTo: ParentStoryId
+        description: "Email address of the team member to assign this Task to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
       - name: Fields
         type: object
         required: false
@@ -569,6 +585,11 @@ commands:
         required: false
         description: "Transition the Bug to a writable state. Validated against appSettings.json before any API call."
         mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Bug to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
       - name: Fields
         type: object
         required: false
