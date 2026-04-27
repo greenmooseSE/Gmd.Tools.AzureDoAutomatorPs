@@ -20,41 +20,46 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 
 ## Implementation Approach
 - Use Test-Driven Development (TDD) cycle when implementing
-- Prefer automated tests over manual verification
+- Prefer automated Pester integration tests over manual verification
 - Group related test files in folders by functionality
- - For .NET projects: ensure `dotnet build -c Release` succeeds without errors.
- - If a `dev.runsettings` file exists at the repository root, run tests with `dotnet test -s dev.runsettings` instead of plain `dotnet test`.
+- Use `ssLogIt.ps1` for all output; do not use `Write-Host` or `Write-Error` directly
+- Use `ssInvokeExpr.ps1` when invoking shell expressions or external commands
+
+## Test Work Item Lifecycle
+- Any Azure DevOps work items created during tests **must be deleted during teardown**, even if tests fail
+- Track all created work item IDs and remove them via the appropriate Remove script in `src/` (e.g. `RemoveAzDoStory.ps1`, `RemoveAzDoEpic.ps1`)
+- Tag every test-created work item with `testWi` to allow easy detection of orphans
+- Use Pester `AfterAll`/`AfterEach` blocks for cleanup
 
 ## Acceptance Criteria Verification
 - For each AC item, implement code to satisfy the criterion
-- Verify with automated test when possible
-- Check off the item (`✅`) in the story with test method name suffix (e.g., `GivenInputIsInvalid_ItShouldThrowException`), and any notes if adding value
+- Verify with an automated Pester test when possible
+- Check off the item (`✅`) in the story with test name suffix (e.g., `GivenInputIsInvalid_ItShouldThrowException`), and any notes if adding value
 - If an AC item cannot be implemented, update with strike-through and comment explaining why
 
 ## AC Scenarios Verification
-- For each Gherkin/BDD scenario, write an automated integration test, preferably with ReqNRoll (if such project exists).
-- Check off the scenario (`✅`) with test method name suffix
-- Format: `- ✅ Scenario: [title] 🧪 [TestMethodName]`
+- For each Gherkin/BDD scenario, write an automated Pester integration test
+- Check off the scenario (`✅`) with test name suffix
+- Format: `- ✅ Scenario: [title] 🧪 [TestName]`
 - Ensure test files are organized in test folders grouped by functionality
 
 ## Documentation & Completion
 - Check if README.md needs updates based on implementation
 - Add ONE comment in the story (at AzureDO) with:
   - Brief summary of what was implemented
-  - Table of test files/methods that verify the AC Scenarios
+  - Table of test files/`It` blocks that verify the AC Scenarios
 - Update existing comment instead of adding new ones
 - Do NOT commit changes (user must do this manually)
 - Validate and check items (✅) in both fields "Acceptance Criteria" and "AC Scenarios"
 
 ## Validation Checklist
 - [ ] All AC items are checked off in AzureDO story field (or marked as not implemented with explanation)
-- [ ] All AC Scenarios are checked off in AzureDO story field with test method name suffix
-- [ ] All automated tests pass
-- [ ] No compiler warnings in implemented code
+- [ ] All AC Scenarios are checked off in AzureDO story field with test name suffix
+- [ ] All automated Pester tests pass
+- [ ] No PSScriptAnalyzer warnings in implemented scripts
 - [ ] No test work items left behind (verified cleanup)
 - [ ] Created feature branch if on develop
 - [ ] README.md updated (if applicable)
 - [ ] mcpConfig.yaml updated (if applicable)
 - [ ] Story comment added with implementation summary and test table
-- [ ] All external-facing types/members have XML documentation comments
-- [ ] The functionality has been implemented and verified for  all work item types (epic/feature/story/task/bug), in all related scripts utilizing these types.
+- [ ] The functionality has been implemented and verified for all work item types (epic/feature/story/task/bug), in all related scripts utilizing these types.

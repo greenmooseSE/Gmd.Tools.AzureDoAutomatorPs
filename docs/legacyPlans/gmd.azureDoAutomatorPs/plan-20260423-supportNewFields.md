@@ -301,8 +301,12 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 | ☐ | GetAzDoWorkItem.ps1 returns AIImplemented, CodeReviewed, FunctionallyTested for a Feature work item |  |  |
 | ☐ | GetAzDoUserStory.ps1 returns OriginalEstimate, RemainingWork, CompletedWork, ACScenarios |  |  |
 | ☐ | GetAzDoBug.ps1 returns ReproSteps, SystemInfo, Severity, FoundIn |  |  |
+| ☐ | GetAzDoWorkItem.ps1 returns the current State value for any work item type |  |  |
 | ☐ | UpsertAzDoStory.ps1 -Fields parameter can set OriginalEstimate and RemainingWork |  |  |
 | ☐ | UpsertAzDoFeature.ps1 -Fields parameter can set AIImplemented and DeployedToDev |  |  |
+| ☐ | UpsertAzDoStory.ps1 -State parameter transitions a story to a writable state (e.g., "Under Development") |  |  |
+| ☐ | UpsertAzDoFeature.ps1 -State parameter transitions a feature to a writable state (e.g., "Active") |  |  |
+| ☐ | Passing a readOnly state (e.g., "Released") via -State causes a fail-fast error before any API call |  |  |
 | ☐ | Passing a readOnly field (e.g., System.CreatedDate) in -Fields causes a fail-fast error |  |  |
 | ☐ | Explicit parameters (e.g., -Title) take precedence over -Fields entries for the same field |  |  |
 | ☐ | Existing scripts calling Upsert without -Fields continue to work unchanged |  |  |
@@ -334,10 +338,29 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    When the API PATCH request is built  
    Then the title sent is "Explicit Title"  
 
+5. **Scenario**: Read State from a retrieved work item  
+   Given a User Story work item exists in Azure DevOps with State "Under Development"  
+   When GetAzDoWorkItem.ps1 retrieves the work item  
+   Then the output object contains a State property with value "Under Development"  
+
+6. **Scenario**: Transition a User Story to a writable state  
+   Given a User Story work item exists in Azure DevOps with State "New"  
+   When UpsertAzDoStory.ps1 is called with -State "Under Development"  
+   Then the work item State is updated to "Under Development"  
+   And no error is thrown  
+
+7. **Scenario**: Reject transition to a readOnly state  
+   Given a User Story work item exists in Azure DevOps  
+   When UpsertAzDoStory.ps1 is called with -State "Released"  
+   Then the script throws an error containing "readOnly" or "not a writable state"  
+   And no API call is made  
+
 #### Extra Information
 - The `-Fields` parameter should accept a `[hashtable]` keyed by referenceName.  
 - Fields that already have dedicated parameters (Title, Description, State, Tags, StoryPoints,  
   Effort, Priority) should be documented as preferred over `-Fields` for those values.  
+- State validation must use the writable states loaded from appSettings.json for the given  
+  org/project/work item type (same source as `LoadStateConfiguration.ps1`).  
 - Consider adding a `-FieldsFromConfig` switch that pre-populates the `-Fields` parameter list  
   from appSettings.json for discoverability.  
 
@@ -393,3 +416,80 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    When comparing mcpConfig.yaml upsert-bug command description against  
    appSettings.json Bug field definitions  
    Then every writable Bug field is mentioned in the upsert-bug description  
+
+### Story: Support AssignedTo field by email address in all Upsert and Get scripts (006)
+**WorkItemId**: TBD  
+**State**: New
+
+**tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
+**Story Points**: 2  
+**Priority**: 2  
+**Description**  
+**As a** developer or AI agent managing work items  
+**I want** to set and read the AssignedTo field using an email address  
+**So that** I can assign work items to team members without needing to know internal Azure DevOps identity descriptors.  
+
+#### Implementation Details  
+- Add a `-AssignedTo` string parameter (email address) to all Upsert scripts:  
+  `UpsertAzDoEpic.ps1`, `UpsertAzDoFeature.ps1`, `UpsertAzDoStory.ps1`,  
+  `UpsertAzDoBug.ps1`, `UpsertAzDoTask.ps1`.  
+- Resolve the supplied email to an Azure DevOps identity before building the PATCH payload,  
+  using `GET _apis/identities?searchFilter=MailAddress&filterValue={email}&api-version=7.1-preview.1`.  
+- Fail fast with a clear error if no matching identity is found for the supplied email.  
+- Pass the resolved identity (as `{ "displayName": "...", "uniqueName": "..." }` JSON object)  
+  to the `System.AssignedTo` field in the API PATCH payload.  
+- Update `GetAzDoWorkItem.ps1`, `GetAzDoUserStory.ps1`, and `GetAzDoBug.ps1` to return  
+  `AssignedTo` as an object with at minimum `DisplayName` and `UniqueName` (email) properties.  
+- Update mcpConfig.yaml: add an `AssignedTo` parameter (type string, description: email address)  
+  to all upsert commands.  
+- Tag any test work items created during Pester tests with `testWi` and clean up on teardown.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ☐ | UpsertAzDoStory.ps1 -AssignedTo with a valid email address assigns the work item correctly |  |  |
+| ☐ | UpsertAzDoFeature.ps1 -AssignedTo with a valid email address assigns the work item correctly |  |  |
+| ☐ | UpsertAzDoBug.ps1 -AssignedTo with a valid email address assigns the work item correctly |  |  |
+| ☐ | UpsertAzDoTask.ps1 -AssignedTo with a valid email address assigns the work item correctly |  |  |
+| ☐ | UpsertAzDoEpic.ps1 -AssignedTo with a valid email address assigns the work item correctly |  |  |
+| ☐ | Supplying an unknown email address causes a fail-fast error before any PATCH call |  |  |
+| ☐ | GetAzDoWorkItem.ps1 returns an AssignedTo object with DisplayName and UniqueName properties |  |  |
+| ☐ | GetAzDoUserStory.ps1 returns AssignedTo with the email as UniqueName |  |  |
+| ☐ | GetAzDoBug.ps1 returns AssignedTo with the email as UniqueName |  |  |
+| ☐ | mcpConfig.yaml upsert commands include an AssignedTo parameter of type string |  |  |
+| ☐ | Existing Upsert calls without -AssignedTo continue to work unchanged |  |  |
+
+#### AC Scenarios
+1. **Scenario**: Assign a User Story to a team member by email  
+   Given a User Story work item exists in Azure DevOps  
+   And the email address "user@example.com" belongs to a valid team member  
+   When UpsertAzDoStory.ps1 is called with -AssignedTo "user@example.com"  
+   Then the work item's AssignedTo is updated to the identity matching that email  
+   And GetAzDoWorkItem.ps1 returns AssignedTo.UniqueName equal to "user@example.com"  
+
+2. **Scenario**: Fail fast when email does not resolve to an identity  
+   Given a User Story work item exists in Azure DevOps  
+   When UpsertAzDoStory.ps1 is called with -AssignedTo "notfound@example.com"  
+   Then the script throws an error containing "not found" or the supplied email  
+   And no PATCH API call is made  
+
+3. **Scenario**: Read AssignedTo from a retrieved Feature  
+   Given a Feature work item exists in Azure DevOps assigned to "user@example.com"  
+   When GetAzDoWorkItem.ps1 retrieves the work item  
+   Then the output object contains AssignedTo.UniqueName equal to "user@example.com"  
+   And AssignedTo.DisplayName is a non-empty string  
+
+4. **Scenario**: Upsert without -AssignedTo leaves the assigned user unchanged  
+   Given a User Story work item is currently assigned to "user@example.com"  
+   When UpsertAzDoStory.ps1 is called without the -AssignedTo parameter  
+   Then the work item's AssignedTo remains "user@example.com"  
+
+#### Extra Information
+- Use the Azure DevOps Identities REST API endpoint for email-to-identity resolution:  
+  `GET {org}/_apis/identities?searchFilter=MailAddress&filterValue={email}&api-version=7.1-preview.1`  
+- The identity resolution call can be extracted into a shared helper function in `AzDoApiWrapper.ps1`  
+  or a new `ResolveAzDoIdentity.ps1` script for reuse across all Upsert scripts.  
+- The `System.AssignedTo` PATCH payload value must be the full identity JSON object  
+  `{ "displayName": "...", "uniqueName": "..." }`, not just the email string.  
+- If the Pester test environment does not have a real assignable user, use the  
+  PAT token owner's identity (resolved via `GET {org}/_apis/connectionData`) as the test target.  

@@ -137,7 +137,7 @@ The feature branch for AB#FEATURE_ID must already exist before starting:
 
 If it does not exist yet, create it from ``develop``:
 
-    ssNewFeatBranch.ps1 -Ticket FEATURE_ID -StoryDesc "FEATURE_TITLE" -NoFetch -BaseBranch develop
+    ssNewFeatBranch.ps1 -Ticket FEATURE_ID -Description "FEATURE_TITLE" -NoFetch -BaseBranch develop
 
 ### Story branches
 For each story, create a branch off the **feature branch** (not ``develop``):
@@ -146,7 +146,7 @@ For each story, create a branch off the **feature branch** (not ``develop``):
 
 Example:
 
-    ssNewFeatBranch.ps1 -Ticket <StoryId> -StoryDesc "<story title>" -NoFetch -BaseBranch "ab#FEATURE_ID-FEATURE_TITLE"
+    ssNewFeatBranch.ps1 -Ticket <StoryId> -Description "<story title>" -IsStory -NoFetch -BaseBranch "ab#FEATURE_ID-FEATURE_TITLE"
 
 ### Merge strategy
 After completing each story:

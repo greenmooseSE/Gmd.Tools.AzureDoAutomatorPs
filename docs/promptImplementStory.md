@@ -20,7 +20,7 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 
 ## Implementation Approach
 - Use Test-Driven Development (TDD) cycle when implementing
-- Create feature branch if on develop branch: `ssNewFeatBranch.ps1 -Ticket <workItemId> -StoryDesc "<story title>" -NoFetch -BaseBranch develop`
+- Create feature branch if on develop branch: `ssNewFeatBranch.ps1 -Ticket <workItemId> -Description "<story title>" -NoFetch -BaseBranch develop -IsStory`
 - Prefer automated tests over manual verification
 - Group related test files in folders by functionality
  - For .NET projects: ensure `dotnet build -c Release` succeeds without errors.
