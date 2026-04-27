@@ -1,5 +1,5 @@
 # General rules
-- **One story should contain the full scope for a unit of work:** All layers needed for a feature to be testable and complete (db/backend/validation/frontend/unit tests/bdd tests).
+- **One story should contain the full scope for a unit of work:** All layers needed for a feature to be testable and complete (e.g. logic, validation, tests, documentation).
 - This ensures stories are independently verifiable and don't create dependencies between stories.
 - A story should NOT be split across multiple epics or "wait for another story" to be testable.
 
@@ -23,9 +23,8 @@
 - Prefer items that can be verified automatically; only diverge if the story nature doesn't allow it (e.g., "Create CI pipeline").
 - Include ONLY explicit criteria specific to this story's business logic or requirements.
 - **Do NOT include general criteria** such as:
-  - `Code should compile` (implicit in all work)
-  - `Code should be performant` (vague; add specific performance benchmarks if required)
-  - `Should have no warnings` (implicit code quality rule)
+  - Implicit quality expectations that are always required (e.g. code executes without errors, no linting warnings) — state only explicit, story-specific requirements
+  - Vague performance criteria without specific, measurable benchmarks (e.g. "should be performant")
   - Negated criteria like `We should NOT add property X` (state the positive requirement instead)
 - Focus on what the user/feature MUST do or behave like when this story is complete.
 - Each AC item should be testable with an automated test (unit, integration, or snapshot).
@@ -49,16 +48,16 @@ Story points value is estimated **working days a human needs to spend**, assumin
 Possible values: 0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 8, 13, 20, 40, 100.
 
 ### How to Estimate
-1. Identify what the Agent will do: Move files, generate code, update imports, write boilerplate, scaffold tests
-2. Identify what the Human will do: Review PR, validate test logic, make architectural decisions, verify compilations, write/debug complex business logic
+1. Identify what the Agent will do: Move/rename files, generate code, update references, write boilerplate, scaffold tests
+2. Identify what the Human will do: Review PR, validate test logic, make architectural decisions, verify behavior, write/debug complex business logic
 3. **The Human's time = the story points estimate.** Do NOT include Agent coding time.
 
 ### Examples for Clarity
 | Task | Agent Does | Human Does | Points |
 |------|---------|--------|--------|
-| Move 3 classes, update imports | Move files, fix imports | Review changes, verify builds | 0.5 |
-| Add validation function | Generate skeleton + boilerplate | Implement logic, write tests, verify | 2 |
-| Create new endpoint (simple) | Scaffold handler, routing | Write logic, test integration | 1 |
+| Refactor/rename across files | Update references, fix call sites | Review changes, verify behavior | 0.5 |
+| Add validation to existing function | Generate boilerplate, scaffold tests | Implement logic, write tests, verify | 2 |
+| Add a new simple function/command | Scaffold structure, write boilerplate | Write logic, test, verify | 1 |
 | Complex feature with unknowns | Write code per Human's design | Architect solution, make decisions, review | 5+ |
 
 ## Tags
@@ -67,9 +66,4 @@ Possible values: 0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 8, 13, 20, 40, 10
 - If feature is not a "maintenance" feature, use a tag to "group" stories per epic.
 - Shorten long words e.g., `prio` instead of `priority`.
 
-## Story details
-### REST endpoints
-- Each rest endpoint should be specified with a detailed and complete OpenAPI v3 Spec, including example strings, formats etc.
-### Database
-- Use detailed schema suitable for SqlServer, including table names, col names, col types, indexes short description etc.
-- Assume latest version of Entity Framework is used to map C# objects to database, so include any configuration details or attribute usage etc. for this to work.
+

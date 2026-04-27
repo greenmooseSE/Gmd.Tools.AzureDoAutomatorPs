@@ -1,5 +1,21 @@
 This is for generating a markdown plan for use with `Gmd.Tools.AzureDoAutomatorPs/src/NewAzDoHiearchyFromMarkdown.ps1`:
 
+# Markdown line break rule (CRITICAL)
+
+**Every non-blank line in the generated markdown file MUST end with two trailing spaces (`  `) before the newline.**  
+This is required for correct line-break rendering in all markdown viewers. A bare `\n` without two trailing spaces collapses adjacent lines into the same paragraph.
+
+Applies to:
+- All `**Field**: value` metadata lines (e.g. `**State**: Active  `, `**tags**: foo  `)
+- All prose / description lines
+- The `**As a**`, `**I want**`, `**So that**` story description lines
+
+Does NOT apply to:
+- Header lines (`#`, `##`, `###`, …)
+- Blank / empty lines
+- Table rows (`| ... |`)
+- Fenced code block delimiters (` ``` `)
+
 # General rules
 
 * Do not create explicit stories for creating unit tests or BDD tests, rather they should be created as part of each story.
@@ -8,7 +24,6 @@ This is for generating a markdown plan for use with `Gmd.Tools.AzureDoAutomatorP
 - For each property, ensure to include nullable, type, length, any inline validations required etc.
 * When setting story points, do a realistic estimate of work effort where 1 SP = 1 perfect day of working, for a senior developer.
 * Do not create "---" to separate sections (rely on header level usage instead).
-* End each line with "  " to create newline in markdown rendering.
 * For long texts, consider splitting to multiple lines or paragraphs (use trailing "  " to ensure we get rendered newline).
 * Be very explicit in the Acceptance Criterias and Gherkin scenarios, each criteria and scenario should validate only 1 thing.
 * Avoid general terms such as "produce an inventory list"
@@ -46,9 +61,14 @@ This is for generating a markdown plan for use with `Gmd.Tools.AzureDoAutomatorP
 
 # Work item types
 Each work item type must have a prefix and a predefined header level. These are defined as below;
-- Epic: "# Epic: <title>"
-- Feature: "## Feature: <title>"
-- Story: "### Story: <title>"
-- Bug with feature as parent: "### Bug: <title>"
-- Bug with story as parent: "#### Bug: <title>"
-- Task (must have story as parent):  "#### Task: <title>"
+- Epic: "# Epic: {title}"
+- Feature: "## Feature: {title}"
+- Story: "### Story: {title}"
+- Bug with feature as parent: "### Bug: {title}"
+- Bug with story as parent: "#### Bug: {title}"
+- Task (must have story as parent):  "#### Task: {title}"
+
+# Placeholder rules
+* **Never use angle-bracket tags** (e.g. `<SomePlaceholder>`, `<title>`, `<value>`) for placeholder text in the generated plan — they do not render in markdown viewers and can be mistaken for HTML tags.
+* Use curly-brace style instead: `{SomePlaceholder}`, `{title}`, `{value}`.
+* Use `TODO:` annotations for items that must be filled in by the user before use (e.g. `TODO: describe the goal here`).
