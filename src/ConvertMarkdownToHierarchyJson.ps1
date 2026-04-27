@@ -28,7 +28,7 @@ Supported markdown format:
     ### Story: Story Title
     **WorkItemId**: 2217
     **tags**: tag1, tag2
-    **SP**: 5
+    **Story Points**: 5
     **State**: Active
     **Description**
     Story description...
@@ -43,7 +43,7 @@ Metadata fields (all optional):
 - **WorkItemId**: N (for identifying existing work items, can be omitted for new items)
 - **State**: Active, Under Development, etc. (optional)
 - **tags**: comma-separated list (optional)
-- **SP**: story points (for stories, optional)
+- **Story Points**: story points (for stories, optional)
 - **Effort**: effort estimate (for features/epics, optional)
 - **Description**: multi-line description (optional)
 
@@ -80,7 +80,7 @@ Parse from content:
     $content = @"
     ## Feature: My Feature
     **WorkItemId**: 2216
-    **SP**: 5
+    **Story Points**: 5
     **Description**
     Feature details...
     "@
@@ -273,7 +273,7 @@ function Parse-MarkdownToWorkItems {
             $script:isHashHeaderField = $true
         }
         elseif ($null -ne $currentItem -and -not $script:collectingCustomField -and -not $collectingDescription -and $line -match $metadataLineRegex) {
-            # Metadata line (e.g. **tags**: ..., **SP**: 5, **Description**)
+            # Metadata line (e.g. **tags**: ..., **Story Points**: 5, **Description**)
             # Only reached when not currently collecting a custom field or description content.
             # Bold lines like **Foo**: bar inside descriptions/fields are caught by the collection
             # branches below (collectingCustomField / collectingDescription), which fire when this
@@ -295,7 +295,11 @@ function Parse-MarkdownToWorkItems {
                 $currentItem.tags = $tags
             }
             
-            $sp = Get-MetadataField -Line $line -FieldName "SP"
+            # Parse both "Story Points" (new) and "SP" (legacy) for backward compatibility
+            $sp = Get-MetadataField -Line $line -FieldName "Story Points"
+            if ($null -eq $sp) {
+                $sp = Get-MetadataField -Line $line -FieldName "SP"
+            }
             if ($null -ne $sp) {
                 $currentItem.storyPoints = [double]$sp
             }

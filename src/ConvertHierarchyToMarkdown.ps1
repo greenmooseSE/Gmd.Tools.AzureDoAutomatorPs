@@ -224,7 +224,7 @@ function Convert-StoryToMarkdown {
     }
     
     if ($StoryPoints) {
-        $markdown += "**SP**: $StoryPoints  `n"
+        $markdown += "**Story Points**: $StoryPoints  `n"
     }
     
     # Add State field to metadata

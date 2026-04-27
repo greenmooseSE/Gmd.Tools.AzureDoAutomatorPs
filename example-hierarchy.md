@@ -70,7 +70,7 @@ communication preferences. All changes are audited and logged for compliance.
 **WorkItemId**: 2217
 **State**: Committed
 **tags**: authentication, entraId, testWi\
-**SP**: 8\
+**Story Points**: 8\
 **Description**\
 As a developer, I need to implement OAuth 2.0 authentication integration with Microsoft\
 Entra ID so that users can securely log in with their organizational credentials.
@@ -114,7 +114,7 @@ Entra ID so that users can securely log in with their organizational credentials
 ### Story: 👤 User Profile Page & Preferences
 
 **tags**: userProfile, ux, testWi\
-**SP**: 5\
+**Story Points**: 5\
 **Description**\
 As a user, I want to view and manage my profile information and preferences so that\
 my account reflects my current details and communication preferences.
@@ -238,7 +238,7 @@ with attachments, screen captures, and video call capabilities.
 ### Story: 🎫 Create Support Ticket Form
 
 **tags**: ticketing, ui, testWi\
-**SP**: 3\
+**Story Points**: 3\
 **Description**\
 As a customer, I want to easily create a support ticket by filling out a simple form\
 so that I can quickly request help from the support team.
@@ -275,7 +275,7 @@ so that I can quickly request help from the support team.
 ### Story: 🔔 Real-time Ticket Status Updates
 
 **tags**: realTime, notifications, testWi\
-**SP**: 8\
+**Story Points**: 8\
 **Description**\
 As a customer, I want to receive real-time notifications when my support ticket status\
 changes so I'm always informed about the progress of my issue resolution.
@@ -322,7 +322,7 @@ and contribute their own solutions to help other users.
 ### Story: 🔍 Full-Text Search with AI Suggestions
 
 **tags**: search, ai, testWi\
-**SP**: 5\
+**Story Points**: 5\
 **Description**\
 Implement a full-text search engine that returns relevant knowledge base articles\
 with AI-suggested related articles based on semantic similarity.
@@ -360,7 +360,7 @@ with AI-suggested related articles based on semantic similarity.
 ### Story: 👥 Community-Contributed Solutions
 
 **tags**: community, crowdsourcing
-**SP**: 3\
+**Story Points**: 3\
 **Description**\
 Allow users to contribute their own solutions to common issues, with community voting\
 and moderation to ensure quality content.

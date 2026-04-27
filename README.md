@@ -1067,7 +1067,7 @@ $markdown = .\ConvertHierarchyToMarkdown.ps1 `
 ### Story: Title
 
 **tags**: tag1, tag2
-**SP**: 5
+**Story Points**: 5
 **State**: Closed ⚠️ (read-only)
 **Description**
 Story description here...
@@ -1106,7 +1106,7 @@ Feature description
 ### Story: Story Title
 **WorkItemId**: 102
 **tags**: tag1
-**SP**: 5
+**Story Points**: 5
 **Description**
 **As a** user
 **I want** to do something
@@ -2972,7 +2972,7 @@ Additional context
 ### Story: Story Title
 
 **tags**: tag1, tag2  
-**SP**: 5  
+**Story Points**: 5  
 **Description**  
 Story description with headers at level 4 or higher
 #### Acceptance Criteria
@@ -3028,7 +3028,7 @@ This is the third line
 
 **Story Points (SP)** - Stories and Bugs only (decimals supported, e.g. 0.5, 1.5):
 ```markdown
-**SP**: 0.5
+**Story Points**: 0.5
 ```
 
 **Effort** - Epics and Features only (decimals supported, e.g. 2.5):
@@ -3125,7 +3125,7 @@ Tasks are defined as level 4 headers (####) under Stories (level 3 headers ###):
 ### Story: User Profile Page & Preferences
 
 **tags**: user-profile, preferences
-**SP**: 5
+**Story Points**: 5
 **Description**
 Story description...
 
@@ -3226,7 +3226,7 @@ Bugs are defined as level 4 headers (####) under Stories (level 3 headers ###) u
 ### Story: Authentication System
 
 **tags**: authentication, security
-**SP**: 8
+**Story Points**: 8
 **Description**
 Story description...
 

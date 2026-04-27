@@ -27,7 +27,7 @@ Markdown format:
     
     ### Story: Story Title
     **tags**: tag1, tag2
-    **SP**: 5
+    **Story Points**: 5
     **Description**
     Story description ...
     
