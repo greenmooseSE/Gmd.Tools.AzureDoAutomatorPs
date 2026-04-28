@@ -2,81 +2,33 @@
 
 <#
 .SYNOPSIS
-Resolves an Azure DevOps team member email address to an identity object.
+Builds an Azure DevOps identity object from an email address.
 
 .DESCRIPTION
-Calls the Azure DevOps Identities API to resolve a mail address to an identity.
 Returns a simplified identity object with DisplayName and UniqueName (email).
-Fails fast with a clear error if no identity is found for the given email.
-
-.PARAMETER Organization
-The Azure DevOps organization name.
+The Azure DevOps work item PATCH API accepts the email address directly in
+System.AssignedTo and resolves the identity server-side, so no API call is
+required.
 
 .PARAMETER Email
-The email address to resolve to an Azure DevOps identity.
-
-.PARAMETER PatToken
-Optional PAT token. If not provided, retrieved from the environment.
+The email address to use as the Azure DevOps identity.
 
 .EXAMPLE
-$identity = .\ResolveAzDoIdentity.ps1 -Organization "myorg" -Email "user@example.com"
-# Returns: @{ DisplayName = "John Doe"; UniqueName = "user@example.com" }
+$identity = .\ResolveAzDoIdentity.ps1 -Email "user@example.com"
+# Returns: @{ DisplayName = "user@example.com"; UniqueName = "user@example.com" }
 #>
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Organization,
-
-    [Parameter(Mandatory = $true)]
-    [string]$Email,
-
-    [string]$PatToken
+    [string]$Email
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-. "$PSScriptRoot/AzDoPatTokenHelper.ps1"
-
-if ([string]::IsNullOrWhiteSpace($PatToken)) {
-    $PatToken = Get-AzDoPatToken -Decrypt
-}
-
-[string]$uri = "https://vssps.dev.azure.com/$Organization/_apis/identities?searchFilter=MailAddress&filterValue=$([Uri]::EscapeDataString($Email))&api-version=7.1-preview.1"
-
-[string]$authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$PatToken"))
-$headers = @{
-    'Authorization' = "Basic $authHeader"
-    'Accept'        = 'application/json'
-}
-
-$null = & ssLogIt.ps1 -Level Debug -Message "Resolving identity for email: $Email (org: $Organization)"
-
-[object]$response = $null
-try {
-    $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -TimeoutSec 30 -ErrorAction Stop
-} catch {
-    $null = & ssLogIt.ps1 -Level Error -Message "Identity API call failed for email: $Email" -Exception $_
-    Write-Error "Failed to resolve identity for email '$Email': $($_.Exception.Message)"
-}
-
-[array]$identities = @()
-if ($null -ne $response -and $null -ne $response.value) {
-    $identities = @($response.value)
-}
-
-if ($identities.Count -eq 0) {
-    $null = & ssLogIt.ps1 -Level Error -Message "No identity found for email: ::FgYellow::$Email::FgDefault::"
-    Write-Error "No Azure DevOps identity found for email '$Email'. Ensure the email belongs to a member of the organization '$Organization'."
-}
-
-[object]$identity = $identities[0]
-[string]$displayName = if ($identity.PSObject.Properties.Name -contains 'providerDisplayName') { $identity.providerDisplayName } else { $Email }
-[string]$uniqueName  = $Email
-
-$null = & ssLogIt.ps1 -Level Debug -Message "Resolved identity: ::FgGreen::$displayName::FgDefault:: ($uniqueName)"
+$null = & ssLogIt.ps1 -Level Debug -Message "Resolving identity for email: $Email"
 
 return [PSCustomObject]@{
-    DisplayName = $displayName
-    UniqueName  = $uniqueName
+    DisplayName = $Email
+    UniqueName  = $Email
 }

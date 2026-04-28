@@ -334,6 +334,7 @@ function Parse-MarkdownToWorkItems {
                 lineNumber = $lineNum + 1
                 workItemId = $null
                 state = $null
+                assignedTo = $null
                 tags = $null
                 storyPoints = $null
                 effort = $null
@@ -389,7 +390,12 @@ function Parse-MarkdownToWorkItems {
             if ($null -ne $state) {
                 $currentItem.state = $state
             }
-            
+
+            $assignedTo = Get-MetadataField -Line $line -FieldName "Assigned To"
+            if ($null -ne $assignedTo) {
+                $currentItem.assignedTo = $assignedTo
+            }
+
             $tags = Get-MetadataField -Line $line -FieldName "tags"
             if ($null -ne $tags) {
                 $currentItem.tags = $tags
@@ -452,7 +458,7 @@ function Parse-MarkdownToWorkItems {
                 $fieldName = $Matches[1]
                 $fieldValue = $Matches[2].Trim()
                 # Core labels already fully handled above; also skip "Story Points" and "Tags"
-                [string[]]$coreLabels = @('WorkItemId', 'State', 'tags', 'Tags', 'SP', 'Story Points', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')
+                [string[]]$coreLabels = @('WorkItemId', 'State', 'Assigned To', 'tags', 'Tags', 'SP', 'Story Points', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')
                 if ($fieldName -notin $coreLabels) {
                     # Config-driven field handling
                     $cfgFieldDef = if ($currentItemFieldConfig.Count -gt 0) { $currentItemFieldConfig[$fieldName.ToLower()] } else { $null }
@@ -581,6 +587,7 @@ function Cleanup-Item {
         title = $Item.title
         workItemId = $Item.workItemId
         state = $Item.state
+        assignedTo = $Item.assignedTo
         tags = $Item.tags
     }
     

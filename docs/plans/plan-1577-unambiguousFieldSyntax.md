@@ -1,4 +1,6 @@
 # Epic: Gmd.Tools.AzureDoAutomatorPs
+**WorkItemId**: 1577
+**State**: New
 
 **WorkItemId**: 1577  
 **State**: New  
@@ -13,6 +15,8 @@ Culminate in MCP (Model Context Protocol) server integration to expose all opera
 tools for AI assistants and automation frameworks.  
 
 ## Feature: Unambiguous {Field Name} Syntax for Markdown Hierarchy Files
+**WorkItemId**: 2628
+**State**: New
 
 **tags**: azDoAutomator, markdownSyntax, epicAzDoAutomator  
 **Effort**: 3  
@@ -29,12 +33,7 @@ tools for AI assistants and automation frameworks.
   5. Verify the generated markdown uses `{Field Name}` syntax for all field markers.  
   6. Parse the generated markdown again and compare the JSON — all values should be identical.  
 
-- [ ] **Test 2: Old `**Field Name**` format still parses correctly after the change**  
-  1. Take an existing plan file in the `**Field Name**` format.  
-  2. Parse it with `ConvertMarkdownToHierarchyJson.ps1`.  
-  3. Verify work item titles, tags, story points, and description are all correctly populated.  
-
-- [ ] **Test 3: `{Acceptance Criteria}` replaces `#### Acceptance Criteria` in generator output**  
+- [ ] **Test 2: `{Acceptance Criteria}` replaces `#### Acceptance Criteria` in generator output**  
   1. Export a story from Azure DevOps using `ConvertHierarchyToMarkdown.ps1`.  
   2. Verify the output markdown uses `{Acceptance Criteria}` rather than `#### Acceptance Criteria`.  
 
@@ -102,8 +101,6 @@ See also: ...
   content is collected until the next `{...}` marker, a work item header, or EOF.  
 - Multi-line collection means `**bold**`, `### headers`, tables, and code fences inside  
   a field value are all valid and unambiguous — they can never be mistaken for field markers.  
-- Backward compatibility: the old `**Field Name**` and `#### Special Section` formats  
-  continue to be accepted by the parser (no breaking change for existing files).  
 
 #### Benefits Over Current Format  
 
@@ -116,7 +113,9 @@ See also: ...
 - Adding a new HTML field to `appSettings.json` automatically works without parser changes.  
 
 ### Story: Support {Field Name} markers in ConvertMarkdownToHierarchyJson.ps1 (001)
-
+**WorkItemId**: 2629
+**State**: Under Development
+**Assigned To**: gmd.machine@gmail.com
 **tags**: azDoAutomator, markdownSyntax, epicAzDoAutomator  
 **Story Points**: 1  
 **Story Acceptance Tests**  
@@ -145,12 +144,7 @@ See also: ...
   Then `description` contains `### Some Internal Header` and the prose  
   And no separate field is created for the header  
 
-- [ ] **Scenario 5: Backward compat — existing **Field Name** format still parses**  
-  Given a markdown file using the old `**Description**` / `#### Acceptance Criteria` format  
-  When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
-  Then the result is identical to what it produced before this change  
-
-- [ ] **Scenario 6: Unknown {Field Label} emits a warning but does not fail**  
+- [ ] **Scenario 5: Unknown {Field Label} emits a warning but does not fail**  
   Given a story with `{NonExistentField}: value`  
   When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
   Then a warning is logged mentioning `NonExistentField`  
@@ -172,11 +166,8 @@ description or a preceding field.
   - Resolve the label against `appSettings.json` field config.  
   - If the inline value is present, store immediately (same coercion logic as now).  
   - If no inline value, enter collecting mode (same as html-type field handling).  
-- Remove the `$isHashHeaderField` flag — it is no longer needed when using `{...}` syntax,  
-  because `{...}` is unambiguous and always terminates collection regardless of context.  
-  Keep it for backward-compat processing of the old `#### Special Section` headers.  
-- The existing `Get-SpecialSectionName` and `**Field Name**` metadata handling remain  
-  for backward compatibility. They only apply to lines that do NOT match `$curlyFieldRegex`.  
+- Remove the `$isHashHeaderField` flag — it is no longer needed.  
+- Remove the `Get-SpecialSectionName` function and all `**Field Name**` metadata handling.  
 
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
@@ -189,18 +180,16 @@ description or a preceding field.
 | ▢ | Content between `{Description}` and `{Acceptance Criteria}` is stored in description only | | |
 | ▢ | `{Story Acceptance Tests}` after description stores content in `Custom.StoryAcceptanceTests` | | |
 | ▢ | `{Feature Acceptance Tests}` after description stores content in `Custom.FeatureAcceptanceTests` | | |
-| ▢ | Unknown `{FieldLabel}` emits a warning and is stored as a custom field (same as today for `**Unknown**`) | | |
-| ▢ | Existing `**Field Name**` format files parse identically to before this change | | |
-| ▢ | Existing `#### Acceptance Criteria` files parse identically to before this change | | |
+| ▢ | Unknown `{FieldLabel}` emits a warning and is stored as a custom field | | |
 | ▢ | Pester tests in `test/ConvertMarkdownToHierarchyJsonTests/CurlyFieldSyntaxTest.ps1` all pass | | |
 
 #### Extra Information  
 - Pester test file: `test/ConvertMarkdownToHierarchyJsonTests/CurlyFieldSyntaxTest.ps1`  
 - Use `testWi`-tagged work items for any integration test fixtures.  
-- The `$isHashHeaderField` flag should be documented with a comment explaining it is legacy  
-  and only applies to the old `#### Special Section` header code path.  
 
 ### Story: Emit {Field Name} syntax from ConvertHierarchyToMarkdown.ps1 and update template (002)
+**WorkItemId**: 2630
+**State**: New
 
 **tags**: azDoAutomator, markdownSyntax, epicAzDoAutomator  
 **Story Points**: 1  
@@ -288,8 +277,5 @@ and `GenerateAzDoMarkdownHierarchyTemplate.ps1` to produce templates in the new 
 
 #### Extra Information  
 - Pester test file: `test/ConvertHierarchyToMarkdownTests/CurlyFieldOutputTest.ps1`  
-- The generator change is intentionally a non-breaking producer change: the parser (story 001)  
-  remains able to read both old and new formats, so any legacy files not yet migrated  
-  continue to import correctly.  
 - No changes to `NewAzDoHierarchyFromMarkdown.ps1` are required — it delegates parsing to  
-  `ConvertMarkdownToHierarchyJson.ps1`, which already handles both formats after story 001.  
+  `ConvertMarkdownToHierarchyJson.ps1`.  

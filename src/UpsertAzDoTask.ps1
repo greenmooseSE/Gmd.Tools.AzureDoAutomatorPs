@@ -197,7 +197,7 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 # Resolve -AssignedTo email to identity before any API call
 [object]$resolvedIdentity = $null
 if ($PSBoundParameters.ContainsKey('AssignedTo') -and -not [string]::IsNullOrWhiteSpace($AssignedTo)) {
-    $resolvedIdentity = & "$PSScriptRoot/ResolveAzDoIdentity.ps1" -Organization $Organization -Email $AssignedTo -PatToken $PatToken
+    $resolvedIdentity = & "$PSScriptRoot/ResolveAzDoIdentity.ps1" -Email $AssignedTo
 }
 
 try {
