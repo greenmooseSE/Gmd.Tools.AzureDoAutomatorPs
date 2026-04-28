@@ -300,7 +300,13 @@ function Merge-ConfigFieldsToParams {
     foreach ($refName in $cfgFields.Keys) {
         $paramName = $script:_cfgToUpsertParam[$refName]
         if ([string]::IsNullOrWhiteSpace($paramName)) {
-            $null = & ssLogIt.ps1 -Level Debug -Message "configField '$refName' has no Upsert param mapping yet; skipped (Story 004 will add generic -Fields support)."
+            # No named param mapping: fall back to -Fields hashtable keyed by referenceName
+            if (-not $Params.ContainsKey('Fields')) {
+                $Params['Fields'] = @{}
+            }
+            if (-not $Params['Fields'].ContainsKey($refName)) {
+                $Params['Fields'][$refName] = $cfgFields[$refName]
+            }
             continue
         }
         if (-not $Params.ContainsKey($paramName)) {
@@ -332,6 +338,13 @@ function Get-FeatureMarkdownFields {
     if ($null -ne $Feature.deployedToDev) { $fields[$script:FIELD_DEPLOYED_TO_DEV] = [string]$Feature.deployedToDev }
     if ($null -ne $Feature.deployedToStaging) { $fields[$script:FIELD_DEPLOYED_TO_STAGING] = [string]$Feature.deployedToStaging }
     if ($null -ne $Feature.deployedToProduction) { $fields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = [string]$Feature.deployedToProduction }
+    # Include config-driven fields (e.g. Custom.FeatureAcceptanceTests)
+    $featureCfgFields = if ($Feature -is [hashtable]) { $Feature['configFields'] } else { $Feature.configFields }
+    if ($null -ne $featureCfgFields -and $featureCfgFields.Count -gt 0) {
+        foreach ($refName in $featureCfgFields.Keys) {
+            if (-not $fields.ContainsKey($refName)) { $fields[$refName] = $featureCfgFields[$refName] }
+        }
+    }
     return $fields
 }
 
@@ -351,6 +364,13 @@ function Get-StoryMarkdownFields {
     if ($null -ne $Story.deployedToDev) { $fields[$script:FIELD_DEPLOYED_TO_DEV] = [string]$Story.deployedToDev }
     if ($null -ne $Story.deployedToStaging) { $fields[$script:FIELD_DEPLOYED_TO_STAGING] = [string]$Story.deployedToStaging }
     if ($null -ne $Story.deployedToProduction) { $fields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = [string]$Story.deployedToProduction }
+    # Include config-driven fields (e.g. Custom.StoryAcceptanceTests)
+    $storyCfgFields = if ($Story -is [hashtable]) { $Story['configFields'] } else { $Story.configFields }
+    if ($null -ne $storyCfgFields -and $storyCfgFields.Count -gt 0) {
+        foreach ($refName in $storyCfgFields.Keys) {
+            if (-not $fields.ContainsKey($refName)) { $fields[$refName] = $storyCfgFields[$refName] }
+        }
+    }
     return $fields
 }
 
@@ -638,6 +658,7 @@ function Convert-HierarchyFeature {
         deployedToProduction = $Item['deployedToProduction']
         tags               = $tags
         stories            = [array]@()
+        configFields       = if ($null -ne $Item['configFields']) { $Item['configFields'] } else { @{} }
     }
     $children = $Item['children']
     if ($null -ne $children -and $children.Count -gt 0) {
@@ -671,6 +692,7 @@ function Convert-HierarchyStory {
         tags                 = $tags
         tasks                = [array]@()
         bugs                 = [array]@()
+        configFields         = if ($null -ne $Item['configFields']) { $Item['configFields'] } else { @{} }
     }
     $children = $Item['children']
     if ($null -ne $children -and $children.Count -gt 0) {
