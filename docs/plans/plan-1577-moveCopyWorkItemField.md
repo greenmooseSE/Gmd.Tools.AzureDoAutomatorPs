@@ -1,12 +1,9 @@
 # Epic: Gmd.Tools.AzureDoAutomatorPs
-**WorkItemId**: 1577
-**State**: New
-
-**WorkItemId**: 1577  
-**State**: New  
-**tags**: azDoAutomator, automation, azdo, crudOperations, mcpServer  
-**Effort**: 79  
-**Description**  
+{WorkItemId}: 1577
+{State}: New
+{tags}: azDoAutomator, automation, azdo, crudOperations, mcpServer
+{Effort}: 79
+{Description}
 Complete build-out of Azure DevOps work item automation tooling to support full CRUD operations on  
 Epics, Features, User Stories, Bugs, and Tasks. Implement comprehensive comment management with  
 reaction support, tag management, and hierarchical retrieval with all associated metadata. Operations  
@@ -15,13 +12,12 @@ Culminate in MCP (Model Context Protocol) server integration to expose all opera
 tools for AI assistants and automation frameworks.  
 
 ## Feature: Move/Copy Work Item Field Values
-**WorkItemId**: 2619
-**State**: New
-
-**tags**: azDoAutomator, fieldMgmt, epicAzDoAutomator  
-**Effort**: 5  
-**Priority**: 2  
-**Feature Acceptance Tests**  
+{WorkItemId}: 2619
+{State}: New
+{tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
+{Effort}: 5
+{Priority}: 2
+### {Feature Acceptance Tests}
 - [ ] **Test 1: Move field value within a feature hierarchy (WorkItemId scope)**  
   1. Pick a Feature in AzDo that has 2–3 child stories.  
   2. Ensure at least 2 stories have a non-empty "Extra Information" field and at least 1 has it empty.  
@@ -69,7 +65,7 @@ tools for AI assistants and automation frameworks.
   2. Verify the script terminates with a clear error message identifying "NonExistentField" as invalid.  
   3. Verify no work items were modified.  
 
-**Description**  
+### {Description}
 Add a new PowerShell script `MoveAzDoWorkItemField.ps1` that moves or copies the value of one  
 field to another field across a set of Azure DevOps work items. The script supports two scoping  
 modes: by WorkItemId (processes the specified item and all its hierarchical descendants) or Global  
@@ -93,13 +89,12 @@ modes: by WorkItemId (processes the specified item and all its hierarchical desc
   WorkItemType, SourceField, TargetField, Action, Result) so downstream tooling can filter or  
   aggregate results.  
 
-### Story: Implement MoveAzDoWorkItemField.ps1 with WorkItemId scope (001)
-**WorkItemId**: 2620
-**State**: New
-
-**tags**: azDoAutomator, fieldMgmt, epicAzDoAutomator  
-**Story Points**: 2  
-**Story Acceptance Tests**  
+### Story: Implement MoveAzDoWorkItemField.ps1 with WorkItemId scope (001) ✅
+{WorkItemId}: 2620
+{State}: Done
+{tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
+{Story Points}: 2
+{Story Acceptance Tests}
 - [ ] **Scenario 1: Move field value for a single work item**  
   Given a User Story with a non-empty "Extra Information" field  
   When `MoveAzDoWorkItemField.ps1 -WorkItemId {storyId} -SourceField "Extra Information" -TargetField "Story Acceptance Tests"` is run  
@@ -152,7 +147,7 @@ modes: by WorkItemId (processes the specified item and all its hierarchical desc
   Then a terminating error is thrown before any work items are processed  
   And the error message identifies the invalid field label  
 
-**Description**  
+{Description}
 **As a** DevOps engineer or AI agent  
 **I want** a script that moves or copies a field value from one field to another for a specified  
 work item and all its hierarchical descendants  
@@ -206,7 +201,7 @@ Each processed item emits a PSObject with these properties:
   set source field to empty string.  
 - **Copy** (`-Copy`): PATCH with one operation — set target field to source value.  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ▢ | Source field label is resolved to API referenceName via LoadFieldConfiguration.ps1 | | |
@@ -224,7 +219,7 @@ Each processed item emits a PSObject with these properties:
 | ▢ | Invalid SourceField or TargetField label throws a terminating error | | |
 | ▢ | README.md is updated to reflect this story's changes | | |
 
-#### Extra Information  
+{Extra Information}
 - Use the same PAT token resolution pattern as other scripts (`AzDoPatTokenHelper.ps1`).  
 - The PATCH endpoint is `PATCH https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.1`  
   with Content-Type `application/json-patch+json`.  
@@ -234,12 +229,11 @@ Each processed item emits a PSObject with these properties:
 - Pester test file: `test/MoveAzDoWorkItemFieldTests/MoveAzDoWorkItemFieldTest.ps1`  
 
 ### Story: Add Global scope to MoveAzDoWorkItemField.ps1 (002)
-**WorkItemId**: 2621
-**State**: New
-
-**tags**: azDoAutomator, fieldMgmt, epicAzDoAutomator  
-**Story Points**: 1  
-**Story Acceptance Tests**  
+{WorkItemId}: 2621
+{State}: New
+{tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
+{Story Points}: 1
+{Story Acceptance Tests}
 - [ ] **Scenario 1: Global scope processes all project work items**  
   Given a project with work items of types Epic, Feature, User Story, Bug, and Task  
   When `-Global -SourceField "Extra Information" -TargetField "Description"` is run  
@@ -264,7 +258,7 @@ Each processed item emits a PSObject with these properties:
   When `-Global` is specified  
   Then progress messages are logged at items 25, 50, 75, and 100  
 
-**Description**  
+{Description}
 **As a** DevOps engineer or AI agent  
 **I want** a `-Global` switch on `MoveAzDoWorkItemField.ps1` that processes all work items  
 in the project including closed items  
@@ -297,7 +291,7 @@ ORDER BY [System.Id] ASC
 - Logs final summary at Info level:  
   `"✅ Global field {action} complete: {total} items evaluated, {updated} updated, {skipped} skipped, {errors} errors"`  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ▢ | -Global switch is mutually exclusive with -WorkItemId | | |
@@ -310,7 +304,7 @@ ORDER BY [System.Id] ASC
 | ▢ | -ConfirmEachItem combined with -Global prompts before each item | | |
 | ▢ | README.md is updated to reflect this story's changes | | |
 
-#### Extra Information  
+{Extra Information}
 - The `Invoke-AzDoWiql` function in `AzDoApiWrapper.ps1` already supports WIQL queries  
   and should be used for the global query.  
 - Consider API rate limits: the Azure DevOps REST API throttles at ~200 requests/minute  
