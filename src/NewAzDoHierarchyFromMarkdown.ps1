@@ -843,7 +843,7 @@ function Update-MarkdownWithWorkItemIds {
 try {
     # Call adapter to parse markdown to JSON
     $null = & ssLogIt.ps1 -Level Info -Message "Converting markdown to JSON structure..."
-    $parsedHierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $MarkdownContent -ErrorAction Stop
+    $parsedHierarchy = & "$PSScriptRoot\ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $MarkdownContent -Organization $Organization -Project $Project -ErrorAction Stop
 
     # Convert from new workItems format (nested children) to legacy epics/topLevelFeatures format
     $converted = Convert-WorkItemsToLegacyFormat -WorkItems @($parsedHierarchy.workItems)
@@ -1003,10 +1003,6 @@ try {
 
             if ($epic.effort) {
                 $epicParams['Effort'] = $epic.effort
-            }
-
-            if ($PSBoundParameters.ContainsKey('EpicId')) {
-                $epicParams['ParentEpicId'] = $EpicId
             }
 
             $null = & ssLogIt.ps1 -Level Debug -Message "Creating Epic: $($epic.title)"

@@ -31,9 +31,9 @@ Rules:
 - Do not invent or repeat trivial bullets. If there are no secondary changes, omit the list.
 - Focus on clarity and impact. Avoid vague phrases like "updates" or "changes".
 
-## Agent commit behavior (CRITICAL)
+## Agent git push behavior (CRITICAL)
 
-- Agents must never perform Git commits, pushes, or any automated VCS operations without explicit, pre-authorized user instruction.
+- Agents must never perform Git push operations.
 
 ## Code review instructions
 - When performing a code review, do not allow introduction of changes that result in compiler warnings.

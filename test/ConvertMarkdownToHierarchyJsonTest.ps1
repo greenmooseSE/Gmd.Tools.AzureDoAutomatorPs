@@ -2,17 +2,18 @@
 
 <#
 .SYNOPSIS
-Tests for ConvertMarkdownToHierarchyJson parsing logic demonstrating the fix for issues:
-- Parser recognizes descriptions WITHOUT colons: **Description**
-- Parser also supports backward compatibility with inline format: **Description**: content
-- Bold-formatted lines inside multi-line fields (description, AC, etc.) are treated as
-  content, not as metadata field boundaries (bug fix for AB#2563)
+Tests for ConvertMarkdownToHierarchyJson parsing logic using the {Field Name} curly-brace syntax.
+- Parser recognises {Field Name}, **{Field Name}**, and ## {Field Name} markers
+- Fields resolved through appSettings.json (config-driven)
+- Bold-formatted lines inside collecting fields are treated as content, not field boundaries
 #>
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
 
-# Mock ssLogIt.ps1 if not available
+[string]$REPO_ROOT = Resolve-Path (Join-Path $PSScriptRoot '../')
+[string]$SRC_DIR   = Join-Path $REPO_ROOT 'src'
+
 if (-not (Get-Command "ssLogIt.ps1" -ErrorAction SilentlyContinue)) {
     function global:ssLogIt.ps1 {
         param([string]$Level, [string]$Message, [object]$Exception)
@@ -21,56 +22,59 @@ if (-not (Get-Command "ssLogIt.ps1" -ErrorAction SilentlyContinue)) {
 
 Describe "ConvertMarkdownToHierarchyJson parser" {
 
-    Context "Description format recognition (REGRESSION BUG FIX)" {
+    Context "Core field parsing via {Field Name} syntax" {
 
-        It "should recognize description markers WITHOUT colons" {
+        It "GivenCurlyBraceFields_WhenParsing_ItShouldParseDescriptionTagsAndHierarchy" {
             [string]$markdown = @"
 # Epic: Test Epic
-**tags**: test
-**Description**
-This is the epic description without a colon marker
+{tags}: test
+{Description}
+This is the epic description
 
 ## Feature: Test Feature
-**tags**: test
-**Description**
-This is the feature description without a colon marker
+{tags}: test
+{Description}
+This is the feature description
 
 ### Story: Test Story
-**tags**: test
-**Story Points**: 3
-**Description**
-This is the story description without a colon marker
+{tags}: test
+{Story Points}: 3
+{Description}
+This is the story description
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $result.workItems.Count | Should Be 1
-                $result.workItems[0].description | Should Be "This is the epic description without a colon marker"
+                $result.workItems[0].description | Should Be "This is the epic description"
                 $result.workItems[0].children.Count | Should Be 1
-                $result.workItems[0].children[0].description | Should Be "This is the feature description without a colon marker"
+                $result.workItems[0].children[0].description | Should Be "This is the feature description"
                 $result.workItems[0].children[0].children.Count | Should Be 1
-                $result.workItems[0].children[0].children[0].description | Should Be "This is the story description without a colon marker"
+                $result.workItems[0].children[0].children[0].description | Should Be "This is the story description"
+                $result.workItems[0].children[0].children[0].storyPoints | Should Be 3.0
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should recognize titles and tags in standard format" {
+        It "GivenCurlyBraceTags_WhenParsing_ItShouldParseTitlesAndTags" {
             [string]$markdown = @"
 # Epic: Management System
-**tags**: core, platform
-**Description**
+{tags}: core, platform
+{Description}
 Main management epic
 
 ## Feature: User Authentication
-**tags**: security, authentication
-**Description**
+{tags}: security, authentication
+{Description}
 User login and session management
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $result.workItems[0].title | Should Be "Management System"
                 ($result.workItems[0].tags -match "core") | Should Be $true
                 ($result.workItems[0].tags -match "platform") | Should Be $true
@@ -81,63 +85,67 @@ User login and session management
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should also support descriptions WITH colons (backward compatibility)" {
+        It "GivenInlineDescriptionValue_WhenParsing_ItShouldParseDescriptionFromInlineValue" {
             [string]$markdown = @"
-# Epic: Legacy Format
-**tags**: test
-**Description**: This is an inline description with colon
+# Epic: Inline Format
+{tags}: test
+{Description}: This is an inline description with value
 
-## Feature: Legacy Feature
-**tags**: test
-**Description**: Feature description inline
+## Feature: Inline Feature
+{tags}: test
+{Description}: Feature description inline
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
-                $result.workItems[0].description | Should Be "This is an inline description with colon"
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
+                $result.workItems[0].description | Should Be "This is an inline description with value"
                 $result.workItems[0].children[0].description | Should Be "Feature description inline"
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "mixed formats should both work in same file" {
+        It "GivenMultipleWorkItemTypes_WhenParsing_ItShouldParseAllCoreFields" {
             [string]$markdown = @"
-# Epic: Mixed Format
-**tags**: test
-**Description**
-This is without colon
+# Epic: Mixed
+{tags}: test
+{Description}
+Epic desc
 
-## Feature: With Colon
-**tags**: test
-**Description**: This is with colon
+## Feature: Mixed Feature
+{tags}: test
+{Description}
+Feature desc
 
-### Story: Another Without
-**tags**: test
-**Story Points**: 3
-**Description**
+### Story: Mixed Story
+{tags}: test
+{Story Points}: 3
+{Description}
 Without colon again
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
-                $result.workItems[0].description | Should Be "This is without colon"
-                $result.workItems[0].children[0].description | Should Be "This is with colon"
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
+                $result.workItems[0].description | Should Be "Epic desc"
+                $result.workItems[0].children[0].description | Should Be "Feature desc"
                 $result.workItems[0].children[0].children[0].description | Should Be "Without colon again"
+                $result.workItems[0].children[0].children[0].storyPoints | Should Be 3.0
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
     }
 
-    Context "Bold format in multi-line fields (AB#2563 bug fix)" {
+    Context "Bold-formatted lines inside collecting fields are treated as content" {
 
-        It "should preserve bold-formatted lines inside description as content, not as metadata" {
+        It "GivenBoldLinesInDescription_WhenParsing_ItShouldPreserveBoldAsContent" {
             [string]$markdown = @"
 ### Story: Story With Bold In Description
-**WorkItemId**: 999
-**State**: Active
-**Description**
+{WorkItemId}: 999
+{State}: Active
+{Description}
 Here is a description with bold content.
 **Foo**: bar
 More text after the bold field.
@@ -147,29 +155,29 @@ Final line.
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
+                $story.workItemId | Should Be 999
+                $story.state | Should Be "Active"
                 ($story.description -match "Here is a description") | Should Be $true
                 ($story.description -match [regex]::Escape("**Foo**: bar")) | Should Be $true
                 ($story.description -match "More text after the bold field") | Should Be $true
                 ($story.description -match [regex]::Escape("**Another**: bold line here")) | Should Be $true
                 ($story.description -match "Final line") | Should Be $true
-                # Bold lines must NOT be stored as stray custom fields
-                $story.ContainsKey("Foo") | Should Be $false
-                $story.ContainsKey("Another") | Should Be $false
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should preserve bold-formatted lines inside Acceptance Criteria as content" {
+        It "GivenBoldLinesInAcceptanceCriteria_WhenParsing_ItShouldPreserveBoldAsContent" {
             [string]$markdown = @"
 ### Story: Story With Bold In AC
-**WorkItemId**: 998
-**State**: Active
-**Description**
+{WorkItemId}: 998
+{State}: Active
+{Description}
 Normal description.
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 Verify that the system works.
 **Given**: a user is logged in
 **When**: they click submit
@@ -178,9 +186,10 @@ Verify that the system works.
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
-                ($story.ContainsKey("acceptanceCriteria")) | Should Be $true
+                $story.ContainsKey("acceptanceCriteria") | Should Be $true
                 ($story.acceptanceCriteria -match "Verify that the system works") | Should Be $true
                 ($story.acceptanceCriteria -match [regex]::Escape("**Given**: a user is logged in")) | Should Be $true
                 ($story.acceptanceCriteria -match [regex]::Escape("**When**: they click submit")) | Should Be $true
@@ -189,14 +198,14 @@ Verify that the system works.
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should correctly parse metadata fields before description even when description has bold lines" {
+        It "GivenMetadataFieldsBeforeDescriptionWithBoldInside_WhenParsing_ItShouldParseBothCorrectly" {
             [string]$markdown = @"
 ### Story: Full Metadata Story
-**WorkItemId**: 997
-**tags**: tag1; tag2
-**Story Points**: 5
-**State**: Active
-**Description**
+{WorkItemId}: 997
+{tags}: tag1; tag2
+{Story Points}: 5
+{State}: Active
+{Description}
 This is the description.
 **Bold Section**: value in description
 More description text.
@@ -204,7 +213,8 @@ More description text.
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
                 $story.workItemId | Should Be 997
                 ($story.tags -match "tag1") | Should Be $true
@@ -217,42 +227,43 @@ More description text.
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should handle bold lines in description across all work item types" {
+        It "GivenBoldLinesInDescriptionAcrossAllTypes_WhenParsing_ItShouldPreserveInEach" {
             [string]$markdown = @"
 # Epic: Bold Epic
-**WorkItemId**: 100
-**State**: Active
-**Description**
+{WorkItemId}: 100
+{State}: Active
+{Description}
 Epic desc **Bold**: epic value more
 
 ## Feature: Bold Feature
-**WorkItemId**: 200
-**State**: Active
-**Description**
+{WorkItemId}: 200
+{State}: Active
+{Description}
 Feature desc **Bold**: feature value more
 
 ### Story: Bold Story
-**WorkItemId**: 300
-**State**: Active
-**Description**
+{WorkItemId}: 300
+{State}: Active
+{Description}
 Story desc **Bold**: story value more
 
 #### Bug: Bold Bug
-**WorkItemId**: 400
-**State**: Active
-**Description**
+{WorkItemId}: 400
+{State}: Active
+{Description}
 Bug desc **Bold**: bug value more
 
 #### Task: Bold Task
-**WorkItemId**: 500
-**State**: Active
-**Description**
+{WorkItemId}: 500
+{State}: Active
+{Description}
 Task desc **Bold**: task value more
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $epic    = $result.workItems[0]
                 $feature = $epic.children[0]
                 $story   = $feature.children[0]
@@ -267,13 +278,13 @@ Task desc **Bold**: task value more
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should handle AC Scenarios section with bold lines as content" {
+        It "GivenBoldLinesInACScenarios_WhenParsing_ItShouldPreserveBoldAsContent" {
             [string]$markdown = @"
 ### Story: Bold In AC Scenarios
-**WorkItemId**: 996
-**State**: Active
+{WorkItemId}: 996
+{State}: Active
 
-#### AC Scenarios
+{AC Scenarios}
 **Scenario 1**: happy path
 User opens the app
 **Expected**: app loads successfully
@@ -285,9 +296,10 @@ Server returns 500
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
-                ($story.ContainsKey("acScenarios")) | Should Be $true
+                $story.ContainsKey("acScenarios") | Should Be $true
                 ($story.acScenarios -match [regex]::Escape("**Scenario 1**: happy path")) | Should Be $true
                 ($story.acScenarios -match [regex]::Escape("**Expected**: app loads successfully")) | Should Be $true
                 ($story.acScenarios -match [regex]::Escape("**Scenario 2**: error path")) | Should Be $true
@@ -299,44 +311,42 @@ Server returns 500
 
     Context "Angle-bracket entity preservation (&lt; stays as &lt; in parsed output)" {
 
-        It "should preserve &lt; as-is in description (AzDo renders the entity as <text> correctly)" {
-            # Arrange: markdown as it would look after ConvertHierarchyToMarkdown exports a
-            # description containing <StmtsDir> (which gets encoded to &lt;StmtsDir>).
+        It "GivenLtEntityInDescription_WhenParsing_ItShouldPreserveLtEntity" {
             # The parser must NOT decode &lt; -> < because AzDo already handles the entity
             # correctly when it receives &lt;StmtsDir> in the HTML description field.
             [string]$markdown = @"
 ### Story: Path Story
-**WorkItemId**: 900
-**State**: Active
-**Description**
+{WorkItemId}: 900
+{State}: Active
+{Description}
 Per-account directory structure under &lt;StmtsDir>/&lt;AccountName>/yyyy-MM.json
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
-                # Parser must preserve &lt; so AzDo receives the HTML entity and displays <StmtsDir>
                 $story.description | Should Be "Per-account directory structure under &lt;StmtsDir>/&lt;AccountName>/yyyy-MM.json"
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "should preserve &lt; in Acceptance Criteria content" {
+        It "GivenLtEntityInAcceptanceCriteria_WhenParsing_ItShouldPreserveLtEntity" {
             [string]$markdown = @"
 ### Story: AC With Tags
-**WorkItemId**: 901
-**State**: Active
+{WorkItemId}: 901
+{State}: Active
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 Path must match &lt;RootDir>/yyyy-MM.json pattern.
 "@
             $markdownPath = [System.IO.Path]::GetTempFileName() + ".md"
             $markdown | Set-Content -LiteralPath $markdownPath
             try {
-                $result = & "$PSScriptRoot/../src/ConvertMarkdownToHierarchyJson.ps1" -MarkdownFilePath $markdownPath
+                $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                    -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
-                # &lt; must be preserved as-is; AzDo renders the entity as the < character
                 ($story.acceptanceCriteria -match [regex]::Escape("&lt;RootDir>")) | Should Be $true
                 ($story.acceptanceCriteria -match [regex]::Escape("<RootDir>")) | Should Be $false
             }

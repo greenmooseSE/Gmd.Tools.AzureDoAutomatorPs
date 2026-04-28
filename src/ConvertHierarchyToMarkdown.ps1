@@ -106,7 +106,7 @@ function Get-FieldConfigForType {
 .SYNOPSIS
 Labels that are already output as core metadata fields and must be skipped during config-driven output.
 #>
-[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path')
+[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path', 'Acceptance Criteria', 'AC Scenarios', 'Extra Information')
 
 <#
 .SYNOPSIS
@@ -133,7 +133,12 @@ function Get-ConfigFieldsMarkdown {
         [string]$strVal = $val.ToString()
         if ([string]::IsNullOrWhiteSpace($strVal)) { continue }
         $escaped = Format-MarkdownText $strVal
-        $fragment += "**$($fd.label)**: $escaped  `n"
+        if ($fd.type -eq 'html') {
+            $content = Add-MarkdownLineBreaks $escaped
+            $fragment += "{$($fd.label)}  `n$content`n"
+        } else {
+            $fragment += "{$($fd.label)}: $escaped  `n"
+        }
     }
     return $fragment
 }
@@ -278,70 +283,47 @@ function Convert-StoryToMarkdown {
     }
     
     # Add metadata
-    $markdown += "**WorkItemId**: $Id  `n"
+    $markdown += "{WorkItemId}: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
+        $markdown += "{tags}: $(Format-Tags $Tags)  `n"
     }
     
     if ($StoryPoints) {
-        $markdown += "**Story Points**: $StoryPoints  `n"
+        $markdown += "{Story Points}: $StoryPoints  `n"
     }
     
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
-    $markdown += "**State**: $State$stateMarker  `n"
+    $markdown += "{State}: $State$stateMarker  `n"
     
     # Add config-driven fields (from configFields hashtable, in config order)
     $markdown += Get-ConfigFieldsMarkdown -Item $Story -WorkItemType 'User Story'
     
-    # Add custom fields to metadata
-    if ($null -ne $CustomFields -and $CustomFields.Count -gt 0) {
-        foreach ($fieldName in ($CustomFields.Keys | Sort-Object)) {
-            $fieldValue = $CustomFields[$fieldName]
-            if ($null -ne $fieldValue -and -not [string]::IsNullOrWhiteSpace($fieldValue.ToString())) {
-                $escapedValue = Format-MarkdownText $fieldValue.ToString()
-                $markdown += "**$fieldName**: $escapedValue  `n"
-            }
-        }
-    }
-    
-    # Add ACScenarios to metadata if present
-    if ($ACScenarios) {
-        $escapedValue = Format-MarkdownText $ACScenarios
-        $markdown += "**Custom.ACScenarios**: $escapedValue  `n"
-    }
-    
-    # Add ExtraInformation to metadata if present
-    if ($ExtraInformation) {
-        $escapedValue = Format-MarkdownText $ExtraInformation
-        $markdown += "**Custom.ExtraInformation**: $escapedValue  `n"
-    }
-    
     # Add description
     if ($Description) {
-        $markdown += "**Description**  `n"
+        $markdown += "{Description}  `n"
         $markdown += (Add-MarkdownLineBreaks $Description)
         $markdown += "`n"
     }
     
     # Add acceptance criteria
     if ($AcceptanceCriteria) {
-        $markdown += "`n#### Acceptance Criteria  `n"
+        $markdown += "`n{Acceptance Criteria}  `n"
         $markdown += (Add-MarkdownLineBreaks $AcceptanceCriteria)
         $markdown += "`n"
     }
     
     # Add AC scenarios
     if ($ACScenarios) {
-        $markdown += "`n#### AC Scenarios  `n"
+        $markdown += "`n{AC Scenarios}  `n"
         $markdown += (Add-MarkdownLineBreaks $ACScenarios)
         $markdown += "`n"
     }
     
     # Add extra information
     if ($ExtraInformation) {
-        $markdown += "`n#### Extra Information  `n"
+        $markdown += "`n{Extra Information}  `n"
         $markdown += (Add-MarkdownLineBreaks $ExtraInformation)
         $markdown += "`n"
     }
@@ -367,11 +349,11 @@ function Convert-StoryToMarkdown {
             }
             
             $markdown += "#### Task: $taskTitle  `n`n"
-            $markdown += "**WorkItemId**: $taskId  `n"
-            $markdown += "**State**: $taskState$(if (-not $isTaskStateWritable) { ' ⚠️ (read-only)' })  `n"
+            $markdown += "{WorkItemId}: $taskId  `n"
+            $markdown += "{State}: $taskState$(if (-not $isTaskStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($taskDescription) {
-                $markdown += "**Description**  `n"
+                $markdown += "{Description}  `n"
                 $markdown += (Add-MarkdownLineBreaks $taskDescription)
                 $markdown += "`n"
             }
@@ -401,11 +383,11 @@ function Convert-StoryToMarkdown {
             }
             
             $markdown += "#### Bug: $bugTitle  `n`n"
-            $markdown += "**WorkItemId**: $bugId  `n"
-            $markdown += "**State**: $bugState$(if (-not $isBugStateWritable) { ' ⚠️ (read-only)' })  `n"
+            $markdown += "{WorkItemId}: $bugId  `n"
+            $markdown += "{State}: $bugState$(if (-not $isBugStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($bugDescription) {
-                $markdown += "**Description**  `n"
+                $markdown += "{Description}  `n"
                 $markdown += (Add-MarkdownLineBreaks $bugDescription)
                 $markdown += "`n"
             }
@@ -451,26 +433,26 @@ function Convert-FeatureToMarkdown {
     }
     
     # Add metadata
-    $markdown += "**WorkItemId**: $Id  `n"
+    $markdown += "{WorkItemId}: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
+        $markdown += "{tags}: $(Format-Tags $Tags)  `n"
     }
     
     if ($Effort) {
-        $markdown += "**Effort**: $Effort  `n"
+        $markdown += "{Effort}: $Effort  `n"
     }
     
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
-    $markdown += "**State**: $State$stateMarker  `n"
+    $markdown += "{State}: $State$stateMarker  `n"
     
     # Add config-driven fields (from configFields hashtable, in config order)
     $markdown += Get-ConfigFieldsMarkdown -Item $Feature -WorkItemType 'Feature'
     
     # Add description
     if ($Description) {
-        $markdown += "**Description**  `n"
+        $markdown += "{Description}  `n"
         $markdown += (Add-MarkdownLineBreaks $Description)
         $markdown += "`n"
     }
@@ -521,26 +503,26 @@ function Convert-EpicToMarkdown {
     }
     
     # Add metadata
-    $markdown += "**WorkItemId**: $Id  `n"
+    $markdown += "{WorkItemId}: $Id  `n"
     
     if ($Tags) {
-        $markdown += "**tags**: $(Format-Tags $Tags)  `n"
+        $markdown += "{tags}: $(Format-Tags $Tags)  `n"
     }
     
     if ($Effort) {
-        $markdown += "**Effort**: $Effort  `n"
+        $markdown += "{Effort}: $Effort  `n"
     }
     
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
-    $markdown += "**State**: $State$stateMarker  `n"
+    $markdown += "{State}: $State$stateMarker  `n"
     
     # Add config-driven fields (from configFields hashtable, in config order)
     $markdown += Get-ConfigFieldsMarkdown -Item $Epic -WorkItemType 'Epic'
     
     # Add description
     if ($Description) {
-        $markdown += "**Description**  `n"
+        $markdown += "{Description}  `n"
         $markdown += (Add-MarkdownLineBreaks $Description)
         $markdown += "`n"
     }

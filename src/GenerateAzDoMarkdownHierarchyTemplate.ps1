@@ -81,18 +81,18 @@ $template = @"
 # * Effort applies to Epics and Features (larger scale estimate)
 
 # TAG FORMAT
-# **tags**: tag1, tag2, tag3
+# {tags}: tag1, tag2, tag3
 
 # FIELD FORMATS (order matters)
-# **tags**: (comma-separated, camelCase)
-# **Effort**: (number, Epics/Features only)
-# **Story Points**: (number, Stories/Bugs only)
-# **Priority**: (1-4, Tasks/Bugs/Features/Stories; 1=highest)
-# **OriginalEstimate**: (hours, Tasks/Features/Stories)
-# **FixedIn**: (text, Features/Stories; version or build where item was completed)
-# **DeployedToDev**: (true/false, Features/Stories)
-# **DeployedToStaging**: (true/false, Features/Stories)
-# **DeployedToProduction**: (true/false, Features/Stories)
+# {tags}: (comma-separated, camelCase)
+# {Effort}: (number, Epics/Features only)
+# {Story Points}: (number, Stories/Bugs only)
+# {Priority}: (1-4, Tasks/Bugs/Features/Stories; 1=highest)
+# {OriginalEstimate}: (hours, Tasks/Features/Stories)
+# {FixedIn}: (text, Features/Stories; version or build where item was completed)
+# {DeployedToDev}: (true/false, Features/Stories)
+# {DeployedToStaging}: (true/false, Features/Stories)
+# {DeployedToProduction}: (true/false, Features/Stories)
 # **Description**
 # Multi-line description with proper header levels
 
@@ -103,7 +103,7 @@ $template = @"
 
 
 # ACCEPTANCE CRITERIA
-# #### Acceptance Criteria
+# {Acceptance Criteria}
 # | ✅ | What is Verified | Test(s) | Notes |
 # |---|-----------------|---------|-------|
 # | ☐ | (Describe what is verified) |  |  |
@@ -113,7 +113,7 @@ $template = @"
 # - Notes column: Add any clarifications about the tests, edge cases, or special considerations
 
 # AC SCENARIOS (BDD/GHERKIN)
-# #### AC Scenarios
+# {AC Scenarios}
 # 1. **Scenario**: Clear scenario title
 #    Given [initial state]
 #    When [action performed]
@@ -125,7 +125,7 @@ $template = @"
 #    Then [result]
 
 # EXTRA INFORMATION (optional)
-# #### Extra Information
+# {Extra Information}
 # - Implementation notes
 # - References to other work items
 # - Constraints and dependencies
@@ -134,8 +134,8 @@ $template = @"
 
 # Epic: Your Epic Title (001)
 
-**tags**: epicName, component1, testWi  
-**Effort**: 21  
+{tags}: epicName, component1, testWi  
+{Effort}: 21  
 **Description**  
 Write a clear, compelling description of what this epic accomplishes.  
 This is the high-level strategic goal. Include:  
@@ -148,14 +148,14 @@ If applicable, describe the technical approach or design patterns.
 
 ## Feature: Your First Feature (001)
 
-**tags**: epicName, feature1  
-**Effort**: 8  
-**Priority**: 3  
-**OriginalEstimate**: 16  
-**FixedIn**:   
-**DeployedToDev**: false  
-**DeployedToStaging**: false  
-**DeployedToProduction**: false  
+{tags}: epicName, feature1  
+{Effort}: 8  
+{Priority}: 3  
+{OriginalEstimate}: 16  
+{FixedIn}:   
+{DeployedToDev}: false  
+{DeployedToStaging}: false  
+{DeployedToProduction}: false  
 **Description**  
 Clear description of the feature's purpose and scope.  
 Explain what users can do with this feature.  
@@ -167,14 +167,14 @@ Include any key technical decisions or design choices.
 
 ### Story: User can perform action (001)
 
-**tags**: epicName, feature1, userFacing  
-**Story Points**: 3  
-**Priority**: 3  
-**OriginalEstimate**: 8  
-**FixedIn**:   
-**DeployedToDev**: false  
-**DeployedToStaging**: false  
-**DeployedToProduction**: false  
+{tags}: epicName, feature1, userFacing  
+{Story Points}: 3  
+{Priority}: 3  
+{OriginalEstimate}: 8  
+{FixedIn}:   
+{DeployedToDev}: false  
+{DeployedToStaging}: false  
+{DeployedToProduction}: false  
 **Description**  
 **As a** [user type/persona]  
 **I want** [specific action or capability]  
@@ -183,14 +183,14 @@ Include any key technical decisions or design choices.
 Include additional details about the implementation approach here if needed.  
 Keep the description focused on the "what" and "why", not "how".  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ☐ | Criterion 1 validates one specific behavior |  |  |
 | ☐ | Criterion 2 validates another specific behavior |  |  |
 | ☐ | Criterion 3 validates the integration or edge case |  |  |
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: Happy path with all inputs valid  
    Given [initial precondition or state]  
    When [user performs action]  
@@ -202,42 +202,42 @@ Keep the description focused on the "what" and "why", not "how".
    When [variation of action]  
    Then [different expected outcome]  
 
-#### Extra Information
+{Extra Information}
 - Related stories or work items
 - External dependencies
 - Performance requirements if applicable
 
 #### Task: Implement core logic
 
-**tags**: epicName, feature1, dev  
-**Priority**: 1  
-**OriginalEstimate**: 4  
+{tags}: epicName, feature1, dev  
+{Priority}: 1  
+{OriginalEstimate}: 4  
 **Description**  
 Specific implementation task. Break down the story's work into concrete,  
 actionable tasks. Include what needs to be built, modified, or integrated.  
 
 ### Story: User can perform alternate action (002)
 
-**tags**: epicName, feature1, userFacing  
-**Story Points**: 2  
-**Priority**: 3  
-**OriginalEstimate**: 4  
-**FixedIn**:   
-**DeployedToDev**: false  
-**DeployedToStaging**: false  
-**DeployedToProduction**: false  
+{tags}: epicName, feature1, userFacing  
+{Story Points}: 2  
+{Priority}: 3  
+{OriginalEstimate}: 4  
+{FixedIn}:   
+{DeployedToDev}: false  
+{DeployedToStaging}: false  
+{DeployedToProduction}: false  
 **Description**  
 **As a** [another persona]  
 **I want** [related capability]  
 **So that** [related benefit]  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ☐ | First behavior is correctly implemented |  |  |
 | ☐ | Edge cases are handled |  |  |
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: Normal operation  
    Given [precondition]  
    When [action]  
@@ -245,40 +245,40 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 
 ## Feature: Your Second Feature (002)
 
-**tags**: epicName, feature2, infrastructure  
-**Effort**: 5  
-**Priority**: 3  
-**OriginalEstimate**: 8  
-**FixedIn**:   
-**DeployedToDev**: false  
-**DeployedToStaging**: false  
-**DeployedToProduction**: false  
+{tags}: epicName, feature2, infrastructure  
+{Effort}: 5  
+{Priority}: 3  
+{OriginalEstimate}: 8  
+{FixedIn}:   
+{DeployedToDev}: false  
+{DeployedToStaging}: false  
+{DeployedToProduction}: false  
 **Description**  
 Features can be created without Stories if they represent infrastructure or  
 foundational work. This feature sets up any supporting systems needed.  
 
 ### Story: Setup required (001)
 
-**tags**: epicName, feature2  
-**Story Points**: 3  
-**Priority**: 3  
-**OriginalEstimate**: 8  
-**FixedIn**:   
-**DeployedToDev**: false  
-**DeployedToStaging**: false  
-**DeployedToProduction**: false  
+{tags}: epicName, feature2  
+{Story Points}: 3  
+{Priority}: 3  
+{OriginalEstimate}: 8  
+{FixedIn}:   
+{DeployedToDev}: false  
+{DeployedToStaging}: false  
+{DeployedToProduction}: false  
 **Description**  
 **As a** [system maintainer]  
 **I want** [infrastructure capability]  
 **So that** [system can function properly]  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ☐ | Component is deployed and operational |  |  |
 | ☐ | Monitoring and logging are in place |  |  |
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: System starts correctly with new component  
    Given [component installed]  
    When [system starts]  
@@ -286,22 +286,22 @@ foundational work. This feature sets up any supporting systems needed.
 
 #### Bug: Handle error condition
 
-**tags**: epicName, feature2, bug, priority-high  
-**Story Points**: 2  
-**Priority**: 1  
+{tags}: epicName, feature2, bug, priority-high  
+{Story Points}: 2  
+{Priority}: 1  
 **Description**  
 **As a** [user/operator]  
 **I want** [specific error handled gracefully]  
 **So that** [system remains stable]  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ☐ | Error is caught and logged |  |  |
 | ☐ | User receives helpful error message |  |  |
 | ☐ | System does not crash |  |  |
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: Invalid input is provided  
    Given [invalid condition]  
    When [error occurs]  
@@ -317,8 +317,8 @@ if ($IncludeExample) {
 
 # Epic: 🚀 Customer Portal Redesign - Q1 2024
 
-**tags**: customerPortal, frontend, testWi  
-**Effort**: 40  
+{tags}: customerPortal, frontend, testWi  
+{Effort}: 40  
 **Description**  
 Complete overhaul of the customer support portal to provide a modern, intuitive interface  
 with improved accessibility and mobile responsiveness. This epic encompasses all design,  
@@ -336,8 +336,8 @@ to enable faster iteration and better scalability.
 
 ## Feature: 🎨 User Authentication & Profile Management
 
-**tags**: customerPortal, authentication, security, testWi  
-**Effort**: 13  
+{tags}: customerPortal, authentication, security, testWi  
+{Effort}: 13  
 **Description**  
 Implement modern OAuth 2.0 authentication with Microsoft Entra ID and allow users  
 to manage their profiles, preferences, and security settings. This feature provides  
@@ -353,20 +353,20 @@ and manage connected applications.
 
 ### Story: Implement OAuth 2.0 with Entra ID
 
-**tags**: customerPortal, authentication, auth-integration  
-**Story Points**: 5  
+{tags}: customerPortal, authentication, auth-integration  
+{Story Points}: 5  
 **Description**  
 **As a** [application owner]  
 **I want** [OAuth 2.0 authentication integrated with Microsoft Entra ID]  
 **So that** [users can securely authenticate using corporate credentials]  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 - [ ] OAuth 2.0 consent flow is implemented
 - [ ] ID tokens are validated correctly
 - [ ] Refresh token rotation is working
 - [ ] Logout properly revokes tokens
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: User successfully authenticates  
    Given [user opens portal]  
    When [user clicks sign in]  
@@ -381,20 +381,20 @@ and manage connected applications.
 
 ### Story: Implement MFA with Authenticator App Support
 
-**tags**: customerPortal, authentication, mfa, security  
-**Story Points**: 3  
+{tags}: customerPortal, authentication, mfa, security  
+{Story Points}: 3  
 **Description**  
 **As a** [security-conscious user]  
 **I want** [multi-factor authentication with authenticator app support]  
 **So that** [my account is protected against unauthorized access]  
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 - [ ] User can enable MFA in account settings
 - [ ] QR code for authenticator app setup is generated
 - [ ] Time-based OTP codes are validated correctly
 - [ ] Backup codes are provided and tested
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: User enables MFA  
    Given [user is in security settings]  
    When [user clicks enable MFA]  
@@ -442,3 +442,4 @@ if (Test-Path $appSettingsPath) {
 
 # Output to stdout
 $template
+

@@ -9,9 +9,6 @@ Loads state configuration from repository root. Supports two configuration forma
    Contains state objects with name, category, and readOnly flag.
    States in "Completed" or "Removed" categories are readOnly; all others are writable.
 
-2. Legacy azdoStateConfig-{org}-{project}.json (fallback when appSettings.json is absent):
-   Contains a writableStates hashtable mapping work item type to list of writable state names.
-
 Results are cached in memory to avoid repeated file I/O.
 
 .PARAMETER Organization
@@ -52,9 +49,7 @@ $config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -
 
 .NOTES
 - First load caches configuration in memory via script scope variable
-- Prefers appSettings.json; falls back to legacy azdoStateConfig file when absent
-- Returns built-in defaults if neither configuration file is present
-- Configuration files should be stored in version control
+- Reads from appSettings.json; returns built-in defaults if not present or org/project not found
 #>
 
 #Requires -Version 7.0
@@ -178,40 +173,14 @@ function Invoke-LoadStateConfiguration {
                 $script:_StateConfigurationCache[$cacheKey] = $config
                 return $config
             }
-            ssLogIt.ps1 -Level Debug -Message "appSettings.json does not contain state definitions for $Organization/$Project; falling back"
+            ssLogIt.ps1 -Level Debug -Message "appSettings.json does not contain state definitions for $Organization/$Project; using defaults"
         }
         catch {
-            ssLogIt.ps1 -Level Debug -Message "Failed to parse appSettings.json: $_. Falling back to legacy config."
+            ssLogIt.ps1 -Level Debug -Message "Failed to parse appSettings.json: $_. Using defaults."
         }
     }
 
-    # --- Attempt 2: read from legacy azdoStateConfig-{org}-{project}.json ---
-    $configFileName = "azdoStateConfig-$Organization-$Project.json"
-    $configFilePath = Join-Path $RepositoryRoot $configFileName
-
-    if (Test-Path -Path $configFilePath) {
-        ssLogIt.ps1 -Level Info -Message "Loading state configuration from $configFilePath"
-
-        try {
-            $configContent = Get-Content -Path $configFilePath -Raw -Encoding UTF8 -ErrorAction Stop
-            $config = $configContent | ConvertFrom-Json -ErrorAction Stop
-
-            if ($null -eq $config.writableStates) {
-                throw "Configuration is missing 'writableStates' property"
-            }
-
-            ssLogIt.ps1 -Level Info -Message "State configuration loaded successfully from $configFileName"
-
-            $script:_StateConfigurationCache[$cacheKey] = $config
-            return $config
-        }
-        catch {
-            ssLogIt.ps1 -Level Error -Message "Failed to load configuration from $configFilePath. Error: $_"
-            throw
-        }
-    }
-
-    # --- Attempt 3: built-in defaults ---
+    # --- Fallback: built-in defaults ---
     ssLogIt.ps1 -Level Info -Message "No configuration found for $Organization/$Project at $RepositoryRoot. Applying sensible defaults."
     $config = Get-DefaultStateConfiguration
 

@@ -252,34 +252,36 @@ function Get-WorkItemInfo {
 
 <#
 .SYNOPSIS
-Return the named section for special content headers (Acceptance Criteria, AC Scenarios, Extra Information).
-Returns the section name string or $null if the line is not a special section header.
+Tries to match a curly-brace field marker in one of three recognised forms and returns label and inline value.
+Returns $null when no match. Recognised forms (all start-of-line):
+  Bare:         {Label}        or  {Label}: value
+  Bold-wrapped: **{Label}**    or  **{Label}**: value
+  Header-style: ## {Label}     or  ## {Label}: value  (any 1-5 # chars)
 #>
-function Get-SpecialSectionName {
+function Get-CurlyFieldMarker {
     param([string]$Line)
-    if ($Line -match '^#{1,5}\s+(Acceptance Criteria|AC Scenarios|Extra Information)\s*$') {
-        return $Matches[1]
-    }
-    return $null
-}
 
-<#
-.SYNOPSIS
-Extract metadata field value from line like **WorkItemId**: 2216
-#>
-function Get-MetadataField {
-    param(
-        [string]$Line,
-        [string]$FieldName
-    )
-    
-    if ($Line -match "\*\*$FieldName\*\*:\s*(.+?)(\s*\\)?$") {
-        $value = $Matches[1].Trim()
-        # Remove trailing line break markers
-        $value = $value -replace '\s+$|\\?$', ''
-        return $value
+    # Trim trailing whitespace (generator adds two trailing spaces for markdown line breaks)
+    [string]$trimmed = $Line.TrimEnd()
+
+    $label       = $null
+    $inlineValue = $null
+
+    if ($trimmed -match '^\{([^}]+)\}(?::\s*(.+))?$') {
+        $label       = $Matches[1]
+        $inlineValue = if (-not [string]::IsNullOrWhiteSpace($Matches[2])) { $Matches[2].Trim() } else { $null }
     }
-    return $null
+    elseif ($trimmed -match '^\*\*\{([^}]+)\}\*\*(?::\s*(.+))?$') {
+        $label       = $Matches[1]
+        $inlineValue = if (-not [string]::IsNullOrWhiteSpace($Matches[2])) { $Matches[2].Trim() } else { $null }
+    }
+    elseif ($trimmed -match '^#{1,5}\s+\{([^}]+)\}(?::\s*(.+))?$') {
+        $label       = $Matches[1]
+        $inlineValue = if (-not [string]::IsNullOrWhiteSpace($Matches[2])) { $Matches[2].Trim() } else { $null }
+    }
+
+    if ($null -eq $label) { return $null }
+    return @{ label = $label; inlineValue = $inlineValue }
 }
 
 # ============================================================================
@@ -288,258 +290,206 @@ function Get-MetadataField {
 
 function Parse-MarkdownToWorkItems {
     param([string]$Content)
-    
-    [string[]]$lines = $Content -split "`n"
-    [array]$workItems = @()
-    [object]$currentItem = $null
-    [array]$descriptionBuffer = @()
-    [bool]$collectingDescription = $false
+
+    [string[]]$lines              = $Content -split '\r?\n'
+    [array]$workItems             = @()
+    [object]$currentItem          = $null
+    [array]$descriptionBuffer     = @()
+    [bool]$collectingDescription  = $false
     [bool]$script:collectingCustomField = $false
-    [string]$script:customFieldName = $null
-    [array]$script:customFieldBuffer = @()
-    [bool]$script:isHashHeaderField = $false
+    [string]$script:customFieldName    = $null
+    [array]$script:customFieldBuffer   = @()
     [hashtable]$currentItemFieldConfig = @{}
-    
-    # Regex that matches a proper metadata line: **FieldName**: value  OR  **Description** (no colon)
-    # This intentionally excludes bold text in descriptions like **As a** system administrator
-    [string]$metadataLineRegex = '^\*\*[^*]+\*\*(\s*:|\s*$)'
+    [bool]$inCodeFence                 = $false
 
     for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         $line = $lines[$lineNum]
-        
-        # Check if this is a work item header or a special section header
+
+        # ── Work-item header line ────────────────────────────────────────────
         $itemInfo = Get-WorkItemInfo -Line $line
-        $specialSection = Get-SpecialSectionName -Line $line
-        
+
         if ($null -ne $itemInfo) {
-            # Save previous item if exists
+            # Finalise previous item
             if ($null -ne $currentItem) {
-                # Finalize any pending custom field
                 if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
                     Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
-                    $script:collectingCustomField = $false
                 }
-                
                 if ($descriptionBuffer.Count -gt 0) {
                     $currentItem.description = ($descriptionBuffer -join "`n").Trim()
                 }
                 $workItems += $currentItem
             }
-            
-            # Create new work item
+
             $currentItem = @{
-                type = $itemInfo.type
-                level = $itemInfo.level
-                title = $itemInfo.title
-                lineNumber = $lineNum + 1
-                workItemId = $null
-                state = $null
-                assignedTo = $null
-                tags = $null
-                storyPoints = $null
-                effort = $null
-                priority = $null
-                originalEstimate = $null
-                fixedIn = $null
-                deployedToDev = $null
-                deployedToStaging = $null
+                type               = $itemInfo.type
+                level              = $itemInfo.level
+                title              = $itemInfo.title
+                lineNumber         = $lineNum + 1
+                workItemId         = $null
+                state              = $null
+                assignedTo         = $null
+                tags               = $null
+                storyPoints        = $null
+                effort             = $null
+                priority           = $null
+                originalEstimate   = $null
+                fixedIn            = $null
+                deployedToDev      = $null
+                deployedToStaging  = $null
                 deployedToProduction = $null
-                description = $null
-                customFields = @{}
-                configFields = @{}
-                children = @()
+                description        = $null
+                customFields       = @{}
+                configFields       = @{}
+                children           = @()
             }
-            # Pre-load field config lookup for this work item type
-            $currentItemFieldConfig = Get-WorkItemFieldConfigLookup -WorkItemType $itemInfo.type
-            
-            $descriptionBuffer = @()
-            $collectingDescription = $false
-        }
-        elseif ($null -ne $currentItem -and $null -ne $specialSection) {
-            # Special section header: #### Acceptance Criteria / AC Scenarios / Extra Information
-            # Finalize any in-progress description or custom field, then collect this section's content
-            if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
-                Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
-            }
+            $currentItemFieldConfig      = Get-WorkItemFieldConfigLookup -WorkItemType $itemInfo.type
+            $descriptionBuffer           = @()
+            $collectingDescription       = $false
             $script:collectingCustomField = $false
-            $collectingDescription = $false
-            if ($descriptionBuffer.Count -gt 0) {
-                $currentItem.description = ($descriptionBuffer -join "`n").Trim()
-                $descriptionBuffer = @()
-            }
-            # Start collecting section content into a named custom field
-            $script:collectingCustomField = $true
-            $script:customFieldName = $specialSection
-            $script:customFieldBuffer = @()
-            $script:isHashHeaderField = $true
+            $script:customFieldName      = $null
+            $script:customFieldBuffer    = @()
+            $inCodeFence                 = $false
+            continue
         }
-        elseif ($null -ne $currentItem -and -not $script:collectingCustomField -and -not $collectingDescription -and $line -match $metadataLineRegex) {
-            # Metadata line (e.g. **tags**: ..., **Story Points**: 5, **Description**)
-            # Only reached when not currently collecting a custom field or description content.
-            # Bold lines like **Foo**: bar inside descriptions/fields are caught by the collection
-            # branches below (collectingCustomField / collectingDescription), which fire when this
-            # block is excluded by the guard conditions.
-            
-            # Extract all metadata fields
-            $workItemId = Get-MetadataField -Line $line -FieldName "WorkItemId"
-            if ($null -ne $workItemId) {
-                $currentItem.workItemId = [int]$workItemId
-            }
-            
-            $state = Get-MetadataField -Line $line -FieldName "State"
-            if ($null -ne $state) {
-                $currentItem.state = $state
+
+        # ── Lines below only apply when inside a work item ───────────────────
+        if ($null -eq $currentItem) { continue }
+
+        # ── Code fence tracking — skip {…} parsing inside fenced code blocks ─
+        if ($line.TrimEnd() -match '^```') {
+            $inCodeFence = -not $inCodeFence
+            if ($script:collectingCustomField) { $script:customFieldBuffer += $line }
+            elseif ($collectingDescription)    { $descriptionBuffer += $line }
+            continue
+        }
+        if ($inCodeFence) {
+            if ($script:collectingCustomField) { $script:customFieldBuffer += $line }
+            elseif ($collectingDescription)    { $descriptionBuffer += $line }
+            continue
+        }
+
+        # ── Try to match a curly-brace field marker ──────────────────────────
+        $marker = Get-CurlyFieldMarker -Line $line
+
+        if ($null -ne $marker) {
+            # Resolve label → field definition via appSettings.json config
+            $cfgField = if ($currentItemFieldConfig.Count -gt 0) {
+                $currentItemFieldConfig[$marker.label.ToLower()]
+            } else {
+                $null
             }
 
-            $assignedTo = Get-MetadataField -Line $line -FieldName "Assigned To"
-            if ($null -ne $assignedTo) {
-                $currentItem.assignedTo = $assignedTo
-            }
-
-            $tags = Get-MetadataField -Line $line -FieldName "tags"
-            if ($null -ne $tags) {
-                $currentItem.tags = $tags
-            }
-            
-            # Parse both "Story Points" (new) and "SP" (legacy) for backward compatibility
-            $sp = Get-MetadataField -Line $line -FieldName "Story Points"
-            if ($null -eq $sp) {
-                $sp = Get-MetadataField -Line $line -FieldName "SP"
-            }
-            if ($null -ne $sp) {
-                $currentItem.storyPoints = [double]$sp
-            }
-            
-            $effort = Get-MetadataField -Line $line -FieldName "Effort"
-            if ($null -ne $effort) {
-                $currentItem.effort = [double]$effort
-            }
-            
-            $priority = Get-MetadataField -Line $line -FieldName "Priority"
-            if ($null -ne $priority) {
-                $currentItem.priority = [int]$priority
-            }
-            
-            $originalEstimate = Get-MetadataField -Line $line -FieldName "OriginalEstimate"
-            if ($null -ne $originalEstimate) {
-                $currentItem.originalEstimate = [double]$originalEstimate
-            }
-            
-            $fixedIn = Get-MetadataField -Line $line -FieldName "FixedIn"
-            if ($null -ne $fixedIn) {
-                $currentItem.fixedIn = $fixedIn
-            }
-            
-            $deployedToDevValue = Get-MetadataField -Line $line -FieldName "DeployedToDev"
-            if ($null -ne $deployedToDevValue) {
-                $currentItem.deployedToDev = [bool]::Parse($deployedToDevValue)
-            }
-            
-            $deployedToStagingValue = Get-MetadataField -Line $line -FieldName "DeployedToStaging"
-            if ($null -ne $deployedToStagingValue) {
-                $currentItem.deployedToStaging = [bool]::Parse($deployedToStagingValue)
-            }
-            
-            $deployedToProductionValue = Get-MetadataField -Line $line -FieldName "DeployedToProduction"
-            if ($null -ne $deployedToProductionValue) {
-                $currentItem.deployedToProduction = [bool]::Parse($deployedToProductionValue)
-            }
-            
-            # Handle Description field
-            if ($line -match '^\*\*Description\*\*') {
-                $collectingDescription = $true
-                # Description might continue on same line: **Description** text  OR  **Description**: text
-                if ($line -match '^\*\*Description\*\*[\s:]+(.+)$') {
-                    $descriptionBuffer += $Matches[1]
+            if ($null -ne $cfgField) {
+                # ── Known field: finalise any active collection first ────────
+                if ($script:collectingCustomField) {
+                    Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
+                    $script:collectingCustomField = $false
                 }
-            }
-            # Handle custom fields (any field starting with Custom. or other custom fields)
-            elseif ($line -match '^\*\*([^*]+)\*\*:\s*(.*)$') {
-                $fieldName = $Matches[1]
-                $fieldValue = $Matches[2].Trim()
-                # Core labels already fully handled above; also skip "Story Points" and "Tags"
-                [string[]]$coreLabels = @('WorkItemId', 'State', 'Assigned To', 'tags', 'Tags', 'SP', 'Story Points', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')
-                if ($fieldName -notin $coreLabels) {
-                    # Config-driven field handling
-                    $cfgFieldDef = if ($currentItemFieldConfig.Count -gt 0) { $currentItemFieldConfig[$fieldName.ToLower()] } else { $null }
+                if ($collectingDescription -and $descriptionBuffer.Count -gt 0) {
+                    $currentItem.description = ($descriptionBuffer -join "`n").Trim()
+                    $descriptionBuffer       = @()
+                    $collectingDescription   = $false
+                }
 
-                    if ($null -ne $cfgFieldDef -and $cfgFieldDef.type -ne 'html') {
-                        # Non-html config field: coerce inline value, store in configFields directly
-                        $coerced = Convert-ConfigFieldValue -RawValue $fieldValue -FieldType $cfgFieldDef.type
-                        if ($null -ne $coerced) {
-                            $currentItem.configFields[$cfgFieldDef.referenceName] = $coerced
+                # Dispatch based on well-known reference names
+                switch ($cfgField.referenceName) {
+                    'System.Id' {
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $currentItem.workItemId = [int]$marker.inlineValue
                         }
-                        # Do NOT enter collecting mode for non-html config fields
-                    } elseif ($null -ne $cfgFieldDef -and $cfgFieldDef.type -eq 'html') {
-                        # Html config field: enter collecting mode with special "__cfg:{refName}" key
-                        $script:collectingCustomField = $true
-                        $script:customFieldName = "__cfg:$($cfgFieldDef.referenceName)"
-                        $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
-                        $script:isHashHeaderField = $false
-                    } else {
-                        # Label not in config – warn when config is available, then collect as custom field
-                        if ($currentItemFieldConfig.Count -gt 0) {
-                            if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
-                                $null = & ssLogIt.ps1 -Level Warn -Message "Field label '$fieldName' is not defined in appSettings.json for $($currentItem.type). Storing as custom field."
+                    }
+                    'System.State' {
+                        $currentItem.state = $marker.inlineValue
+                    }
+                    'System.AssignedTo' {
+                        $currentItem.assignedTo = $marker.inlineValue
+                    }
+                    'System.Tags' {
+                        $currentItem.tags = $marker.inlineValue
+                    }
+                    'System.Title' {
+                        # Title is parsed from the header line — ignore duplicate field
+                    }
+                    'System.Description' {
+                        $collectingDescription = $true
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $descriptionBuffer += $marker.inlineValue
+                        }
+                    }
+                    'Microsoft.VSTS.Scheduling.StoryPoints' {
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $currentItem.storyPoints = [double]$marker.inlineValue
+                        }
+                    }
+                    'Microsoft.VSTS.Scheduling.Effort' {
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $currentItem.effort = [double]$marker.inlineValue
+                        }
+                    }
+                    'Microsoft.VSTS.Common.Priority' {
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $currentItem.priority = [int]$marker.inlineValue
+                        }
+                    }
+                    'Microsoft.VSTS.Scheduling.OriginalEstimate' {
+                        if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                            $currentItem.originalEstimate = [double]$marker.inlineValue
+                        }
+                    }
+                    default {
+                        if ($cfgField.type -eq 'html') {
+                            # Enter multi-line collecting mode for html field
+                            $script:collectingCustomField = $true
+                            $script:customFieldName       = "__cfg:$($cfgField.referenceName)"
+                            $script:customFieldBuffer     = if ([string]::IsNullOrWhiteSpace($marker.inlineValue)) { @() } else { @($marker.inlineValue) }
+                        }
+                        else {
+                            # Non-html config field: coerce and store inline value
+                            $coerced = Convert-ConfigFieldValue -RawValue $marker.inlineValue -FieldType $cfgField.type
+                            if ($null -ne $coerced) {
+                                $currentItem.configFields[$cfgField.referenceName] = $coerced
                             }
                         }
-                        $script:collectingCustomField = $true
-                        $script:customFieldName = $fieldName
-                        $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
-                        $script:isHashHeaderField = $false
                     }
                 }
             }
-        }
-        elseif ($null -ne $currentItem -and $script:collectingCustomField) {
-            # Collecting multi-line custom field value.
-            # For metadata-line custom fields (isHashHeaderField=false): a new metadata line ends
-            # this field and is reprocessed. For hash-header sections (Acceptance Criteria, AC
-            # Scenarios, Extra Information; isHashHeaderField=true): bold lines like **Foo**: bar
-            # are content and must not terminate collection.
-            if ($line -match $metadataLineRegex -and -not $script:isHashHeaderField) {
-                # Hit next metadata field – finalize current custom field and reprocess this line
-                Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
-                $script:collectingCustomField = $false
-                # This line will be reprocessed in next iteration
-                $lineNum--
-            }
             else {
-                # Add to custom field value (including blank lines within field)
-                $script:customFieldBuffer += $line
+                # ── Unknown label: treat as literal content in active buffer ─
+                if ($script:collectingCustomField) {
+                    $script:customFieldBuffer += $line
+                }
+                elseif ($collectingDescription) {
+                    $descriptionBuffer += $line
+                }
+                # If not collecting anything, the line is ignored (field not known without config)
             }
         }
-        elseif ($null -ne $currentItem -and $collectingDescription) {
-            # Collecting description content.
-            # Bold-formatted lines like **Foo**: bar are treated as description content, NOT metadata.
-            # Only work item headers (handled above) or special-section headers (handled above)
-            # end description collection – no termination check needed here.
+        # ── No curly-brace marker: route to active collecting buffer or ignore ─
+        elseif ($script:collectingCustomField) {
+            $script:customFieldBuffer += $line
+        }
+        elseif ($collectingDescription) {
             $descriptionBuffer += $line
         }
-        elseif ($null -ne $currentItem -and -not [string]::IsNullOrWhiteSpace($line)) {
-            # Non-metadata, non-header line outside description mode
-            # (indicates start of implicit description)
-            if (-not ($line -match $metadataLineRegex) -and -not (Get-WorkItemInfo -Line $line)) {
-                $descriptionBuffer += $line
-                $collectingDescription = $true
-            }
+        elseif (-not [string]::IsNullOrWhiteSpace($line)) {
+            # Non-header, non-field-marker, non-whitespace line outside any collecting mode
+            # → treat as the start of an implicit description block
+            $descriptionBuffer   += $line
+            $collectingDescription = $true
         }
     }
-    
-    # Save last item
+
+    # ── Finalise the last item ───────────────────────────────────────────────
     if ($null -ne $currentItem) {
-        # Finalize any pending custom field
         if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
             Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
-            $script:collectingCustomField = $false
         }
-        
         if ($descriptionBuffer.Count -gt 0) {
             $currentItem.description = ($descriptionBuffer -join "`n").Trim()
         }
         $workItems += $currentItem
     }
-    
+
     return $workItems
 }
 
@@ -632,15 +582,39 @@ function Cleanup-Item {
             }
         }
     }
+
+    # Map config-driven html fields to top-level properties consumed by downstream scripts
+    # (NewAzDoHierarchyFromMarkdown.ps1 and DetectHierarchyChanges.ps1 access these by name)
+    if ($null -ne $Item.configFields) {
+        if ($Item.configFields.ContainsKey('Custom.AcceptanceCriteria') -and -not $cleaned.ContainsKey('acceptanceCriteria')) {
+            $cleaned.acceptanceCriteria = $Item.configFields['Custom.AcceptanceCriteria']
+        }
+        if ($Item.configFields.ContainsKey('Custom.ACScenarios') -and -not $cleaned.ContainsKey('acScenarios')) {
+            $cleaned.acScenarios = $Item.configFields['Custom.ACScenarios']
+        }
+        if ($Item.configFields.ContainsKey('Custom.ExtraInformation') -and -not $cleaned.ContainsKey('extraInformation')) {
+            $cleaned.extraInformation = $Item.configFields['Custom.ExtraInformation']
+        }
+    }
     
     # Recursively clean children
     if ($null -ne $Item.children -and $Item.children.Count -gt 0) {
         $cleaned.children = @($Item.children | ForEach-Object { Cleanup-Item -Item $_ })
     }
 
-    # Include config-driven fields in output (non-empty only)
+    # Include config-driven fields in output (non-empty only).
+    # Clone and remove fields already promoted to named top-level properties to prevent
+    # them being sent twice (once via named param, once via the generic -Fields path).
+    # Custom.AcceptanceCriteria promotes to acceptanceCriteria → Microsoft.VSTS.Common.AcceptanceCriteria;
+    # Custom.ACScenarios → acScenarios → Custom.ACScenarios; Custom.ExtraInformation → extraInformation.
     if ($null -ne $Item.configFields -and $Item.configFields.Count -gt 0) {
-        $cleaned.configFields = $Item.configFields
+        $cfgClone = @{} + $Item.configFields
+        $cfgClone.Remove('Custom.AcceptanceCriteria')
+        $cfgClone.Remove('Custom.ACScenarios')
+        $cfgClone.Remove('Custom.ExtraInformation')
+        if ($cfgClone.Count -gt 0) {
+            $cleaned.configFields = $cfgClone
+        }
     }
     
     return $cleaned

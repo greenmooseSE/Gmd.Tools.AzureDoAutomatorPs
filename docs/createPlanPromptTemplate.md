@@ -42,7 +42,7 @@ Create a feature plan markdown file for the feature described in the **Feature S
 ## Output Requirements
 
 - Create the plan as a new markdown file (e.g. `docs/plans/plan-{number}-{featureTitle}.md`).
-- The plan must contain exactly **1 feature** (MVP) with all required stories.
+- The plan must contain exactly **1 feature** with all required stories.
 - Follow `example-hierarchy.md` for structure and formatting.
 - Improve and refine the feature description — format it consistently and professionally for use as the feature description in Azure DevOps.
 - Mark each story with realistic story points following the estimation guidelines in the Story Rules section.

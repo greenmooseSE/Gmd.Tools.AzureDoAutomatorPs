@@ -1148,7 +1148,7 @@ $markdown = .\ConvertHierarchyToMarkdown.ps1 `
 
 **Features:**
 - Preserves WorkItemId in markdown metadata for round-trip export-import operations
-- Exports state field in markdown metadata (`**State**: [value]`)
+- Exports state field in markdown metadata (`{State}: [value]`)
 - Marks editable states (in writable states list) without warnings
 - Marks non-editable states with ⚠️ indicator and HTML warning comment
 - Gracefully handles incomplete or missing state configurations using sensible defaults
@@ -1163,21 +1163,21 @@ $markdown = .\ConvertHierarchyToMarkdown.ps1 `
 
 ### Story: Title
 
-**tags**: tag1, tag2
-**Story Points**: 5
-**State**: Closed ⚠️ (read-only)
-**Description**
+{tags}: tag1, tag2
+{Story Points}: 5
+{State}: Closed ⚠️ (read-only)
+{Description}
 Story description here...
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 ...
 
-#### AC Scenarios
+{AC Scenarios}
 ...
 
 #### Task: Task Title
-**State**: Active
-**Description**
+{State}: Active
+{Description}
 Task description...
 ```
 
@@ -1187,47 +1187,47 @@ Create complete work item hierarchy from markdown file or content string. After 
 Markdown format:
 ```markdown
 # Epic: My Epic Title
-**WorkItemId**: 100  (written back after first run)
-**tags**: tag1, tag2
-**Effort**: 10
-**Description**
+{WorkItemId}: 100  (written back after first run)
+{tags}: tag1, tag2
+{Effort}: 10
+{Description}
 Multi-line epic description
 
 ## Feature: Feature Title
-**WorkItemId**: 101
-**tags**: tag1
-**Effort**: 5
-**Description**
+{WorkItemId}: 101
+{tags}: tag1
+{Effort}: 5
+{Description}
 Feature description
 
 ### Story: Story Title
-**WorkItemId**: 102
-**tags**: tag1
-**Story Points**: 5
-**Description**
+{WorkItemId}: 102
+{tags}: tag1
+{Story Points}: 5
+{Description}
 **As a** user
 **I want** to do something
 **So that** value is delivered
 
-#### Acceptance Criteria
+{Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
 | ☐ | Feature works for happy path |  |  |
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: Happy path
    Given setup state
    When action occurs
    Then expected result
 
-#### Extra Information
+{Extra Information}
 Additional notes or links
 
 #### Task: Task Title
-**tags**: tag1
-**Priority**: 2
-**OriginalEstimate**: 4
-**Description**
+{tags}: tag1
+{Priority}: 2
+{Original Estimate}: 4
+{Description}
 Task details
 ```
 
@@ -1252,7 +1252,7 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token (optional, uses encryption if set)
 
 **Features:**
-- Fields mapped to correct Azure DevOps fields: Description, AcceptanceCriteria (`#### Acceptance Criteria`), AC Scenarios (`#### AC Scenarios`), Extra Information (`#### Extra Information`)
+- Fields mapped to correct Azure DevOps fields: Description (`{Description}`), AcceptanceCriteria (`{Acceptance Criteria}`), AC Scenarios (`{AC Scenarios}`), Extra Information (`{Extra Information}`)
 - Bold-formatted lines in descriptions (e.g. `**As a**`) are kept in Description, not treated as metadata
 - WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
 - Supports optional Epic parent via `-EpicId`
@@ -1468,7 +1468,7 @@ All five Upsert scripts accept an `-AssignedTo <email>` parameter. Before any AP
 
 The State Configuration system enables team-specific rules for which work item states are editable during hierarchy exports and reimports. This supports multiple organizations and projects with organization/project-scoped configuration files and sensible defaults.
 
-> **Note:** The preferred approach is now `appSettings.json` (see [Unified Field and State Configuration](#unified-field-and-state-configuration)). The legacy `azdoStateConfig-{org}-{project}.json` files are still supported for backward compatibility.
+> **Note:** State configuration is defined inside `appSettings.json` (see [Unified Field and State Configuration](#unified-field-and-state-configuration)). The legacy `azdoStateConfig-{org}-{project}.json` format is no longer used.
 
 ### Overview
 
@@ -1479,20 +1479,28 @@ State configuration defines "writable states" for each work item type, allowing 
 - Store configuration in version control for team collaboration
 - Support environment-specific overrides for CI/CD pipelines
 
-### Configuration File Format
+### Configuration
 
-Configuration files are stored at the repository root using the naming pattern: `azdoStateConfig-{organization}-{project}.json`
+Writable states are defined under `organizations.{org}.projects.{project}.states` in `appSettings.json`. Each state entry has a `name`, `category`, and `readOnly` flag. States with `readOnly: false` are writable; `Completed` and `Removed` category states are read-only.
 
-**Example: `azdoStateConfig-falco-it-GMD.json`**
+**Example `appSettings.json` states section:**
 
 ```json
 {
-  "writableStates": {
-    "Epic": ["New", "Active"],
-    "Feature": ["New", "Active"],
-    "Story": ["New", "Active"],
-    "Task": ["New", "Active"],
-    "Bug": ["New", "Active"]
+  "organizations": {
+    "falco-it": {
+      "projects": {
+        "GMD": {
+          "states": {
+            "Story": [
+              { "name": "New", "category": "Proposed", "readOnly": false },
+              { "name": "Under Development", "category": "InProgress", "readOnly": false },
+              { "name": "Released", "category": "Completed", "readOnly": true }
+            ]
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -1536,49 +1544,30 @@ When a configuration file is not found, sensible defaults are automatically appl
 ### Configuration Features
 
 - **Memory Caching**: Configuration is cached after first load to avoid repeated file I/O operations
-- **Organization/Project Scoping**: Separate configuration files per organization-project pair enable team-specific rules
-- **Version Control**: Configuration files should be committed to version control for team collaboration
-- **CI/CD Pipeline Support**: Future enhancement will support environment variable overrides for pipeline-specific configurations
-- **Structure Validation**: Invalid configuration (missing writableStates property) is detected and reported with clear error messages
+- **Organization/Project Scoping**: `appSettings.json` supports multiple org/project pairs in one file
+- **Version Control**: `appSettings.json` is committed to version control for team collaboration
+- **Structure Validation**: Invalid configuration is detected and reported with clear error messages
 
 ### Troubleshooting
 
-#### Configuration File Not Found
+#### State Configuration Not Found
 
-**Symptom**: LoadStateConfiguration returns default states instead of custom configuration
-
-**Solution**:
-1. Verify the configuration file exists in the repository root
-2. Check the filename matches the pattern: `azdoStateConfig-{organization}-{project}.json`
-3. Ensure the organization and project names match exactly (case-sensitive recommended)
-4. Verify the file contains valid JSON with "writableStates" property
-
-```powershell
-# Debug: Check if configuration file exists
-Test-Path "./azdoStateConfig-falco-it-GMD.json"
-
-# Debug: Verify JSON is valid
-Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
-```
-
-#### Invalid Configuration Error
-
-**Symptom**: "Failed to load configuration... The property 'writableStates' cannot be found"
+**Symptom**: `LoadStateConfiguration` returns default states instead of project-specific configuration
 
 **Solution**:
-1. Ensure your configuration JSON includes the "writableStates" property at the root level
-2. Verify the JSON structure matches the format shown above
-3. Use a JSON validator to verify the file is valid JSON syntax
+1. Verify the `states` key exists under `organizations.{org}.projects.{project}` in `appSettings.json`
+2. Ensure the organization and project names match exactly
+3. Verify the file contains valid JSON
 
 ```powershell
-# Example: Check configuration structure
-$config = Get-Content "./azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
-$config.writableStates  # Should output the work item types and states
+# Debug: check resolved writable states
+$config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD"
+$config.writableStates  # Shows writable states per work item type
 ```
 
 #### Performance/Caching Issues
 
-**Symptom**: Changed configuration file is not reflected in subsequent script calls
+**Symptom**: Changed configuration is not reflected in subsequent script calls
 
 **Solution**: Use the `-Force` parameter to bypass the in-memory cache and reload from file:
 
@@ -1589,11 +1578,9 @@ $config = .\LoadStateConfiguration.ps1 -Organization "falco-it" -Project "GMD" -
 
 ### Best Practices
 
-1. **Store in Version Control**: Commit configuration files to ensure team consistency
-2. **Name Consistently**: Use organization and project names from your Azure DevOps account
-3. **Document States**: Add comments to your configuration explaining why specific states are writable
-4. **Test Configuration**: Verify your configuration with small test hierarchies before large exports
-5. **Environment-Specific**: Consider different configurations for different environments (dev, staging, production)
+1. **Store in Version Control**: `appSettings.json` covers both field and state config in one file
+2. **Document States**: Keep state definitions accurate and up to date with your AzDo process
+3. **Test Configuration**: Verify configuration with small test hierarchies before large exports
 
 ## Export-Modify-Reimport Workflow
 
@@ -1639,22 +1626,22 @@ Users edit the markdown file externally:
 
 ```markdown
 ## Feature: Auth Feature
-**WorkItemId**: 2216
-**State**: Active
-**Effort**: 13
-**Description**
+{WorkItemId}: 2216
+{State}: Active
+{Effort}: 13
+{Description}
 Authentication module for user management
 
 ### Story: Login
-**WorkItemId**: 2217
-**State**: Active
-**StoryPoints**: 5
-**Description**
+{WorkItemId}: 2217
+{State}: Active
+{Story Points}: 5
+{Description}
 Implement user login functionality
 
 ### Story: Password Reset
-**StoryPoints**: 3
-**Description**
+{Story Points}: 3
+{Description}
 Add password recovery feature (no WorkItemId = new item)
 ```
 
@@ -1682,8 +1669,7 @@ $originalHierarchy = Get-Content "original-hierarchy.json" | ConvertFrom-Json
 # Detect changes with validation
 $diff = .\DetectHierarchyChanges.ps1 `
     -OriginalHierarchy $originalHierarchy `
-    -ModifiedHierarchy $modifiedHierarchy `
-    -StateConfigPath "azdoStateConfig-falco-it-GMD.json"
+    -ModifiedHierarchy $modifiedHierarchy
 
 if ($diff.validationPassed) {
     Write-Host "Safe to apply: $($diff.operations.Count) changes"
@@ -1957,17 +1943,17 @@ The output shows a breakdown of items to create vs. update without touching Azur
 .\src\NewAzDoHierarchyFromMarkdown.ps1 -MarkdownFile ".\my-hierarchy.md"
 ```
 
-After this runs, `my-hierarchy.md` is updated in-place with `**WorkItemId**: <id>` lines inserted after each work item header. Example result:
+After this runs, `my-hierarchy.md` is updated in-place with `{WorkItemId}: <id>` lines inserted after each work item header. Example result:
 
 ```markdown
 # Epic: My Project Epic
-**WorkItemId**: 2215
-**tags**: myProject
-**Description**
+{WorkItemId}: 2215
+{tags}: myProject
+{Description}
 Epic description...
 
 ## Feature: User Authentication
-**WorkItemId**: 2216
+{WorkItemId}: 2216
 ...
 ```
 
@@ -3143,38 +3129,38 @@ To prevent headers in descriptions from being confused with hierarchy markers:
 ```markdown
 # Epic: Epic Title
 
-**tags**: tag1, tag2  
-**Effort**: 21  
-**Description**  
+{tags}: tag1, tag2  
+{Effort}: 21  
+{Description}  
 Multi-line description with headers at level 3 or higher
 ### Header in Epic Description
 More content here
 
 ## Feature: Feature Title
 
-**tags**: tag1, tag2  
-**Effort**: 13  
-**Description**  
+{tags}: tag1, tag2  
+{Effort}: 13  
+{Description}  
 Feature description with headers at level 3 or higher
 ### Implementation Details
 Additional context
 
 ### Story: Story Title
 
-**tags**: tag1, tag2  
-**Story Points**: 5  
-**Description**  
+{tags}: tag1, tag2  
+{Story Points}: 5  
+{Description}  
 Story description with headers at level 4 or higher
-#### Acceptance Criteria
+{Acceptance Criteria}
 - [ ] Criterion 1
 
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: First scenario  
   Given...  
   When...  
   Then...
 
-#### Extra Information
+{Extra Information}
 - Additional notes and references
 ```
 
@@ -3185,8 +3171,8 @@ Story description with headers at level 4 or higher
 ```markdown
 ## Feature: Example
 
-**tags**: documentation, guide  
-**Description**  
+{tags}: documentation, guide  
+{Description}  
 This is the first line  
 This is the second line (2 spaces above enforces newline)  
 This is the third line  
@@ -3196,14 +3182,14 @@ This is the third line
 
 **Acceptance Criteria (AC)** - Use checkbox-style lists:
 ```markdown
-#### Acceptance Criteria
+{Acceptance Criteria}
 - [ ] First criterion
 - [ ] Second criterion
 ```
 
 **Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
 ```markdown
-#### AC Scenarios
+{AC Scenarios}
 1. **Scenario**: User logs in  
   Given user is on login page  
   When user enters valid credentials  
@@ -3218,22 +3204,22 @@ This is the third line
 
 **Story Points (SP)** - Stories and Bugs only (decimals supported, e.g. 0.5, 1.5):
 ```markdown
-**Story Points**: 0.5
+{Story Points}: 0.5
 ```
 
 **Effort** - Epics and Features only (decimals supported, e.g. 2.5):
 ```markdown
-**Effort**: 2.5
+{Effort}: 2.5
 ```
 
 **Priority** - Features, Stories, Bugs, and Tasks (1=highest, 4=lowest):
 ```markdown
-**Priority**: 2
+{Priority}: 2
 ```
 
-**OriginalEstimate** - Features, Stories, and Tasks (hours, non-negative number):
+**Original Estimate** - Features, Stories, and Tasks (hours, non-negative number):
 ```markdown
-**OriginalEstimate**: 8
+{Original Estimate}: 8
 ```
 
 **FixedIn** - Features and Stories (text, version or build where completed):
@@ -3314,34 +3300,34 @@ Tasks are defined as level 4 headers (####) under Stories (level 3 headers ###):
 ```markdown
 ### Story: User Profile Page & Preferences
 
-**tags**: user-profile, preferences
-**Story Points**: 5
-**Description**
+{tags}: user-profile, preferences
+{Story Points}: 5
+{Description}
 Story description...
 
 #### Task: Setup User Profile Database Schema
 
-**Priority**: 2
+{Priority}: 2
 
-**Description**: Create database tables for storing user profile information.
+{Description}: Create database tables for storing user profile information.
 
-**Original Estimate**: 8
+{Original Estimate}: 8
 
-**Remaining**: 8
+{Remaining Work}: 8
 
-**Completed**: 0
+{Completed Work}: 0
 
 #### Task: Implement Profile API Endpoints
 
-**Priority**: 1
+{Priority}: 1
 
-**Description**: Develop API endpoints for profile CRUD operations.
+{Description}: Develop API endpoints for profile CRUD operations.
 
-**Original Estimate**: 13
+{Original Estimate}: 13
 
-**Remaining**: 13
+{Remaining Work}: 13
 
-**Completed**: 0
+{Completed Work}: 0
 ```
 
 **Workflow:**
@@ -3415,16 +3401,16 @@ Bugs are defined as level 4 headers (####) under Stories (level 3 headers ###) u
 ```markdown
 ### Story: Authentication System
 
-**tags**: authentication, security
-**Story Points**: 8
-**Description**
+{tags}: authentication, security
+{Story Points}: 8
+{Description}
 Story description...
 
 #### Bug: Login fails with special characters in password
 
-**Priority**: 1
+{Priority}: 1
 
-**Description**: When entering special characters in the password field, the login form crashes.
+{Description}: When entering special characters in the password field, the login form crashes.
 
 **ReproSteps**: 1. Open login page
 2. Enter special characters in password field (@#$%^&*)
@@ -3438,14 +3424,14 @@ Story description...
 
 #### Bug: API returns 500 error intermittently
 
-**Priority**: 2
+{Priority}: 2
 
-**Description**: API endpoint returns 500 error intermittently when under load.
+{Description}: API endpoint returns 500 error intermittently when under load.
 
 **ReproSteps**: 1. Send 100 concurrent requests to API endpoint
 2. Observe response codes
 
-**StoryPoints**: 3
+{Story Points}: 3
 ```
 
 **Workflow:**
