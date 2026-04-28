@@ -228,9 +228,9 @@ Each processed item emits a PSObject with these properties:
   (Move/Copy).  
 - Pester test file: `test/MoveAzDoWorkItemFieldTests/MoveAzDoWorkItemFieldTest.ps1`  
 
-### Story: Add Global scope to MoveAzDoWorkItemField.ps1 (002)
+### Story: Add Global scope to MoveAzDoWorkItemField.ps1 (002) ✅
 {WorkItemId}: 2621
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
 {Story Points}: 1
 {Story Acceptance Tests}
