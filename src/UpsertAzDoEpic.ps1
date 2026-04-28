@@ -78,6 +78,12 @@ param(
 
     [double]$Effort,
 
+    [hashtable]$Fields,
+
+    [string]$State,
+
+    [string]$AssignedTo,
+
     [switch]$FailIfExist,
 
     [string]$PatToken
@@ -91,6 +97,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+. "$PSScriptRoot/ValidateUpsertFields.ps1"
 
 # Apply environment variable defaults if parameters not provided
 if ([string]::IsNullOrWhiteSpace($Organization)) {
@@ -135,9 +142,23 @@ if ($PSBoundParameters.ContainsKey('Effort') -and $Effort -lt 0) {
     Write-Error "Parameter 'Effort' must be a non-negative number. Provided: $Effort"
 }
 
+# Validate -Fields and -State against appSettings.json config
+if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+    Assert-FieldsNotReadOnly -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_EPIC -Fields $Fields
+}
+if ($PSBoundParameters.ContainsKey('State')) {
+    Assert-StateIsWritable -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_EPIC -State $State
+}
+
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
+}
+
+# Resolve -AssignedTo email to identity before any API call
+[object]$resolvedIdentity = $null
+if ($PSBoundParameters.ContainsKey('AssignedTo') -and -not [string]::IsNullOrWhiteSpace($AssignedTo)) {
+    $resolvedIdentity = & "$PSScriptRoot/ResolveAzDoIdentity.ps1" -Email $AssignedTo
 }
 
 try {
@@ -157,6 +178,11 @@ try {
             # Update mode - update only provided fields
             $updateFields = @{}
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Title')) {
                 $updateFields[$script:FIELD_SYSTEM_TITLE] = $Title
             }
@@ -169,8 +195,16 @@ try {
                 $updateFields[$script:FIELD_EFFORT] = $Effort
             }
 
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $updateFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, Effort, or State)."
+                Write-Error "At least one field must be provided for update (Title, Description, Effort, State, AssignedTo, or -Fields)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -208,6 +242,11 @@ try {
             # Update mode: update the existing Epic by ID
             $updateFields = @{}
             
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $updateFields[$script:FIELD_DESCRIPTION] = $Description
             }
@@ -215,7 +254,15 @@ try {
             if ($PSBoundParameters.ContainsKey('Effort')) {
                 $updateFields[$script:FIELD_EFFORT] = $Effort
             }
+
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $updateFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
             
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
+            }
+
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
             # But since we matched by title, we typically don't change it
             if ($updateFields.Count -eq 0) {
@@ -242,12 +289,25 @@ try {
                 $script:FIELD_SYSTEM_TITLE = $Title
             }
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $createFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $createFields[$script:FIELD_DESCRIPTION] = $Description
             }
 
             if ($PSBoundParameters.ContainsKey('Effort')) {
                 $createFields[$script:FIELD_EFFORT] = $Effort
+            }
+
+            if ($PSBoundParameters.ContainsKey('State')) {
+                $createFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
+            if ($null -ne $resolvedIdentity) {
+                $createFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
             }
 
             $logMessage = "Creating new Epic with title ::FgGreen::$Title::FgDefault::"

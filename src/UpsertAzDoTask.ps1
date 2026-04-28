@@ -107,6 +107,10 @@ param(
 
     [int]$ParentStoryId,
 
+    [hashtable]$Fields,
+
+    [string]$AssignedTo,
+
     [switch]$FailIfExist,
 
     [string]$PatToken
@@ -120,6 +124,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/AzDoPatTokenHelper.ps1"
 . "$PSScriptRoot/AzDoApiWrapper.ps1"
 . "$PSScriptRoot/AzDoWorkItemHelper.ps1"
+. "$PSScriptRoot/ValidateUpsertFields.ps1"
 
 # Apply environment variable defaults if parameters not provided
 if ([string]::IsNullOrWhiteSpace($Organization)) {
@@ -176,9 +181,23 @@ if ($PSBoundParameters.ContainsKey('CompletedWork') -and $CompletedWork -lt 0) {
     Write-Error "Parameter 'CompletedWork' must be a non-negative number. Provided: $CompletedWork"
 }
 
+# Validate -Fields and -State against appSettings.json config
+if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+    Assert-FieldsNotReadOnly -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_TASK -Fields $Fields
+}
+if ($PSBoundParameters.ContainsKey('State')) {
+    Assert-StateIsWritable -Organization $Organization -Project $Project -WorkItemType $script:WORKITEM_TYPE_TASK -State $State
+}
+
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
     $PatToken = Get-AzDoPatToken -Decrypt
+}
+
+# Resolve -AssignedTo email to identity before any API call
+[object]$resolvedIdentity = $null
+if ($PSBoundParameters.ContainsKey('AssignedTo') -and -not [string]::IsNullOrWhiteSpace($AssignedTo)) {
+    $resolvedIdentity = & "$PSScriptRoot/ResolveAzDoIdentity.ps1" -Email $AssignedTo
 }
 
 try {
@@ -197,6 +216,11 @@ try {
 
             # Update mode - update only provided fields
             $updateFields = @{}
+
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
 
             if ($PSBoundParameters.ContainsKey('Title')) {
                 $updateFields[$script:FIELD_SYSTEM_TITLE] = $Title
@@ -226,8 +250,12 @@ try {
                 $updateFields[$script:FIELD_SYSTEM_STATE] = $State
             }
 
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
+            }
+
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, Priority, OriginalEstimate, RemainingWork, CompletedWork, or State)."
+                Write-Error "At least one field must be provided for update (Title, Description, Priority, OriginalEstimate, RemainingWork, CompletedWork, State, AssignedTo, or -Fields)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -265,6 +293,11 @@ try {
             # Update mode: update the existing Task by ID
             $updateFields = @{}
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $updateFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $updateFields[$script:FIELD_DESCRIPTION] = $Description
             }
@@ -287,6 +320,10 @@ try {
 
             if ($PSBoundParameters.ContainsKey('State')) {
                 $updateFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
+            if ($null -ne $resolvedIdentity) {
+                $updateFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
             }
 
             # Note: Title is already the same, so we don't need to update it unless explicitly provided for override
@@ -315,6 +352,11 @@ try {
                 $script:FIELD_SYSTEM_TITLE = $Title
             }
 
+            # Merge -Fields first; explicit params below take precedence
+            if ($PSBoundParameters.ContainsKey('Fields') -and $null -ne $Fields) {
+                foreach ($k in $Fields.Keys) { $createFields[$k] = $Fields[$k] }
+            }
+
             if ($PSBoundParameters.ContainsKey('Description')) {
                 $createFields[$script:FIELD_DESCRIPTION] = $Description
             }
@@ -337,6 +379,10 @@ try {
 
             if ($PSBoundParameters.ContainsKey('State')) {
                 $createFields[$script:FIELD_SYSTEM_STATE] = $State
+            }
+
+            if ($null -ne $resolvedIdentity) {
+                $createFields[$script:FIELD_SYSTEM_ASSIGNED_TO] = @{ uniqueName = $resolvedIdentity.UniqueName; displayName = $resolvedIdentity.DisplayName }
             }
 
             # Validate parent Story if specified

@@ -77,6 +77,67 @@ $ErrorActionPreference = 'Stop'
 # Load state configuration
 $config = & "$PSScriptRoot/LoadStateConfiguration.ps1" -Organization $Organization -Project $Project -RepositoryRoot $RepositoryRoot
 
+# ============================================================================
+# Config-driven field output support
+# ============================================================================
+
+$script:_htmFieldCfgCache = @{}
+
+<#
+.SYNOPSIS
+Returns ordered array of fieldDef objects for the given work item type, or empty array when unavailable.
+#>
+function Get-FieldConfigForType {
+    param([string]$WorkItemType)
+    [string]$key = "$Organization/$Project/$WorkItemType"
+    if (-not $script:_htmFieldCfgCache.ContainsKey($key)) {
+        $fields = @()
+        try {
+            $fields = @(& "$PSScriptRoot/LoadFieldConfiguration.ps1" -Organization $Organization -Project $Project -WorkItemType $WorkItemType -RepositoryRoot $RepositoryRoot)
+        } catch {
+            $fields = @()
+        }
+        $script:_htmFieldCfgCache[$key] = $fields
+    }
+    return $script:_htmFieldCfgCache[$key]
+}
+
+<#
+.SYNOPSIS
+Labels that are already output as core metadata fields and must be skipped during config-driven output.
+#>
+[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path')
+
+<#
+.SYNOPSIS
+Appends markdown lines for any config-driven fields present in the item's configFields hashtable,
+emitting them in the order defined in appSettings.json and skipping already-output core labels.
+Returns markdown string fragment (may be empty).
+#>
+function Get-ConfigFieldsMarkdown {
+    param([PSObject]$Item, [string]$WorkItemType)
+
+    if (-not ($Item.PSObject.Properties.Name -contains 'configFields')) { return '' }
+    [hashtable]$cfgFields = $Item.configFields
+    if ($null -eq $cfgFields -or $cfgFields.Count -eq 0) { return '' }
+
+    $fieldDefs = @(Get-FieldConfigForType -WorkItemType $WorkItemType)
+    if ($fieldDefs.Count -eq 0) { return '' }
+
+    [string]$fragment = ''
+    foreach ($fd in $fieldDefs) {
+        if ($fd.label -in $script:CoreOutputLabels) { continue }
+        if (-not $cfgFields.ContainsKey($fd.referenceName)) { continue }
+        $val = $cfgFields[$fd.referenceName]
+        if ($null -eq $val) { continue }
+        [string]$strVal = $val.ToString()
+        if ([string]::IsNullOrWhiteSpace($strVal)) { continue }
+        $escaped = Format-MarkdownText $strVal
+        $fragment += "**$($fd.label)**: $escaped  `n"
+    }
+    return $fragment
+}
+
 function Format-MarkdownText {
     <#
     .SYNOPSIS
@@ -224,12 +285,15 @@ function Convert-StoryToMarkdown {
     }
     
     if ($StoryPoints) {
-        $markdown += "**SP**: $StoryPoints  `n"
+        $markdown += "**Story Points**: $StoryPoints  `n"
     }
     
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
     $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add config-driven fields (from configFields hashtable, in config order)
+    $markdown += Get-ConfigFieldsMarkdown -Item $Story -WorkItemType 'User Story'
     
     # Add custom fields to metadata
     if ($null -ne $CustomFields -and $CustomFields.Count -gt 0) {
@@ -401,6 +465,9 @@ function Convert-FeatureToMarkdown {
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
     $markdown += "**State**: $State$stateMarker  `n"
     
+    # Add config-driven fields (from configFields hashtable, in config order)
+    $markdown += Get-ConfigFieldsMarkdown -Item $Feature -WorkItemType 'Feature'
+    
     # Add description
     if ($Description) {
         $markdown += "**Description**  `n"
@@ -467,6 +534,9 @@ function Convert-EpicToMarkdown {
     # Add State field to metadata
     $stateMarker = if ($isStateWritable) { "" } else { " ⚠️ (read-only)" }
     $markdown += "**State**: $State$stateMarker  `n"
+    
+    # Add config-driven fields (from configFields hashtable, in config order)
+    $markdown += Get-ConfigFieldsMarkdown -Item $Epic -WorkItemType 'Epic'
     
     # Add description
     if ($Description) {

@@ -338,7 +338,7 @@ commands:
   # ===== UPSERT OPERATIONS =====
   - id: upsert-epic
     script: ./UpsertAzDoEpic.ps1
-    description: "Create or update an Epic work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    description: "Create or update an Epic work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), BusinessValue (Microsoft.VSTS.Common.BusinessValue), Risk (Microsoft.VSTS.Common.Risk), Effort (Microsoft.VSTS.Scheduling.Effort), StartDate (Microsoft.VSTS.Scheduling.StartDate), TargetDate (Microsoft.VSTS.Scheduling.TargetDate)."
     passStyle: named
     params:
       - name: Title
@@ -357,6 +357,21 @@ commands:
         type: int
         required: false
         mapTo: Effort
+      - name: State
+        type: string
+        required: false
+        description: "Transition the Epic to a writable state. Validated against appSettings.json before any API call."
+        mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Epic to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
+      - name: Fields
+        type: object
+        required: false
+        description: "Hashtable of additional writable fields keyed by referenceName. See command description for full field list. Explicit params take precedence over Fields entries for the same field."
+        mapTo: Fields
       - name: FailIfExist
         type: bool
         required: false
@@ -365,7 +380,7 @@ commands:
 
   - id: upsert-feature
     script: ./UpsertAzDoFeature.ps1
-    description: "Create or update a Feature work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    description: "Create or update a Feature work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), Effort (Microsoft.VSTS.Scheduling.Effort), AIImplemented (Custom.AIImplemented), CodeReviewed (Custom.CodeReviewed), FunctionallyTested (Custom.FunctionallyTested), DeployedToDev (Custom.DeployedToDev), DeployedToStaging (Custom.DeployedToStaging), DeployedToProduction (Custom.DeployedToProduction), ExtraInformation (Custom.ExtraInformation), FeatureAcceptanceTests (Custom.FeatureAcceptanceTests), FixedIn (Custom.FixedIn)."
     passStyle: named
     params:
       - name: Title
@@ -388,6 +403,21 @@ commands:
         type: int
         required: false
         mapTo: ParentEpicId
+      - name: State
+        type: string
+        required: false
+        description: "Transition the Feature to a writable state. Validated against appSettings.json before any API call."
+        mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Feature to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
+      - name: Fields
+        type: object
+        required: false
+        description: "Hashtable of additional writable fields keyed by referenceName. See command description for full field list. Explicit params take precedence over Fields entries for the same field."
+        mapTo: Fields
       - name: FailIfExist
         type: bool
         required: false
@@ -396,7 +426,7 @@ commands:
 
   - id: upsert-story
     script: ./UpsertAzDoStory.ps1
-    description: "Create or update a User Story work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    description: "Create or update a User Story work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), StoryPoints (Microsoft.VSTS.Scheduling.StoryPoints), OriginalEstimate (Microsoft.VSTS.Scheduling.OriginalEstimate), RemainingWork (Microsoft.VSTS.Scheduling.RemainingWork), CompletedWork (Microsoft.VSTS.Scheduling.CompletedWork), ACScenarios (Custom.ACScenarios), AcceptanceCriteria (Custom.AcceptanceCriteria), StoryAcceptanceTests (Custom.StoryAcceptanceTests), AIImplemented (Custom.AIImplemented), CodeReviewed (Custom.CodeReviewed), FunctionallyTested (Custom.FunctionallyTested), DeployedToDev (Custom.DeployedToDev), DeployedToStaging (Custom.DeployedToStaging), DeployedToProduction (Custom.DeployedToProduction), ExtraInformation (Custom.ExtraInformation), FixedIn (Custom.FixedIn)."
     passStyle: named
     params:
       - name: Title
@@ -431,6 +461,21 @@ commands:
         type: int
         required: false
         mapTo: ParentFeatureId
+      - name: State
+        type: string
+        required: false
+        description: "Transition the User Story to a writable state. Validated against appSettings.json before any API call."
+        mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this User Story to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
+      - name: Fields
+        type: object
+        required: false
+        description: "Hashtable of additional writable fields keyed by referenceName. See command description for full field list. Explicit params take precedence over Fields entries for the same field."
+        mapTo: Fields
       - name: FailIfExist
         type: bool
         required: false
@@ -439,7 +484,7 @@ commands:
 
   - id: upsert-task
     script: ./UpsertAzDoTask.ps1
-    description: "Create or update a Task work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    description: "Create or update a Task work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), Activity (Microsoft.VSTS.Common.Activity), OriginalEstimate (Microsoft.VSTS.Scheduling.OriginalEstimate), RemainingWork (Microsoft.VSTS.Scheduling.RemainingWork), CompletedWork (Microsoft.VSTS.Scheduling.CompletedWork), StartDate (Microsoft.VSTS.Scheduling.StartDate), FinishDate (Microsoft.VSTS.Scheduling.FinishDate)."
     passStyle: named
     params:
       - name: Title
@@ -474,10 +519,16 @@ commands:
         type: string
         required: false
         mapTo: State
-      - name: ParentStoryId
-        type: int
+      - name: AssignedTo
+        type: string
         required: false
-        mapTo: ParentStoryId
+        description: "Email address of the team member to assign this Task to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
+      - name: Fields
+        type: object
+        required: false
+        description: "Hashtable of additional writable fields keyed by referenceName. See command description for full field list. Explicit params take precedence over Fields entries for the same field."
+        mapTo: Fields
       - name: FailIfExist
         type: bool
         required: false
@@ -486,7 +537,7 @@ commands:
 
   - id: upsert-bug
     script: ./UpsertAzDoBug.ps1
-    description: "Create or update a Bug work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables."
+    description: "Create or update a Bug work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), Severity (Microsoft.VSTS.Common.Severity), Activity (Microsoft.VSTS.Common.Activity), OriginalEstimate (Microsoft.VSTS.Scheduling.OriginalEstimate), RemainingWork (Microsoft.VSTS.Scheduling.RemainingWork), CompletedWork (Microsoft.VSTS.Scheduling.CompletedWork), ReproSteps (Microsoft.VSTS.TCM.ReproSteps), SystemInfo (Microsoft.VSTS.TCM.SystemInfo), FoundIn (Microsoft.VSTS.Build.FoundIn), AIImplemented (Custom.AIImplemented), CodeReviewed (Custom.CodeReviewed), FunctionallyTested (Custom.FunctionallyTested), DeployedToDev (Custom.DeployedToDev), DeployedToStaging (Custom.DeployedToStaging), DeployedToProduction (Custom.DeployedToProduction), ExtraInformation (Custom.ExtraInformation), FixedIn (Custom.FixedIn)."
     passStyle: named
     params:
       - name: Title
@@ -529,6 +580,21 @@ commands:
         type: int
         required: false
         mapTo: ParentStoryId
+      - name: State
+        type: string
+        required: false
+        description: "Transition the Bug to a writable state. Validated against appSettings.json before any API call."
+        mapTo: State
+      - name: AssignedTo
+        type: string
+        required: false
+        description: "Email address of the team member to assign this Bug to. Resolved to an Azure DevOps identity before the API call; fails fast if the email is not found."
+        mapTo: AssignedTo
+      - name: Fields
+        type: object
+        required: false
+        description: "Hashtable of additional writable fields keyed by referenceName. See command description for full field list. Explicit params take precedence over Fields entries for the same field."
+        mapTo: Fields
       - name: FailIfExist
         type: bool
         required: false

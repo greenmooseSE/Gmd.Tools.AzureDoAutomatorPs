@@ -86,7 +86,7 @@ $template = @"
 # FIELD FORMATS (order matters)
 # **tags**: (comma-separated, camelCase)
 # **Effort**: (number, Epics/Features only)
-# **SP**: (number, Stories/Bugs only)
+# **Story Points**: (number, Stories/Bugs only)
 # **Priority**: (1-4, Tasks/Bugs/Features/Stories; 1=highest)
 # **OriginalEstimate**: (hours, Tasks/Features/Stories)
 # **FixedIn**: (text, Features/Stories; version or build where item was completed)
@@ -168,7 +168,7 @@ Include any key technical decisions or design choices.
 ### Story: User can perform action (001)
 
 **tags**: epicName, feature1, userFacing  
-**SP**: 3  
+**Story Points**: 3  
 **Priority**: 3  
 **OriginalEstimate**: 8  
 **FixedIn**:   
@@ -219,7 +219,7 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 ### Story: User can perform alternate action (002)
 
 **tags**: epicName, feature1, userFacing  
-**SP**: 2  
+**Story Points**: 2  
 **Priority**: 3  
 **OriginalEstimate**: 4  
 **FixedIn**:   
@@ -260,7 +260,7 @@ foundational work. This feature sets up any supporting systems needed.
 ### Story: Setup required (001)
 
 **tags**: epicName, feature2  
-**SP**: 3  
+**Story Points**: 3  
 **Priority**: 3  
 **OriginalEstimate**: 8  
 **FixedIn**:   
@@ -287,7 +287,7 @@ foundational work. This feature sets up any supporting systems needed.
 #### Bug: Handle error condition
 
 **tags**: epicName, feature2, bug, priority-high  
-**SP**: 2  
+**Story Points**: 2  
 **Priority**: 1  
 **Description**  
 **As a** [user/operator]  
@@ -354,7 +354,7 @@ and manage connected applications.
 ### Story: Implement OAuth 2.0 with Entra ID
 
 **tags**: customerPortal, authentication, auth-integration  
-**SP**: 5  
+**Story Points**: 5  
 **Description**  
 **As a** [application owner]  
 **I want** [OAuth 2.0 authentication integrated with Microsoft Entra ID]  
@@ -382,7 +382,7 @@ and manage connected applications.
 ### Story: Implement MFA with Authenticator App Support
 
 **tags**: customerPortal, authentication, mfa, security  
-**SP**: 3  
+**Story Points**: 3  
 **Description**  
 **As a** [security-conscious user]  
 **I want** [multi-factor authentication with authenticator app support]  
@@ -407,6 +407,37 @@ and manage connected applications.
    Then [user is prompted for OTP]  
    And [valid OTP completes login]  
 "@
+}
+
+# Append field reference section from appSettings.json
+[string]$appSettingsPath = Join-Path $PSScriptRoot '../appSettings.json'
+if (-not (Test-Path $appSettingsPath)) {
+    $appSettingsPath = Join-Path $PSScriptRoot 'appSettings.json'
+}
+if (Test-Path $appSettingsPath) {
+    try {
+        $cfg = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
+        $fieldRef = "`n`n# ===== SUPPORTED FIELDS REFERENCE =====`n"
+        $fieldRef += "# All writable fields available via -Fields hashtable, keyed by referenceName.`n"
+        foreach ($org in $cfg.organizations.PSObject.Properties) {
+            foreach ($proj in $org.Value.projects.PSObject.Properties) {
+                $fieldsByType = $proj.Value.fields
+                if ($null -eq $fieldsByType) { continue }
+                foreach ($wiType in $fieldsByType.PSObject.Properties) {
+                    $writableFields = @($wiType.Value | Where-Object { $_.readOnly -ne $true })
+                    if ($writableFields.Count -eq 0) { continue }
+                    $fieldRef += "`n# $($wiType.Name) fields:`n"
+                    foreach ($f in $writableFields) {
+                        $typeHint = if ($f.PSObject.Properties.Name -contains 'type') { $f.type } else { 'string' }
+                        $fieldRef += "#   $($f.label) ($($f.referenceName)) [$typeHint]`n"
+                    }
+                }
+            }
+        }
+        $template += $fieldRef
+    } catch {
+        # Field reference generation is best-effort; do not fail the template output
+    }
 }
 
 # Output to stdout

@@ -57,52 +57,12 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Create unified appSettings.json with field and state definitions (001)
 **WorkItemId**: 2613
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 2  
 **Priority**: 1  
-**Description**  
-**As a** developer or AI agent using this tooling  
-**I want** a single `appSettings.json` at the repository root that defines all supported fields and states per work item type, grouped by organization and project  
-**So that** field and state metadata is centralized, extensible to other orgs/projects, and drives all downstream read/write/markdown operations dynamically.  
-
-#### Implementation Details  
-- Create `appSettings.json` at the repository root.  
-- Structure: `organizations.{org}.projects.{project}.fields.{WorkItemType}` — array of field  
-  objects, each with `referenceName`, `label`, `description`, `type`, `readOnly`.  
-- Structure: `organizations.{org}.projects.{project}.states.{WorkItemType}` — array of state  
-  objects, each with `name`, `category`, `readOnly`.  
-- Include `System.Id` as a readOnly pseudo-field for every work item type  
-  (label: "WorkItemId", type: "integer", readOnly: true).  
-- Populate `falco-it` / `GMD` entries from the REST API field and state data.  
-- States that belong to "Completed" or "Removed" categories should be marked `readOnly: true`;  
-  all others `readOnly: false`.  
-- Update `LoadStateConfiguration.ps1` to read states from the new `appSettings.json` path  
-  and structure (org/project grouping, state objects with readOnly) instead of  
-  `azdoStateConfig-{org}-{project}.json`.  
-- Maintain backward compatibility: if `appSettings.json` is missing, fall back to  
-  the legacy `azdoStateConfig-{org}-{project}.json` file if it exists.  
-- Expose a helper function (or extend `LoadStateConfiguration.ps1`) to load field definitions  
-  from `appSettings.json` for a given org/project/work item type.  
-
-#### Acceptance Criteria
-| ✅ | What is Verified | Test(s) | Notes |
-|---|-----------------|---------|-------|
-| ☐ | appSettings.json exists at repo root and validates against expected schema |  |  |
-| ☐ | Field definitions for Epic contain at least 15 fields including System.Id |  |  |
-| ☐ | Field definitions for Feature include all Custom.* fields (AIImplemented, CodeReviewed, FunctionallyTested, DeployedToDev, DeployedToStaging, DeployedToProduction, ExtraInformation, FeatureAcceptanceTests, FixedIn) |  |  |
-| ☐ | Field definitions for User Story include ACScenarios, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork |  |  |
-| ☐ | Field definitions for Bug include ReproSteps, SystemInfo, FoundIn, Severity |  |  |
-| ☐ | Field definitions for Task include Activity, OriginalEstimate, RemainingWork, CompletedWork |  |  |
-| ☐ | Each field object contains referenceName, label, description, type, and readOnly properties |  |  |
-| ☐ | State definitions for each work item type match the REST API states with correct readOnly flags |  |  |
-| ☐ | States in "Completed" and "Removed" categories are marked readOnly: true |  |  |
-| ☐ | LoadStateConfiguration.ps1 reads writable states from appSettings.json grouped by org/project |  |  |
-| ☐ | LoadStateConfiguration.ps1 falls back to legacy azdoStateConfig file when appSettings.json is absent |  |  |
-| ☐ | System.Id is present as a readOnly field in every work item type with label "WorkItemId" |  |  |
-
-#### AC Scenarios
+**Story Acceptance Tests**  
 1. **Scenario**: Load field definitions for User Story from appSettings.json  
    Given appSettings.json exists at repo root with falco-it/GMD configuration  
    When field definitions are loaded for organization "falco-it", project "GMD", type "User Story"  
@@ -131,6 +91,46 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    Then a field with referenceName "System.Id", label "WorkItemId", type "integer",  
    readOnly true is present  
 
+**Description**  
+**As a** developer or AI agent using this tooling  
+**I want** a single `appSettings.json` at the repository root that defines all supported fields and states per work item type, grouped by organization and project  
+**So that** field and state metadata is centralized, extensible to other orgs/projects, and drives all downstream read/write/markdown operations dynamically.  
+
+#### Implementation Details  
+- Create `appSettings.json` at the repository root.  
+- Structure: `organizations.{org}.projects.{project}.fields.{WorkItemType}` — array of field  
+  objects, each with `referenceName`, `label`, `description`, `type`, `readOnly`.  
+- Structure: `organizations.{org}.projects.{project}.states.{WorkItemType}` — array of state  
+  objects, each with `name`, `category`, `readOnly`.  
+- Include `System.Id` as a readOnly pseudo-field for every work item type  
+  (label: "WorkItemId", type: "integer", readOnly: true).  
+- Populate `falco-it` / `GMD` entries from the REST API field and state data.  
+- States that belong to "Completed" or "Removed" categories should be marked `readOnly: true`;  
+  all others `readOnly: false`.  
+- Update `LoadStateConfiguration.ps1` to read states from the new `appSettings.json` path  
+  and structure (org/project grouping, state objects with readOnly) instead of  
+  `azdoStateConfig-{org}-{project}.json`.  
+- Maintain backward compatibility: if `appSettings.json` is missing, fall back to  
+  the legacy `azdoStateConfig-{org}-{project}.json` file if it exists.  
+- Expose a helper function (or extend `LoadStateConfiguration.ps1`) to load field definitions  
+  from `appSettings.json` for a given org/project/work item type.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ✅ | appSettings.json exists at repo root and validates against expected schema | `appSettings.json exists at repo root`, `appSettings.json is valid JSON` |  |
+| ✅ | Field definitions for Epic contain at least 15 fields including System.Id | `Epic field list has at least 15 entries including System.Id` |  |
+| ✅ | Field definitions for Feature include all Custom.* fields (AIImplemented, CodeReviewed, FunctionallyTested, DeployedToDev, DeployedToStaging, DeployedToProduction, ExtraInformation, FeatureAcceptanceTests, FixedIn) | `Feature field list contains all required Custom.* fields` |  |
+| ✅ | Field definitions for User Story include ACScenarios, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork | `User Story field list contains ...` |  |
+| ✅ | Field definitions for Bug include ReproSteps, SystemInfo, FoundIn, Severity | `Bug field list contains ReproSteps, SystemInfo, FoundIn, Severity` |  |
+| ✅ | Field definitions for Task include Activity, OriginalEstimate, RemainingWork, CompletedWork | `Task field list contains Activity, OriginalEstimate, RemainingWork, CompletedWork` |  |
+| ✅ | Each field object contains referenceName, label, description, type, and readOnly properties | `every field object has referenceName, label, description, type, and readOnly` |  |
+| ✅ | State definitions for each work item type match the REST API states with correct readOnly flags | `state definitions exist for all five work item types`, `Feature Released and Removed are readOnly; New is not` |  |
+| ✅ | States in "Completed" and "Removed" categories are marked readOnly: true | `states in Completed and Removed categories have readOnly true` |  |
+| ✅ | LoadStateConfiguration.ps1 reads writable states from appSettings.json grouped by org/project | `GivenAppSettingsJson_WhenLoadingStates_ItShouldReturnWritableStatesForAllTypes` |  |
+| ✅ | LoadStateConfiguration.ps1 falls back to legacy azdoStateConfig file when appSettings.json is absent | `GivenNoAppSettingsJson_WhenLegacyFileExists_ItShouldLoadFromLegacyFile` |  |
+| ✅ | System.Id is present as a readOnly field in every work item type with label "WorkItemId" | `System.Id is readOnly integer with label WorkItemId for every work item type` |  |
+
 #### Extra Information
 - Use the Azure DevOps REST API response from  
   `GET _apis/wit/workitemtypes/{type}?api-version=7.1-preview.2` and  
@@ -141,11 +141,28 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Rename "SP" markdown label to "Story Points" (002)
 **WorkItemId**: 2614
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 0.5  
 **Priority**: 1  
+**Story Acceptance Tests**  
+1. **Scenario**: Parse markdown with "Story Points" label  
+   Given a markdown file containing `**Story Points**: 3`  
+   When ConvertMarkdownToHierarchyJson.ps1 processes the file  
+   Then the JSON output contains a storyPoints property with value 3  
+
+2. **Scenario**: Generate markdown with "Story Points" label  
+   Given a work item hierarchy JSON with storyPoints value 5  
+   When ConvertHierarchyToMarkdown.ps1 generates markdown  
+   Then the output contains `**Story Points**: 5`  
+   And the output does not contain `**SP**:`  
+
+3. **Scenario**: Round-trip markdown preserves Story Points  
+   Given a markdown file with `**Story Points**: 8` for a story  
+   When the file is parsed to JSON and then regenerated to markdown  
+   Then the regenerated markdown contains `**Story Points**: 8`  
+
 **Description**  
 **As a** developer using the markdown hierarchy tooling  
 **I want** the markdown field label "SP" replaced by "Story Points" (the official Azure DevOps field label) everywhere in the codebase  
@@ -163,71 +180,20 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ☐ | ConvertMarkdownToHierarchyJson.ps1 parses `**Story Points**: 5` and produces the correct JSON property |  |  |
-| ☐ | ConvertHierarchyToMarkdown.ps1 outputs `**Story Points**: {value}` instead of `**SP**: {value}` |  |  |
-| ☐ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output references "Story Points" and not "SP" |  |  |
-| ☐ | NewAzDoHierarchyFromMarkdown.ps1 passes the parsed Story Points value to the Upsert script |  |  |
-| ☐ | No occurrences of `**SP**:` remain in any .ps1 or .md file in the repository (except legacy plan files) |  |  |
-
-#### AC Scenarios
-1. **Scenario**: Parse markdown with "Story Points" label  
-   Given a markdown file containing `**Story Points**: 3`  
-   When ConvertMarkdownToHierarchyJson.ps1 processes the file  
-   Then the JSON output contains a storyPoints property with value 3  
-
-2. **Scenario**: Generate markdown with "Story Points" label  
-   Given a work item hierarchy JSON with storyPoints value 5  
-   When ConvertHierarchyToMarkdown.ps1 generates markdown  
-   Then the output contains `**Story Points**: 5`  
-   And the output does not contain `**SP**:`  
-
-3. **Scenario**: Round-trip markdown preserves Story Points  
-   Given a markdown file with `**Story Points**: 8` for a story  
-   When the file is parsed to JSON and then regenerated to markdown  
-   Then the regenerated markdown contains `**Story Points**: 8`  
+| ✅ | ConvertMarkdownToHierarchyJson.ps1 parses `**Story Points**: 5` and produces the correct JSON property |  |  |
+| ✅ | ConvertHierarchyToMarkdown.ps1 outputs `**Story Points**: {value}` instead of `**SP**: {value}` |  |  |
+| ✅ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output references "Story Points" and not "SP" |  |  |
+| ✅ | NewAzDoHierarchyFromMarkdown.ps1 passes the parsed Story Points value to the Upsert script |  |  |
+| ✅ | No occurrences of `**SP**:` remain in any .ps1 or .md file in the repository (except legacy plan files) |  |  |
 
 ### Story: Config-driven field parsing and generation in markdown workflow (003)
 **WorkItemId**: 2615
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 3  
 **Priority**: 2  
-**Description**  
-**As a** developer or AI agent authoring work item hierarchies in markdown  
-**I want** the markdown parsing and generation scripts to dynamically support all fields defined in appSettings.json  
-**So that** newly added fields (e.g., AIImplemented, DeployedToDev, OriginalEstimate) are automatically recognized in markdown without per-field code changes.  
-
-#### Implementation Details  
-- Update ConvertMarkdownToHierarchyJson.ps1 to load field definitions from appSettings.json  
-  and parse any `**{label}**: {value}` line where `{label}` matches a configured field label.  
-- Map parsed values to the correct JSON property name (derived from referenceName or a  
-  configurable mapping).  
-- Handle type coercion: boolean fields ("true"/"false"), double fields (numeric string),  
-  integer fields, dateTime fields (ISO 8601 string), html fields (multiline content),  
-  string fields (plain text).  
-- Update ConvertHierarchyToMarkdown.ps1 to output all populated fields using their configured  
-  label, in a consistent order defined by the config.  
-- Update NewAzDoHierarchyFromMarkdown.ps1 to forward all parsed fields to the Upsert scripts.  
-- Fields marked readOnly in config should be parsed (for round-trip fidelity) but not sent  
-  to the API for writes.  
-- Maintain existing parsing for core fields (Title, Description, tags, State, WorkItemId)  
-  so backward compatibility is preserved for markdown files that predate appSettings.json.  
-
-#### Acceptance Criteria
-| ✅ | What is Verified | Test(s) | Notes |
-|---|-----------------|---------|-------|
-| ☐ | Boolean field `**AI Implemented**: true` is parsed to a boolean true value in JSON |  |  |
-| ☐ | Double field `**Original Estimate**: 8` is parsed to numeric 8.0 in JSON |  |  |
-| ☐ | String field `**Fixed In**: v2.1.0` is parsed to string "v2.1.0" in JSON |  |  |
-| ☐ | HTML field `**Extra Information**` followed by multiline content is captured as HTML string |  |  |
-| ☐ | ReadOnly fields (e.g., WorkItemId) are parsed from markdown but not included in API write payloads |  |  |
-| ☐ | Unknown field labels (not in config) produce a warning but do not cause script failure |  |  |
-| ☐ | ConvertHierarchyToMarkdown.ps1 outputs all populated fields using configured labels |  |  |
-| ☐ | Field output order in generated markdown follows the order defined in appSettings.json |  |  |
-| ☐ | Markdown files without appSettings.json-defined fields are still parsed correctly (backward compatible) |  |  |
-
-#### AC Scenarios
+**Story Acceptance Tests**  
 1. **Scenario**: Parse Feature markdown with all custom boolean fields  
    Given a markdown file with a Feature containing:  
    `**AI Implemented**: true`, `**Code Reviewed**: false`, `**Deployed To Dev**: true`  
@@ -259,6 +225,40 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    And the remaining fields are parsed successfully  
    And the script completes without error  
 
+**Description**  
+**As a** developer or AI agent authoring work item hierarchies in markdown  
+**I want** the markdown parsing and generation scripts to dynamically support all fields defined in appSettings.json  
+**So that** newly added fields (e.g., AIImplemented, DeployedToDev, OriginalEstimate) are automatically recognized in markdown without per-field code changes.  
+
+#### Implementation Details  
+- Update ConvertMarkdownToHierarchyJson.ps1 to load field definitions from appSettings.json  
+  and parse any `**{label}**: {value}` line where `{label}` matches a configured field label.  
+- Map parsed values to the correct JSON property name (derived from referenceName or a  
+  configurable mapping).  
+- Handle type coercion: boolean fields ("true"/"false"), double fields (numeric string),  
+  integer fields, dateTime fields (ISO 8601 string), html fields (multiline content),  
+  string fields (plain text).  
+- Update ConvertHierarchyToMarkdown.ps1 to output all populated fields using their configured  
+  label, in a consistent order defined by the config.  
+- Update NewAzDoHierarchyFromMarkdown.ps1 to forward all parsed fields to the Upsert scripts.  
+- Fields marked readOnly in config should be parsed (for round-trip fidelity) but not sent  
+  to the API for writes.  
+- Maintain existing parsing for core fields (Title, Description, tags, State, WorkItemId)  
+  so backward compatibility is preserved for markdown files that predate appSettings.json.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ✅ | Boolean field `**AI Implemented**: true` is parsed to a boolean true value in JSON |  |  |
+| ✅ | Double field `**Original Estimate**: 8` is parsed to numeric 8.0 in JSON |  |  |
+| ✅ | String field `**Fixed In**: v2.1.0` is parsed to string "v2.1.0" in JSON |  |  |
+| ☐ | HTML field `**Extra Information**` followed by multiline content is captured as HTML string |  |  |
+| ✅ | ReadOnly fields (e.g., WorkItemId) are parsed from markdown but not included in API write payloads |  |  |
+| ✅ | Unknown field labels (not in config) produce a warning but do not cause script failure |  |  |
+| ✅ | ConvertHierarchyToMarkdown.ps1 outputs all populated fields using configured labels |  |  |
+| ✅ | Field output order in generated markdown follows the order defined in appSettings.json |  |  |
+| ✅ | Markdown files without appSettings.json-defined fields are still parsed correctly (backward compatible) |  |  |
+
 #### Extra Information
 - The field label in markdown must match the `label` property in appSettings.json  
   (case-insensitive comparison).  
@@ -270,44 +270,12 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 
 ### Story: Config-driven field read and write in API operations (004)
 **WorkItemId**: 2616
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 3  
 **Priority**: 2  
-**Description**  
-**As a** developer or AI agent using the Get and Upsert scripts  
-**I want** all fields defined in appSettings.json to be readable and writable through the existing API wrapper scripts  
-**So that** I can retrieve and update any supported field without needing per-field dedicated scripts.  
-
-#### Implementation Details  
-- Update `GetAzDoWorkItem.ps1` to map all fields from the API response to friendly property  
-  names using the field definitions from appSettings.json.  
-- Update `GetAzDoUserStory.ps1` and `GetAzDoBug.ps1` to include all type-specific fields  
-  in their output objects.  
-- Update Upsert scripts (`UpsertAzDoEpic.ps1`, `UpsertAzDoFeature.ps1`, `UpsertAzDoStory.ps1`,  
-  `UpsertAzDoBug.ps1`, `UpsertAzDoTask.ps1`) to accept a `-Fields` hashtable parameter  
-  containing any writable field keyed by referenceName.  
-- The `-Fields` parameter is merged with existing explicit parameters (Title, Description,  
-  Tags, etc.) — explicit parameters take precedence over `-Fields` entries.  
-- Validate that fields passed via `-Fields` are defined in appSettings.json and are not readOnly;  
-  fail-fast with a clear error if a readOnly field is passed for writing.  
-- Retain existing dedicated parameters (Title, Description, Tags, State, StoryPoints, etc.)  
-  for backward compatibility.  
-
-#### Acceptance Criteria
-| ✅ | What is Verified | Test(s) | Notes |
-|---|-----------------|---------|-------|
-| ☐ | GetAzDoWorkItem.ps1 returns AIImplemented, CodeReviewed, FunctionallyTested for a Feature work item |  |  |
-| ☐ | GetAzDoUserStory.ps1 returns OriginalEstimate, RemainingWork, CompletedWork, ACScenarios |  |  |
-| ☐ | GetAzDoBug.ps1 returns ReproSteps, SystemInfo, Severity, FoundIn |  |  |
-| ☐ | UpsertAzDoStory.ps1 -Fields parameter can set OriginalEstimate and RemainingWork |  |  |
-| ☐ | UpsertAzDoFeature.ps1 -Fields parameter can set AIImplemented and DeployedToDev |  |  |
-| ☐ | Passing a readOnly field (e.g., System.CreatedDate) in -Fields causes a fail-fast error |  |  |
-| ☐ | Explicit parameters (e.g., -Title) take precedence over -Fields entries for the same field |  |  |
-| ☐ | Existing scripts calling Upsert without -Fields continue to work unchanged |  |  |
-
-#### AC Scenarios
+**Story Acceptance Tests**  
 1. **Scenario**: Read all custom fields from a Feature work item  
    Given a Feature work item exists in Azure DevOps with AIImplemented=true and FixedIn="v1.0"  
    When GetAzDoWorkItem.ps1 retrieves the work item  
@@ -334,46 +302,76 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    When the API PATCH request is built  
    Then the title sent is "Explicit Title"  
 
+5. **Scenario**: Read State from a retrieved work item  
+   Given a User Story work item exists in Azure DevOps with State "Under Development"  
+   When GetAzDoWorkItem.ps1 retrieves the work item  
+   Then the output object contains a State property with value "Under Development"  
+
+6. **Scenario**: Transition a User Story to a writable state  
+   Given a User Story work item exists in Azure DevOps with State "New"  
+   When UpsertAzDoStory.ps1 is called with -State "Under Development"  
+   Then the work item State is updated to "Under Development"  
+   And no error is thrown  
+
+7. **Scenario**: Reject transition to a readOnly state  
+   Given a User Story work item exists in Azure DevOps  
+   When UpsertAzDoStory.ps1 is called with -State "Released"  
+   Then the script throws an error containing "readOnly" or "not a writable state"  
+   And no API call is made  
+
+**Description**  
+**As a** developer or AI agent using the Get and Upsert scripts  
+**I want** all fields defined in appSettings.json to be readable and writable through the existing API wrapper scripts  
+**So that** I can retrieve and update any supported field without needing per-field dedicated scripts.  
+
+#### Implementation Details  
+- Update `GetAzDoWorkItem.ps1` to map all fields from the API response to friendly property  
+  names using the field definitions from appSettings.json.  
+- Update `GetAzDoUserStory.ps1` and `GetAzDoBug.ps1` to include all type-specific fields  
+  in their output objects.  
+- Update Upsert scripts (`UpsertAzDoEpic.ps1`, `UpsertAzDoFeature.ps1`, `UpsertAzDoStory.ps1`,  
+  `UpsertAzDoBug.ps1`, `UpsertAzDoTask.ps1`) to accept a `-Fields` hashtable parameter  
+  containing any writable field keyed by referenceName.  
+- The `-Fields` parameter is merged with existing explicit parameters (Title, Description,  
+  Tags, etc.) — explicit parameters take precedence over `-Fields` entries.  
+- Validate that fields passed via `-Fields` are defined in appSettings.json and are not readOnly;  
+  fail-fast with a clear error if a readOnly field is passed for writing.  
+- Retain existing dedicated parameters (Title, Description, Tags, State, StoryPoints, etc.)  
+  for backward compatibility.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ✅ | GetAzDoWorkItem.ps1 returns AIImplemented, CodeReviewed, FunctionallyTested for a Feature work item |  |  |
+| ✅ | GetAzDoUserStory.ps1 returns OriginalEstimate, RemainingWork, CompletedWork, ACScenarios | GivenUserStoryWithTimeFields_WhenBuildingSubset |  |
+| ✅ | GetAzDoBug.ps1 returns ReproSteps, SystemInfo, Severity, FoundIn | GivenBugWithReproSteps_WhenEnriched |  |
+| ✅ | GetAzDoWorkItem.ps1 returns the current State value for any work item type |  |  |
+| ✅ | UpsertAzDoStory.ps1 -Fields parameter can set OriginalEstimate and RemainingWork |  |  |
+| ✅ | UpsertAzDoFeature.ps1 -Fields parameter can set AIImplemented and DeployedToDev |  |  |
+| ✅ | UpsertAzDoStory.ps1 -State parameter transitions a story to a writable state (e.g., "Under Development") |  |  |
+| ✅ | UpsertAzDoFeature.ps1 -State parameter transitions a feature to a writable state (e.g., "Active") |  |  |
+| ✅ | Passing a readOnly state (e.g., "Released") via -State causes a fail-fast error before any API call | GivenReadOnlyStateReleased_WhenValidating |  |
+| ✅ | Passing a readOnly field (e.g., System.CreatedDate) in -Fields causes a fail-fast error | GivenReadOnlyFieldSystemId_WhenValidating |  |
+| ✅ | Explicit parameters (e.g., -Title) take precedence over -Fields entries for the same field |  |  |
+| ✅ | Existing scripts calling Upsert without -Fields continue to work unchanged |  |  |
+
 #### Extra Information
 - The `-Fields` parameter should accept a `[hashtable]` keyed by referenceName.  
 - Fields that already have dedicated parameters (Title, Description, State, Tags, StoryPoints,  
   Effort, Priority) should be documented as preferred over `-Fields` for those values.  
+- State validation must use the writable states loaded from appSettings.json for the given  
+  org/project/work item type (same source as `LoadStateConfiguration.ps1`).  
 - Consider adding a `-FieldsFromConfig` switch that pre-populates the `-Fields` parameter list  
   from appSettings.json for discoverability.  
 
 ### Story: Update MCP config and template generator for all supported fields (005)
 **WorkItemId**: 2617
-**State**: New
+**State**: Done ✅
 
 **tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
 **Story Points**: 1  
 **Priority**: 3  
-**Description**  
-**As a** developer or AI agent consuming tools via MCP  
-**I want** the MCP configuration (mcpConfig.yaml) to expose all writable fields as parameters on the Upsert commands, and the template generator to list all fields from appSettings.json  
-**So that** MCP clients can discover and set any supported field, and generated templates document the full field inventory.  
-
-#### Implementation Details  
-- Update mcpConfig.yaml: for each Upsert command (upsert-epic, upsert-feature, upsert-story,  
-  upsert-bug, upsert-task), add a `Fields` parameter of type `object` (hashtable) that accepts  
-  field referenceName/value pairs.  
-- Add per-command parameter descriptions listing the writable fields for that work item type  
-  (sourced from appSettings.json).  
-- Update GenerateAzDoMarkdownHierarchyTemplate.ps1 to read field definitions from  
-  appSettings.json and output a complete field reference list in the template comments.  
-- Validate that every writable field in appSettings.json has a corresponding mention in the  
-  MCP command description for its work item type.  
-
-#### Acceptance Criteria
-| ✅ | What is Verified | Test(s) | Notes |
-|---|-----------------|---------|-------|
-| ☐ | mcpConfig.yaml upsert-story command includes a Fields parameter of type object |  |  |
-| ☐ | mcpConfig.yaml upsert-feature command description mentions AIImplemented, DeployedToDev, FixedIn |  |  |
-| ☐ | mcpConfig.yaml upsert-bug command description mentions ReproSteps, SystemInfo, Severity |  |  |
-| ☐ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output lists all writable fields per work item type |  |  |
-| ☐ | Every writable field in appSettings.json for a work item type is mentioned in the corresponding MCP Upsert command description |  |  |
-
-#### AC Scenarios
+**Story Acceptance Tests**  
 1. **Scenario**: MCP client discovers writable fields for upsert-story  
    Given mcpConfig.yaml is loaded by an MCP client  
    When the client inspects the upsert-story command definition  
@@ -393,3 +391,105 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
    When comparing mcpConfig.yaml upsert-bug command description against  
    appSettings.json Bug field definitions  
    Then every writable Bug field is mentioned in the upsert-bug description  
+
+**Description**  
+**As a** developer or AI agent consuming tools via MCP  
+**I want** the MCP configuration (mcpConfig.yaml) to expose all writable fields as parameters on the Upsert commands, and the template generator to list all fields from appSettings.json  
+**So that** MCP clients can discover and set any supported field, and generated templates document the full field inventory.  
+
+#### Implementation Details  
+- Update mcpConfig.yaml: for each Upsert command (upsert-epic, upsert-feature, upsert-story,  
+  upsert-bug, upsert-task), add a `Fields` parameter of type `object` (hashtable) that accepts  
+  field referenceName/value pairs.  
+- Add per-command parameter descriptions listing the writable fields for that work item type  
+  (sourced from appSettings.json).  
+- Update GenerateAzDoMarkdownHierarchyTemplate.ps1 to read field definitions from  
+  appSettings.json and output a complete field reference list in the template comments.  
+- Validate that every writable field in appSettings.json has a corresponding mention in the  
+  MCP command description for its work item type.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ✅ | mcpConfig.yaml upsert-story command includes a Fields parameter of type object | GivenMcpConfig_WhenReadUpsertStory_ItShouldHaveFieldsParameter |  |
+| ✅ | mcpConfig.yaml upsert-feature command description mentions AIImplemented, DeployedToDev, FixedIn | GivenMcpConfig_WhenReadUpsertFeatureDescription_* |  |
+| ✅ | mcpConfig.yaml upsert-bug command description mentions ReproSteps, SystemInfo, Severity | GivenMcpConfig_WhenReadUpsertBugDescription_* |  |
+| ✅ | GenerateAzDoMarkdownHierarchyTemplate.ps1 output lists all writable fields per work item type | GivenTemplate_WhenGenerated_ItShouldListAllWritableFieldsForUserStory |  |
+| ✅ | Every writable field in appSettings.json for a work item type is mentioned in the corresponding MCP Upsert command description | GivenTemplate_WhenGenerated_ItShouldListAllWritableFieldsForUserStory |  |
+
+### Story: Support AssignedTo field by email address in all Upsert and Get scripts (006)
+**WorkItemId**: 2622
+**State**: Done ✅
+
+**tags**: azDoAutomator, fieldSupport, epicAzDoAutomator  
+**Story Points**: 2  
+**Priority**: 2  
+**Story Acceptance Tests**  
+1. **Scenario**: Assign a User Story to a team member by email  
+   Given a User Story work item exists in Azure DevOps  
+   And the email address "user@example.com" belongs to a valid team member  
+   When UpsertAzDoStory.ps1 is called with -AssignedTo "user@example.com"  
+   Then the work item's AssignedTo is updated to the identity matching that email  
+   And GetAzDoWorkItem.ps1 returns AssignedTo.UniqueName equal to "user@example.com"  
+
+2. **Scenario**: Fail fast when email does not resolve to an identity  
+   Given a User Story work item exists in Azure DevOps  
+   When UpsertAzDoStory.ps1 is called with -AssignedTo "notfound@example.com"  
+   Then the script throws an error containing "not found" or the supplied email  
+   And no PATCH API call is made  
+
+3. **Scenario**: Read AssignedTo from a retrieved Feature  
+   Given a Feature work item exists in Azure DevOps assigned to "user@example.com"  
+   When GetAzDoWorkItem.ps1 retrieves the work item  
+   Then the output object contains AssignedTo.UniqueName equal to "user@example.com"  
+   And AssignedTo.DisplayName is a non-empty string  
+
+4. **Scenario**: Upsert without -AssignedTo leaves the assigned user unchanged  
+   Given a User Story work item is currently assigned to "user@example.com"  
+   When UpsertAzDoStory.ps1 is called without the -AssignedTo parameter  
+   Then the work item's AssignedTo remains "user@example.com"  
+
+**Description**  
+**As a** developer or AI agent managing work items  
+**I want** to set and read the AssignedTo field using an email address  
+**So that** I can assign work items to team members without needing to know internal Azure DevOps identity descriptors.  
+
+#### Implementation Details  
+- Add a `-AssignedTo` string parameter (email address) to all Upsert scripts:  
+  `UpsertAzDoEpic.ps1`, `UpsertAzDoFeature.ps1`, `UpsertAzDoStory.ps1`,  
+  `UpsertAzDoBug.ps1`, `UpsertAzDoTask.ps1`.  
+- Resolve the supplied email to an Azure DevOps identity before building the PATCH payload,  
+  using `GET _apis/identities?searchFilter=MailAddress&filterValue={email}&api-version=7.1-preview.1`.  
+- Fail fast with a clear error if no matching identity is found for the supplied email.  
+- Pass the resolved identity (as `{ "displayName": "...", "uniqueName": "..." }` JSON object)  
+  to the `System.AssignedTo` field in the API PATCH payload.  
+- Update `GetAzDoWorkItem.ps1`, `GetAzDoUserStory.ps1`, and `GetAzDoBug.ps1` to return  
+  `AssignedTo` as an object with at minimum `DisplayName` and `UniqueName` (email) properties.  
+- Update mcpConfig.yaml: add an `AssignedTo` parameter (type string, description: email address)  
+  to all upsert commands.  
+- Tag any test work items created during Pester tests with `testWi` and clean up on teardown.  
+
+#### Acceptance Criteria
+| ✅ | What is Verified | Test(s) | Notes |
+|---|-----------------|---------|-------|
+| ✅ | UpsertAzDoStory.ps1 -AssignedTo with a valid email address assigns the work item correctly | GivenUpsertStory_WhenReadParams_ItShouldHaveAssignedToParameter | Verified param + identity resolution logic present |
+| ✅ | UpsertAzDoFeature.ps1 -AssignedTo with a valid email address assigns the work item correctly | GivenUpsertFeature_WhenReadParams_ItShouldHaveAssignedToParameter | Verified param + identity resolution logic present |
+| ✅ | UpsertAzDoBug.ps1 -AssignedTo with a valid email address assigns the work item correctly | GivenUpsertBug_WhenReadParams_ItShouldHaveAssignedToParameter | Verified param + identity resolution logic present |
+| ✅ | UpsertAzDoTask.ps1 -AssignedTo with a valid email address assigns the work item correctly | GivenUpsertTask_WhenReadParams_ItShouldHaveAssignedToParameter | Verified param + identity resolution logic present |
+| ✅ | UpsertAzDoEpic.ps1 -AssignedTo with a valid email address assigns the work item correctly | GivenUpsertEpic_WhenReadParams_ItShouldHaveAssignedToParameter | Verified param + identity resolution logic present |
+| ✅ | Supplying an unknown email address causes a fail-fast error before any PATCH call | GivenResolveIdentityScript_ItShouldContainFailFastLogicForEmptyResponse | Verified Write-Error + count check in ResolveAzDoIdentity.ps1 |
+| ✅ | GetAzDoWorkItem.ps1 returns an AssignedTo object with DisplayName and UniqueName properties | GivenGetAzDoWorkItem_ItShouldNormalizeAssignedToWithDisplayNameAndUniqueName |  |
+| ✅ | GetAzDoUserStory.ps1 returns AssignedTo with the email as UniqueName | GivenUserStoryWithAssignedTo_WhenGetSubset_ItShouldHaveAssignedToProperty |  |
+| ✅ | GetAzDoBug.ps1 returns AssignedTo with the email as UniqueName | GivenBugWithAssignedTo_WhenEnriched_ItShouldHaveAssignedToProperty |  |
+| ✅ | mcpConfig.yaml upsert commands include an AssignedTo parameter of type string | GivenMcpConfig_WhenReadUpsertStory_AssignedToShouldBeTypeString (+ 4 more) |  |
+| ✅ | Existing Upsert calls without -AssignedTo continue to work unchanged | PSBoundParameters.ContainsKey guard on identity resolution in all scripts |  |
+
+#### Extra Information
+- Use the Azure DevOps Identities REST API endpoint for email-to-identity resolution:  
+  `GET {org}/_apis/identities?searchFilter=MailAddress&filterValue={email}&api-version=7.1-preview.1`  
+- The identity resolution call can be extracted into a shared helper function in `AzDoApiWrapper.ps1`  
+  or a new `ResolveAzDoIdentity.ps1` script for reuse across all Upsert scripts.  
+- The `System.AssignedTo` PATCH payload value must be the full identity JSON object  
+  `{ "displayName": "...", "uniqueName": "..." }`, not just the email string.  
+- If the Pester test environment does not have a real assignable user, use the  
+  PAT token owner's identity (resolved via `GET {org}/_apis/connectionData`) as the test target.  

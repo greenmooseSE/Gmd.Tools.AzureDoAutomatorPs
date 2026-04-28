@@ -90,7 +90,7 @@ This is the NEW description that was edited by the user.
 
 **WorkItemId**: 2217  
 **tags**: autogen, feature  
-**SP**: 3  
+**Story Points**: 3  
 **State**: Active
 **Description**  
 This is the NEW story description that was modified.
@@ -134,7 +134,7 @@ This is the NEW story description that was modified.
 ### Story: Story Without WorkItemId
 
 **tags**: test  
-**SP**: 3  
+**Story Points**: 3  
 **State**: Active
 **Description**  
 This story is missing the WorkItemId metadata. With the unified parser, this is treated as a new work item to be created.
@@ -188,7 +188,7 @@ Feature A description
 
 **WorkItemId**: 2217  
 **tags**: test  
-**SP**: 3  
+**Story Points**: 3  
 **State**: Active
 **Description**  
 Story X was moved from Feature B to Feature A by the user.
@@ -206,7 +206,7 @@ Feature B description
 
 **WorkItemId**: 2219  
 **tags**: test  
-**SP**: 2  
+**Story Points**: 2  
 **State**: Active
 **Description**  
 Story Z remains in Feature B.

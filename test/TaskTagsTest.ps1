@@ -53,7 +53,7 @@ Feature with tasks.
 ### Story: Task Tags Verification
 
 **tags**: stories\
-**SP**: 2
+**Story Points**: 2
 
 Story with tagged task.
 

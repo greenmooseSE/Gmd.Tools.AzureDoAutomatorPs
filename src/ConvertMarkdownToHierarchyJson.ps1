@@ -28,7 +28,7 @@ Supported markdown format:
     ### Story: Story Title
     **WorkItemId**: 2217
     **tags**: tag1, tag2
-    **SP**: 5
+    **Story Points**: 5
     **State**: Active
     **Description**
     Story description...
@@ -43,7 +43,7 @@ Metadata fields (all optional):
 - **WorkItemId**: N (for identifying existing work items, can be omitted for new items)
 - **State**: Active, Under Development, etc. (optional)
 - **tags**: comma-separated list (optional)
-- **SP**: story points (for stories, optional)
+- **Story Points**: story points (for stories, optional)
 - **Effort**: effort estimate (for features/epics, optional)
 - **Description**: multi-line description (optional)
 
@@ -80,7 +80,7 @@ Parse from content:
     $content = @"
     ## Feature: My Feature
     **WorkItemId**: 2216
-    **SP**: 5
+    **Story Points**: 5
     **Description**
     Feature details...
     "@
@@ -101,7 +101,16 @@ param(
     [string]$MarkdownFilePath,
 
     [Parameter(Mandatory = $false)]
-    [string]$MarkdownContent
+    [string]$MarkdownContent,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Organization,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Project,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RepositoryRoot
 )
 
 Set-StrictMode -Version 3.0
@@ -109,6 +118,93 @@ $ErrorActionPreference = 'Stop'
 
 # Import constants
 . "$PSScriptRoot/AzDoAutomatorConstants.ps1"
+
+# ============================================================================
+# Field Config Support (config-driven parsing)
+# ============================================================================
+
+# Cache of label→fieldDef lookups keyed by "org/project/type"
+$script:_mdFieldCfgCache = @{}
+
+<#
+.SYNOPSIS
+Returns a case-insensitive label→fieldDef hashtable for the given work item type.
+Returns an empty hashtable when Organization or Project are not set.
+#>
+function Get-WorkItemFieldConfigLookup {
+    param([string]$WorkItemType)
+
+    if ([string]::IsNullOrWhiteSpace($Organization) -or [string]::IsNullOrWhiteSpace($Project)) {
+        return @{}
+    }
+
+    # Parser uses type name "Story" but LoadFieldConfiguration expects "User Story"
+    [string]$lookupType = if ($WorkItemType -eq 'Story') { 'User Story' } else { $WorkItemType }
+    [string]$cacheKey = "$Organization/$Project/$lookupType"
+    if (-not $script:_mdFieldCfgCache.ContainsKey($cacheKey)) {
+        [string]$repoRoot = if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { (Resolve-Path "$PSScriptRoot/..").Path } else { $RepositoryRoot }
+        $fields = @()
+        try {
+            $fields = @(& "$PSScriptRoot/LoadFieldConfiguration.ps1" -Organization $Organization -Project $Project -WorkItemType $lookupType -RepositoryRoot $repoRoot)
+        } catch {
+            if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
+                $null = & ssLogIt.ps1 -Level Debug -Message "Could not load field config for $($WorkItemType): $($_.Exception.Message)"
+            }
+        }
+        $lookup = @{}
+        foreach ($f in $fields) {
+            $lookup[$f.label.ToLower()] = $f
+        }
+        $script:_mdFieldCfgCache[$cacheKey] = $lookup
+    }
+    return $script:_mdFieldCfgCache[$cacheKey]
+}
+
+<#
+.SYNOPSIS
+Coerces a raw string value to the target AzDo field type.
+Returns $null if the value is empty or coercion fails.
+#>
+function Convert-ConfigFieldValue {
+    param([string]$RawValue, [string]$FieldType)
+
+    if ([string]::IsNullOrWhiteSpace($RawValue)) { return $null }
+    try {
+        switch ($FieldType) {
+            'boolean'  { return [bool]::Parse($RawValue) }
+            'integer'  { return [int]$RawValue }
+            'double'   { return [double]$RawValue }
+            'dateTime' { return $RawValue }   # keep as ISO 8601 string
+            default    { return $RawValue }   # string, html, treePath, identity
+        }
+    } catch {
+        if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
+            $null = & ssLogIt.ps1 -Level Debug -Message "Could not coerce value '$RawValue' to type '$FieldType': $_"
+        }
+        return $RawValue   # return as-is on coercion failure
+    }
+}
+
+<#
+.SYNOPSIS
+Finalizes a collected custom/config field buffer into the appropriate target
+(item.configFields keyed by referenceName, or item.customFields keyed by label).
+#>
+function Save-CollectedField {
+    param([object]$Item, [string]$Name, [string[]]$Buffer)
+
+    [string]$value = ($Buffer -join "`n").Trim()
+
+    # "__cfg:{referenceName}" keys come from html-type config fields
+    if ($Name.StartsWith('__cfg:')) {
+        [string]$refName = $Name.Substring(6)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $Item.configFields[$refName] = $value
+        }
+    } else {
+        $Item.customFields[$Name] = $value
+    }
+}
 
 # ============================================================================
 # Input Validation
@@ -202,6 +298,7 @@ function Parse-MarkdownToWorkItems {
     [string]$script:customFieldName = $null
     [array]$script:customFieldBuffer = @()
     [bool]$script:isHashHeaderField = $false
+    [hashtable]$currentItemFieldConfig = @{}
     
     # Regex that matches a proper metadata line: **FieldName**: value  OR  **Description** (no colon)
     # This intentionally excludes bold text in descriptions like **As a** system administrator
@@ -219,7 +316,7 @@ function Parse-MarkdownToWorkItems {
             if ($null -ne $currentItem) {
                 # Finalize any pending custom field
                 if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
-                    $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                    Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
                     $script:collectingCustomField = $false
                 }
                 
@@ -237,6 +334,7 @@ function Parse-MarkdownToWorkItems {
                 lineNumber = $lineNum + 1
                 workItemId = $null
                 state = $null
+                assignedTo = $null
                 tags = $null
                 storyPoints = $null
                 effort = $null
@@ -248,8 +346,11 @@ function Parse-MarkdownToWorkItems {
                 deployedToProduction = $null
                 description = $null
                 customFields = @{}
+                configFields = @{}
                 children = @()
             }
+            # Pre-load field config lookup for this work item type
+            $currentItemFieldConfig = Get-WorkItemFieldConfigLookup -WorkItemType $itemInfo.type
             
             $descriptionBuffer = @()
             $collectingDescription = $false
@@ -258,7 +359,7 @@ function Parse-MarkdownToWorkItems {
             # Special section header: #### Acceptance Criteria / AC Scenarios / Extra Information
             # Finalize any in-progress description or custom field, then collect this section's content
             if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
-                $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
             }
             $script:collectingCustomField = $false
             $collectingDescription = $false
@@ -273,7 +374,7 @@ function Parse-MarkdownToWorkItems {
             $script:isHashHeaderField = $true
         }
         elseif ($null -ne $currentItem -and -not $script:collectingCustomField -and -not $collectingDescription -and $line -match $metadataLineRegex) {
-            # Metadata line (e.g. **tags**: ..., **SP**: 5, **Description**)
+            # Metadata line (e.g. **tags**: ..., **Story Points**: 5, **Description**)
             # Only reached when not currently collecting a custom field or description content.
             # Bold lines like **Foo**: bar inside descriptions/fields are caught by the collection
             # branches below (collectingCustomField / collectingDescription), which fire when this
@@ -289,13 +390,22 @@ function Parse-MarkdownToWorkItems {
             if ($null -ne $state) {
                 $currentItem.state = $state
             }
-            
+
+            $assignedTo = Get-MetadataField -Line $line -FieldName "Assigned To"
+            if ($null -ne $assignedTo) {
+                $currentItem.assignedTo = $assignedTo
+            }
+
             $tags = Get-MetadataField -Line $line -FieldName "tags"
             if ($null -ne $tags) {
                 $currentItem.tags = $tags
             }
             
-            $sp = Get-MetadataField -Line $line -FieldName "SP"
+            # Parse both "Story Points" (new) and "SP" (legacy) for backward compatibility
+            $sp = Get-MetadataField -Line $line -FieldName "Story Points"
+            if ($null -eq $sp) {
+                $sp = Get-MetadataField -Line $line -FieldName "SP"
+            }
             if ($null -ne $sp) {
                 $currentItem.storyPoints = [double]$sp
             }
@@ -347,15 +457,37 @@ function Parse-MarkdownToWorkItems {
             elseif ($line -match '^\*\*([^*]+)\*\*:\s*(.*)$') {
                 $fieldName = $Matches[1]
                 $fieldValue = $Matches[2].Trim()
-                # Skip standard fields that we've already processed
-                if ($fieldName -notin @('WorkItemId', 'State', 'tags', 'SP', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')) {
-                    # Always enter collecting mode so continuation lines (e.g. multi-line
-                    # Custom.ACScenarios written by ConvertHierarchyToMarkdown.ps1) are captured.
-                    # If the field value begins on the same line, seed the buffer with it.
-                    $script:collectingCustomField = $true
-                    $script:customFieldName = $fieldName
-                    $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
-                    $script:isHashHeaderField = $false
+                # Core labels already fully handled above; also skip "Story Points" and "Tags"
+                [string[]]$coreLabels = @('WorkItemId', 'State', 'Assigned To', 'tags', 'Tags', 'SP', 'Story Points', 'Effort', 'Description', 'Priority', 'OriginalEstimate', 'FixedIn', 'DeployedToDev', 'DeployedToStaging', 'DeployedToProduction')
+                if ($fieldName -notin $coreLabels) {
+                    # Config-driven field handling
+                    $cfgFieldDef = if ($currentItemFieldConfig.Count -gt 0) { $currentItemFieldConfig[$fieldName.ToLower()] } else { $null }
+
+                    if ($null -ne $cfgFieldDef -and $cfgFieldDef.type -ne 'html') {
+                        # Non-html config field: coerce inline value, store in configFields directly
+                        $coerced = Convert-ConfigFieldValue -RawValue $fieldValue -FieldType $cfgFieldDef.type
+                        if ($null -ne $coerced) {
+                            $currentItem.configFields[$cfgFieldDef.referenceName] = $coerced
+                        }
+                        # Do NOT enter collecting mode for non-html config fields
+                    } elseif ($null -ne $cfgFieldDef -and $cfgFieldDef.type -eq 'html') {
+                        # Html config field: enter collecting mode with special "__cfg:{refName}" key
+                        $script:collectingCustomField = $true
+                        $script:customFieldName = "__cfg:$($cfgFieldDef.referenceName)"
+                        $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
+                        $script:isHashHeaderField = $false
+                    } else {
+                        # Label not in config – warn when config is available, then collect as custom field
+                        if ($currentItemFieldConfig.Count -gt 0) {
+                            if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
+                                $null = & ssLogIt.ps1 -Level Warn -Message "Field label '$fieldName' is not defined in appSettings.json for $($currentItem.type). Storing as custom field."
+                            }
+                        }
+                        $script:collectingCustomField = $true
+                        $script:customFieldName = $fieldName
+                        $script:customFieldBuffer = if ([string]::IsNullOrWhiteSpace($fieldValue)) { @() } else { @($fieldValue) }
+                        $script:isHashHeaderField = $false
+                    }
                 }
             }
         }
@@ -367,7 +499,7 @@ function Parse-MarkdownToWorkItems {
             # are content and must not terminate collection.
             if ($line -match $metadataLineRegex -and -not $script:isHashHeaderField) {
                 # Hit next metadata field – finalize current custom field and reprocess this line
-                $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+                Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
                 $script:collectingCustomField = $false
                 # This line will be reprocessed in next iteration
                 $lineNum--
@@ -398,7 +530,7 @@ function Parse-MarkdownToWorkItems {
     if ($null -ne $currentItem) {
         # Finalize any pending custom field
         if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
-            $currentItem.customFields[$script:customFieldName] = ($script:customFieldBuffer -join "`n").Trim()
+            Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
             $script:collectingCustomField = $false
         }
         
@@ -455,6 +587,7 @@ function Cleanup-Item {
         title = $Item.title
         workItemId = $Item.workItemId
         state = $Item.state
+        assignedTo = $Item.assignedTo
         tags = $Item.tags
     }
     
@@ -503,6 +636,11 @@ function Cleanup-Item {
     # Recursively clean children
     if ($null -ne $Item.children -and $Item.children.Count -gt 0) {
         $cleaned.children = @($Item.children | ForEach-Object { Cleanup-Item -Item $_ })
+    }
+
+    # Include config-driven fields in output (non-empty only)
+    if ($null -ne $Item.configFields -and $Item.configFields.Count -gt 0) {
+        $cleaned.configFields = $Item.configFields
     }
     
     return $cleaned

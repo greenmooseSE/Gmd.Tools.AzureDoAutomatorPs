@@ -36,7 +36,7 @@ Feature that manages user accounts and permissions
 
 ### Story: User Registration
 **tags**: user-facing, security
-**SP**: 5
+**Story Points**: 5
 **Description**
 Implement user self-registration with email verification
 

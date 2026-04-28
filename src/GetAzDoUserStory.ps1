@@ -139,16 +139,29 @@ try {
     }
 
     # Build the subset object
+    [object]$assignedToRaw = if ($workItem.fields.PSObject.Properties.Name -contains 'System.AssignedTo') { $workItem.fields.'System.AssignedTo' } else { $null }
+    [object]$assignedTo = $null
+    if ($null -ne $assignedToRaw) {
+        $assignedTo = [PSCustomObject]@{
+            DisplayName = if ($assignedToRaw.PSObject.Properties.Name -contains 'displayName') { $assignedToRaw.displayName } else { $null }
+            UniqueName  = if ($assignedToRaw.PSObject.Properties.Name -contains 'uniqueName') { $assignedToRaw.uniqueName } else { $null }
+        }
+    }
+
     $storyObject = @{
         Id = $workItem.id
         State = $workItem.fields.'System.State'
         Title = $workItem.fields.'System.Title'
+        AssignedTo = $assignedTo
         Description = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Description') { $workItem.fields.'System.Description' } else { $null }
         AcceptanceCriteria = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.AcceptanceCriteria') { $workItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' } else { $null }
         ACScenarios = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ACScenarios') { $workItem.fields.'Custom.ACScenarios' } else { $null }
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
+        OriginalEstimate = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.OriginalEstimate') { $workItem.fields.'Microsoft.VSTS.Scheduling.OriginalEstimate' } else { $null }
+        RemainingWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.RemainingWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.RemainingWork' } else { $null }
+        CompletedWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.CompletedWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.CompletedWork' } else { $null }
         CustomFields = $customFields
     }
 

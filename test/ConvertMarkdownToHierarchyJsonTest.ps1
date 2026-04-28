@@ -37,7 +37,7 @@ This is the feature description without a colon marker
 
 ### Story: Test Story
 **tags**: test
-**SP**: 3
+**Story Points**: 3
 **Description**
 This is the story description without a colon marker
 "@
@@ -114,7 +114,7 @@ This is without colon
 
 ### Story: Another Without
 **tags**: test
-**SP**: 3
+**Story Points**: 3
 **Description**
 Without colon again
 "@
@@ -194,7 +194,7 @@ Verify that the system works.
 ### Story: Full Metadata Story
 **WorkItemId**: 997
 **tags**: tag1; tag2
-**SP**: 5
+**Story Points**: 5
 **State**: Active
 **Description**
 This is the description.

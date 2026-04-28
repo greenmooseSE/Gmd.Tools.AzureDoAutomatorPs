@@ -27,7 +27,7 @@ Markdown format:
     
     ### Story: Story Title
     **tags**: tag1, tag2
-    **SP**: 5
+    **Story Points**: 5
     **Description**
     Story description ...
     
@@ -216,6 +216,12 @@ function Get-WorkItemChangeState {
         $markdownValue = $MarkdownFields[$fieldName]
         $azDoValue = $existingFields[$fieldName]
 
+        # AzDo returns System.AssignedTo as a complex object with uniqueName/displayName.
+        # Extract uniqueName for a reliable string comparison.
+        if ($fieldName -eq 'System.AssignedTo' -and $azDoValue -is [System.Management.Automation.PSCustomObject]) {
+            $azDoValue = if ($azDoValue.PSObject.Properties.Name -contains 'uniqueName') { $azDoValue.uniqueName } else { '' }
+        }
+
         # Treat $null and empty string as equivalent
         [string]$normalizedMarkdown = if ($null -eq $markdownValue) { '' } else { [string]$markdownValue }
         [string]$normalizedAzDo = if ($null -eq $azDoValue) { '' } else { [string]$azDoValue }
@@ -268,6 +274,53 @@ function Resolve-ExistingWorkItemId {
     return $null
 }
 
+# Maps config-field reference names to corresponding Upsert script parameter names.
+# Fields not listed here are not yet supported by existing Upsert scripts (Story 004 adds generic -Fields).
+$script:_cfgToUpsertParam = @{
+    'Microsoft.VSTS.Scheduling.OriginalEstimate' = 'OriginalEstimate'
+    'Microsoft.VSTS.Scheduling.StoryPoints'      = 'StoryPoints'
+    'Microsoft.VSTS.Scheduling.Effort'           = 'Effort'
+    'Custom.FixedIn'                             = 'FixedIn'
+    'Custom.DeployedToDev'                       = 'DeployedToDev'
+    'Custom.DeployedToStaging'                   = 'DeployedToStaging'
+    'Custom.DeployedToProduction'                = 'DeployedToProduction'
+}
+
+<#
+.SYNOPSIS
+Merges writable configFields from a parsed work item into the Upsert params hashtable.
+Only fields with known Upsert param names are transferred; others are logged as unsupported.
+An existing param value (set by explicit named property handling) is never overridden.
+#>
+function Merge-ConfigFieldsToParams {
+    param([hashtable]$Params, [object]$Item)
+
+    $cfgFields = $null
+    if ($Item -is [hashtable] -and $Item.ContainsKey('configFields')) {
+        $cfgFields = $Item['configFields']
+    } elseif ($Item.PSObject.Properties.Name -contains 'configFields') {
+        $cfgFields = $Item.configFields
+    }
+    if ($null -eq $cfgFields -or $cfgFields.Count -eq 0) { return }
+
+    foreach ($refName in $cfgFields.Keys) {
+        $paramName = $script:_cfgToUpsertParam[$refName]
+        if ([string]::IsNullOrWhiteSpace($paramName)) {
+            # No named param mapping: fall back to -Fields hashtable keyed by referenceName
+            if (-not $Params.ContainsKey('Fields')) {
+                $Params['Fields'] = @{}
+            }
+            if (-not $Params['Fields'].ContainsKey($refName)) {
+                $Params['Fields'][$refName] = $cfgFields[$refName]
+            }
+            continue
+        }
+        if (-not $Params.ContainsKey($paramName)) {
+            $Params[$paramName] = $cfgFields[$refName]
+        }
+    }
+}
+
 # Builds the field comparison hashtable for an Epic from its markdown representation.
 function Get-EpicMarkdownFields {
     param([object]$Epic)
@@ -283,6 +336,8 @@ function Get-FeatureMarkdownFields {
     param([object]$Feature)
     $fields = @{}
     if ($Feature.title) { $fields[$script:FIELD_SYSTEM_TITLE] = $Feature.title }
+    if ($Feature.state) { $fields[$script:FIELD_SYSTEM_STATE] = $Feature.state }
+    if (-not [string]::IsNullOrWhiteSpace($Feature.assignedTo)) { $fields[$script:FIELD_SYSTEM_ASSIGNED_TO] = $Feature.assignedTo }
     if ($Feature.description) { $fields[$script:FIELD_DESCRIPTION] = $Feature.description }
     if ($Feature.effort) { $fields[$script:FIELD_EFFORT] = [string]$Feature.effort }
     if ($Feature.priority) { $fields[$script:FIELD_PRIORITY] = [string]$Feature.priority }
@@ -291,6 +346,13 @@ function Get-FeatureMarkdownFields {
     if ($null -ne $Feature.deployedToDev) { $fields[$script:FIELD_DEPLOYED_TO_DEV] = [string]$Feature.deployedToDev }
     if ($null -ne $Feature.deployedToStaging) { $fields[$script:FIELD_DEPLOYED_TO_STAGING] = [string]$Feature.deployedToStaging }
     if ($null -ne $Feature.deployedToProduction) { $fields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = [string]$Feature.deployedToProduction }
+    # Include config-driven fields (e.g. Custom.FeatureAcceptanceTests)
+    $featureCfgFields = if ($Feature -is [hashtable]) { $Feature['configFields'] } else { $Feature.configFields }
+    if ($null -ne $featureCfgFields -and $featureCfgFields.Count -gt 0) {
+        foreach ($refName in $featureCfgFields.Keys) {
+            if (-not $fields.ContainsKey($refName)) { $fields[$refName] = $featureCfgFields[$refName] }
+        }
+    }
     return $fields
 }
 
@@ -299,6 +361,8 @@ function Get-StoryMarkdownFields {
     param([object]$Story)
     $fields = @{}
     if ($Story.title) { $fields[$script:FIELD_SYSTEM_TITLE] = $Story.title }
+    if ($Story.state) { $fields[$script:FIELD_SYSTEM_STATE] = $Story.state }
+    if (-not [string]::IsNullOrWhiteSpace($Story.assignedTo)) { $fields[$script:FIELD_SYSTEM_ASSIGNED_TO] = $Story.assignedTo }
     if ($Story.description) { $fields[$script:FIELD_DESCRIPTION] = $Story.description }
     if ($Story.acceptanceCriteria) { $fields[$script:FIELD_ACCEPTANCE_CRITERIA] = $Story.acceptanceCriteria }
     if ($Story.acScenarios) { $fields[$script:FIELD_AC_SCENARIOS] = $Story.acScenarios }
@@ -310,6 +374,13 @@ function Get-StoryMarkdownFields {
     if ($null -ne $Story.deployedToDev) { $fields[$script:FIELD_DEPLOYED_TO_DEV] = [string]$Story.deployedToDev }
     if ($null -ne $Story.deployedToStaging) { $fields[$script:FIELD_DEPLOYED_TO_STAGING] = [string]$Story.deployedToStaging }
     if ($null -ne $Story.deployedToProduction) { $fields[$script:FIELD_DEPLOYED_TO_PRODUCTION] = [string]$Story.deployedToProduction }
+    # Include config-driven fields (e.g. Custom.StoryAcceptanceTests)
+    $storyCfgFields = if ($Story -is [hashtable]) { $Story['configFields'] } else { $Story.configFields }
+    if ($null -ne $storyCfgFields -and $storyCfgFields.Count -gt 0) {
+        foreach ($refName in $storyCfgFields.Keys) {
+            if (-not $fields.ContainsKey($refName)) { $fields[$refName] = $storyCfgFields[$refName] }
+        }
+    }
     return $fields
 }
 
@@ -587,6 +658,8 @@ function Convert-HierarchyFeature {
     $feature = @{
         title              = $Item['title']
         workItemId         = $Item['workItemId']
+        state              = $Item['state']
+        assignedTo         = $Item['assignedTo']
         description        = Encode-NonHtmlAngleBrackets $Item['description']
         effort             = $Item['effort']
         priority           = $Item['priority']
@@ -597,6 +670,7 @@ function Convert-HierarchyFeature {
         deployedToProduction = $Item['deployedToProduction']
         tags               = $tags
         stories            = [array]@()
+        configFields       = if ($null -ne $Item['configFields']) { $Item['configFields'] } else { @{} }
     }
     $children = $Item['children']
     if ($null -ne $children -and $children.Count -gt 0) {
@@ -616,6 +690,8 @@ function Convert-HierarchyStory {
     $story = @{
         title                = $Item['title']
         workItemId           = $Item['workItemId']
+        state                = $Item['state']
+        assignedTo           = $Item['assignedTo']
         description          = Encode-NonHtmlAngleBrackets $Item['description']
         storyPoints          = $Item['storyPoints']
         acceptanceCriteria   = Encode-NonHtmlAngleBrackets $Item['acceptanceCriteria']
@@ -630,6 +706,7 @@ function Convert-HierarchyStory {
         tags                 = $tags
         tasks                = [array]@()
         bugs                 = [array]@()
+        configFields         = if ($null -ne $Item['configFields']) { $Item['configFields'] } else { @{} }
     }
     $children = $Item['children']
     if ($null -ne $children -and $children.Count -gt 0) {
@@ -1031,6 +1108,14 @@ try {
             if ($null -ne $feature.deployedToProduction) {
                 $featureParams['DeployedToProduction'] = $feature.deployedToProduction
             }
+            if ($feature.state) {
+                $featureParams['State'] = $feature.state
+            }
+            if (-not [string]::IsNullOrWhiteSpace($feature.assignedTo)) {
+                $featureParams['AssignedTo'] = $feature.assignedTo
+            }
+            # Merge config-driven fields from configFields into featureParams
+            Merge-ConfigFieldsToParams -Params $featureParams -Item $feature
 
             # Skip upsert when item exists and content is identical
             [bool]$shouldUpsertFeature = $true
@@ -1124,6 +1209,14 @@ try {
                     if ($null -ne $story.deployedToProduction) {
                         $storyParams['DeployedToProduction'] = $story.deployedToProduction
                     }
+                    if ($story.state) {
+                        $storyParams['State'] = $story.state
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($story.assignedTo)) {
+                        $storyParams['AssignedTo'] = $story.assignedTo
+                    }
+                    # Merge config-driven fields from configFields into storyParams
+                    Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                     $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
                     $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
@@ -1172,6 +1265,14 @@ try {
                     if ($null -ne $story.deployedToProduction) {
                         $storyParams['DeployedToProduction'] = $story.deployedToProduction
                     }
+                    if ($story.state) {
+                        $storyParams['State'] = $story.state
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($story.assignedTo)) {
+                        $storyParams['AssignedTo'] = $story.assignedTo
+                    }
+                    # Merge config-driven fields from configFields into storyParams
+                    Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                     # Check if there are any fields to update (beyond the standard org/project/id/token)
                     $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
@@ -1299,6 +1400,14 @@ try {
         if ($null -ne $feature.deployedToProduction) {
             $featureParams['DeployedToProduction'] = $feature.deployedToProduction
         }
+        if ($feature.state) {
+            $featureParams['State'] = $feature.state
+        }
+        if (-not [string]::IsNullOrWhiteSpace($feature.assignedTo)) {
+            $featureParams['AssignedTo'] = $feature.assignedTo
+        }
+        # Merge config-driven fields from configFields into featureParams
+        Merge-ConfigFieldsToParams -Params $featureParams -Item $feature
 
         if ($PSBoundParameters.ContainsKey('EpicId')) {
             $featureParams['ParentEpicId'] = $EpicId
@@ -1393,6 +1502,14 @@ try {
                 if ($null -ne $story.deployedToProduction) {
                     $storyParams['DeployedToProduction'] = $story.deployedToProduction
                 }
+                if ($story.state) {
+                    $storyParams['State'] = $story.state
+                }
+                if (-not [string]::IsNullOrWhiteSpace($story.assignedTo)) {
+                    $storyParams['AssignedTo'] = $story.assignedTo
+                }
+                # Merge config-driven fields from configFields into storyParams
+                Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                 $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
                 $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
@@ -1441,6 +1558,14 @@ try {
                 if ($null -ne $story.deployedToProduction) {
                     $storyParams['DeployedToProduction'] = $story.deployedToProduction
                 }
+                if ($story.state) {
+                    $storyParams['State'] = $story.state
+                }
+                if (-not [string]::IsNullOrWhiteSpace($story.assignedTo)) {
+                    $storyParams['AssignedTo'] = $story.assignedTo
+                }
+                # Merge config-driven fields from configFields into storyParams
+                Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
                 $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
                 $storyChangeState = Get-WorkItemChangeState -MarkdownFields (Get-StoryMarkdownFields -Story $story) -ExistingItem $existingStory

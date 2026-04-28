@@ -47,6 +47,9 @@ param(
     [Parameter(Mandatory = $true)]
     [int]$WorkItemId,
 
+    [Parameter(Mandatory = $false)]
+    [string]$RepositoryRoot,
+
     [string]$PatToken
 )
 
@@ -102,6 +105,33 @@ try {
     $title = $workItem.fields.'System.Title'
     $type = $workItem.fields.'System.WorkItemType'
     $null = & ssLogIt.ps1 -Level Info -Message "Successfully retrieved work item: ::FgGreen::$title::FgDefault:: (Type: $type, ID: $($workItem.id))"
+
+    # Enrich work item with named properties for all configured fields
+    [string]$repoRoot = if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { (Resolve-Path "$PSScriptRoot/..").Path } else { $RepositoryRoot }
+    try {
+        [array]$fieldDefs = @(& "$PSScriptRoot/LoadFieldConfiguration.ps1" -Organization $Organization -Project $Project -WorkItemType $type -RepositoryRoot $repoRoot -ErrorAction SilentlyContinue)
+        foreach ($fieldDef in $fieldDefs) {
+            [string]$propName = $fieldDef.label -replace ' ', ''
+            if ($workItem.fields.PSObject.Properties.Name -contains $fieldDef.referenceName) {
+                $workItem | Add-Member -NotePropertyName $propName -NotePropertyValue $workItem.fields.($fieldDef.referenceName) -Force
+            }
+        }
+    } catch {
+        $null = & ssLogIt.ps1 -Level Debug -Message "Could not enrich work item with config fields: $($_.Exception.Message)"
+    }
+
+    # Normalize AssignedTo to a simplified object with DisplayName and UniqueName
+    [object]$assignedToRaw = if ($workItem.fields.PSObject.Properties.Name -contains 'System.AssignedTo') { $workItem.fields.'System.AssignedTo' } else { $null }
+    [object]$assignedToObj = $null
+    if ($null -ne $assignedToRaw -and $assignedToRaw -isnot [string]) {
+        $assignedToObj = [PSCustomObject]@{
+            DisplayName = if ($assignedToRaw.PSObject.Properties.Name -contains 'displayName') { $assignedToRaw.displayName } else { $null }
+            UniqueName  = if ($assignedToRaw.PSObject.Properties.Name -contains 'uniqueName') { $assignedToRaw.uniqueName } else { $null }
+        }
+    } elseif ($null -ne $assignedToRaw) {
+        $assignedToObj = [PSCustomObject]@{ DisplayName = $assignedToRaw; UniqueName = $assignedToRaw }
+    }
+    $workItem | Add-Member -NotePropertyName 'AssignedTo' -NotePropertyValue $assignedToObj -Force
 
     return $workItem
 }

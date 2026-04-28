@@ -61,7 +61,7 @@ function hReadInclude {
 $template          = hReadInclude 'createPlanPromptTemplate.md'
 $planRules         = hReadInclude 'createMarkdownPlan.md'
 $storyRules        = hReadInclude 'createStoryRules_General.md'
-$projectStoryRules = hReadInclude 'createStoryRules_AutomatorPs.md'
+$projectStoryRules = hReadInclude 'createStoryRules_ThisProject.md'
 $archRules         = hReadInclude 'architecturalRules_General.md'
 
 # ── Build AzDo config block ────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ $prompt = $prompt.Replace('{{PLAN_CREATION_RULES}}', $planRules.Trim())
 $prompt = $prompt.Replace('{{STORY_RULES}}', $storyRules.Trim())
 $prompt = $prompt.Replace('{{EXTRA_STORY_RULES_SECTION}}', $extraSection)
 $prompt = $prompt.Replace('{{ARCH_RULES}}', $archRules.Trim())
-$prompt = $prompt.Replace('{{GENERATED_BY}}', 'promptCreatePlanFeatureMarkdownThisProject.ps1')
+$prompt = $prompt.Replace('{{GENERATED_BY}}', 'promptCreatePlanFeatureMarkdown_ThisProject.ps1')
 $prompt = $prompt.Replace('{{TIMESTAMP}}', (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 
 # ── Output ─────────────────────────────────────────────────────────────────────
