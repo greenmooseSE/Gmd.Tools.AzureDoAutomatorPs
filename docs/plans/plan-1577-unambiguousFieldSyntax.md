@@ -144,43 +144,88 @@ See also: ...
   Then `description` contains `### Some Internal Header` and the prose  
   And no separate field is created for the header  
 
-- [ ] **Scenario 5: Unknown {Field Label} emits a warning but does not fail**  
-  Given a story with `{NonExistentField}: value`  
+- [ ] **Scenario 5: Unknown {Field Label} is treated as literal text, not a field marker**  
+  Given a story collecting `{Description}` and the next line is `{NonExistentField}: value`  
   When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
-  Then a warning is logged mentioning `NonExistentField`  
-  And parsing of the remaining fields completes without error  
+  Then `{NonExistentField}: value` is stored literally in the description content  
+  And no separate field is created for `NonExistentField`  
+
+- [ ] **Scenario 6: Bold-wrapped `**{FieldName}**` syntax is recognized as a field marker**  
+  Given a story with `**{Story Points}**: 5` and `**{Description}**` followed by prose  
+  When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
+  Then `storyPoints` equals `5.0`  
+  And `description` contains the prose  
+
+- [ ] **Scenario 7: Header-style `## {FieldName}` syntax is recognized as a field marker**  
+  Given a story with `## {Description}` followed by prose  
+  When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
+  Then `description` contains the prose  
+
+- [ ] **Scenario 8: All field handling is data-driven from appSettings.json**  
+  Given a story with `{WorkItemId}: 123`, `{State}: Active`, `{tags}: foo`, `{Story Points}: 3`  
+  When `ConvertMarkdownToHierarchyJson.ps1` parses the file  
+  Then `workItemId` equals `123`, `state` equals `"Active"`, `tags` equals `"foo"`, `storyPoints` equals `3.0`  
+  And all field resolution flows through appSettings.json — no hardcoded field names in the parser  
 
 **Description**  
 **As a** developer or AI agent authoring work item hierarchies in markdown  
-**I want** `ConvertMarkdownToHierarchyJson.ps1` to recognize `{Field Name}` as a field  
-boundary delimiter — regardless of the current collecting state  
-**So that** any field can be placed in any order without accidentally merging into the  
-description or a preceding field.  
+**I want** `ConvertMarkdownToHierarchyJson.ps1` to recognize `{Field Name}` as an unambiguous  
+field boundary delimiter in three forms: bare (`{Field Name}`), bold-wrapped (`**{Field Name}**`),  
+or header-style (`## {Field Name}`) — regardless of the current collecting state —  
+with all field names resolved exclusively through `appSettings.json` (no hardcoded names)  
+**So that** any field can appear in any order, unknown labels are treated as literal text  
+(not warnings or custom fields), and adding a new HTML field to `appSettings.json` requires  
+no parser changes.  
 
 #### Implementation Notes  
-- Add a new regex at the top of `Parse-MarkdownToWorkItems`:  
-  `[string]$curlyFieldRegex = '^\{([^}]+)\}(?::\s*(.*))?$'`  
-- In the main line-processing loop, check `$curlyFieldRegex` BEFORE the existing  
-  description/custom-field collecting branches. If matched:  
-  - Finalize any current collecting state (description or custom field).  
-  - Resolve the label against `appSettings.json` field config.  
-  - If the inline value is present, store immediately (same coercion logic as now).  
-  - If no inline value, enter collecting mode (same as html-type field handling).  
+- Replace the single curly-brace regex with **three start-of-line patterns**, checked in  
+  order before any other content processing:  
+  - Bare: `^\{([^}]+)\}(?::\s*(.*))?$`  
+  - Bold-wrapped: `^\*\*\{([^}]+)\}\*\*(?::\s*(.*))?$`  
+  - Header-style: `^#{1,5}\s+\{([^}]+)\}(?::\s*(.*))?$`  
+- After extracting the label from whichever pattern matched, look it up in the full  
+  `appSettings.json` field config for the current work item type via  
+  `Get-WorkItemFieldConfigLookup` (pre-loaded per work item type).  
+- **If the label is not found** in `appSettings.json` for the current work item type:  
+  treat the entire line as literal content and append it to the current collecting buffer  
+  (description or custom field). Do NOT emit a warning. Do NOT create a custom field.  
+- **If the label is found**: finalize any current collecting state, then process the field  
+  based on its `referenceName`:  
+  - `System.Id` → `$currentItem.workItemId` (integer)  
+  - `System.State` → `$currentItem.state` (string)  
+  - `System.AssignedTo` → `$currentItem.assignedTo` (string)  
+  - `System.Tags` → `$currentItem.tags` (string)  
+  - `System.Description` → description buffer (multi-line collecting mode)  
+  - `Microsoft.VSTS.Scheduling.StoryPoints` → `$currentItem.storyPoints` (double)  
+  - `Microsoft.VSTS.Scheduling.Effort` → `$currentItem.effort` (double)  
+  - `Microsoft.VSTS.Common.Priority` → `$currentItem.priority` (integer)  
+  - `Microsoft.VSTS.Scheduling.OriginalEstimate` → `$currentItem.originalEstimate` (double)  
+  - All other config fields → `$currentItem.configFields[referenceName]`  
+  - For html-type fields with no inline value: enter multi-line collecting mode with  
+    key `"__cfg:{referenceName}"` (reuse existing `Save-CollectedField` logic).  
+  - For non-html fields with an inline value: coerce via `Convert-ConfigFieldValue` and store.  
+- Remove `Get-MetadataField`, `Get-SpecialSectionName`, `$metadataLineRegex`,  
+  `$isHashHeaderField`, the `$coreLabels` exclusion list, and all  
+  `**Field Name**` / `**Field Name**: value` parsing branches.  
 - Remove the `$isHashHeaderField` flag — it is no longer needed.  
-- Remove the `Get-SpecialSectionName` function and all `**Field Name**` metadata handling.  
 
 #### Acceptance Criteria
 | ✅ | What is Verified | Test(s) | Notes |
 |---|-----------------|---------|-------|
-| ▢ | `{tags}: foo, bar` is parsed to tags = "foo, bar" | | |
+| ▢ | `{tags}: foo, bar` (bare form) is parsed to tags = "foo, bar" | | |
+| ▢ | `**{tags}**: foo, bar` (bold-wrapped form) is parsed to tags = "foo, bar" | | |
 | ▢ | `{Story Points}: 3` is parsed to storyPoints = 3.0 | | |
-| ▢ | `{Description}` followed by content is collected until next `{...}` marker | | |
-| ▢ | A `{Field Name}` line inside description-collecting mode terminates the description | | |
-| ▢ | A `{Field Name}` line inside custom-field-collecting mode terminates that field | | |
+| ▢ | `{Description}` (bare) followed by content is collected until next known-field `{...}` marker | | |
+| ▢ | `**{Description}**` (bold-wrapped) followed by content is collected until next known-field `{...}` marker | | |
+| ▢ | `## {Description}` (header-style) followed by content is collected until next known-field `{...}` marker | | |
+| ▢ | A known-field `{Field Name}` line inside description-collecting mode terminates the description | | |
+| ▢ | A known-field `{Field Name}` line inside custom-field-collecting mode terminates that field | | |
 | ▢ | Content between `{Description}` and `{Acceptance Criteria}` is stored in description only | | |
 | ▢ | `{Story Acceptance Tests}` after description stores content in `Custom.StoryAcceptanceTests` | | |
 | ▢ | `{Feature Acceptance Tests}` after description stores content in `Custom.FeatureAcceptanceTests` | | |
-| ▢ | Unknown `{FieldLabel}` emits a warning and is stored as a custom field | | |
+| ▢ | Unknown `{FieldLabel}` on its own line is stored literally in the current collecting buffer | | |
+| ▢ | `{WorkItemId}: 123` is resolved through appSettings.json (not a hardcoded check) | | |
+| ▢ | No hardcoded field name logic remains — all field dispatch is config-driven via referenceName | | |
 | ▢ | Pester tests in `test/ConvertMarkdownToHierarchyJsonTests/CurlyFieldSyntaxTest.ps1` all pass | | |
 
 #### Extra Information  
@@ -237,16 +282,18 @@ and `GenerateAzDoMarkdownHierarchyTemplate.ps1` to produce templates in the new 
   `` "{$($fd.label)}: $escaped  `n" `` in `Get-ConfigFieldsMarkdown`.  
 - For html-type fields in `Get-ConfigFieldsMarkdown`, replace the current  
   `` "**$($fd.label)**  `n" `` header output with `` "{$($fd.label)}  `n" `` (no colon).  
-- In `ConvertTo-StoryMarkdown`:  
-  - Change `"**WorkItemId**: $Id  `n"` → `"{WorkItemId}: $Id  `n"`  
-  - Change `"**tags**: ...  `n"` → `"{tags}: ...  `n"`  
-  - Change `"**Story Points**: ...  `n"` → `"{Story Points}: ...  `n"`  
-  - Change `"**State**: ...  `n"` → `"{State}: ...  `n"`  
-  - Change `"**Description**  `n"` → `"{Description}  `n"`  
-  - Change `` "`n#### Acceptance Criteria  `n" `` → `` "`n{Acceptance Criteria}  `n" ``  
-  - Change `` "`n#### AC Scenarios  `n" `` → `` "`n{AC Scenarios}  `n" ``  
-  - Change `` "`n#### Extra Information  `n" `` → `` "`n{Extra Information}  `n" ``  
-- Apply equivalent changes in `ConvertTo-FeatureMarkdown` and `ConvertTo-EpicMarkdown`.  
+- Replace the hardcoded per-field output blocks in `ConvertTo-StoryMarkdown`,  
+  `ConvertTo-FeatureMarkdown`, and `ConvertTo-EpicMarkdown` with a unified loop that  
+  iterates the fields from `appSettings.json` in declaration order and outputs  
+  `{label}: value` (non-html) or `{label}` (html, entering multi-line block) for each  
+  non-null field. The handful of structural fields that have dedicated output properties  
+  (`workItemId` → `System.Id`, `state` → `System.State`, `tags` → `System.Tags`,  
+  `storyPoints` → `Microsoft.VSTS.Scheduling.StoryPoints`, etc.) are matched by their  
+  `referenceName` and emitted in appSettings.json order alongside config fields.  
+- The work item type header line (`# Epic: …`, `## Feature: …`, etc.) remains unchanged —  
+  it is structural, not a field marker.  
+- Remove any remaining hardcoded `**FieldName**` or `#### Section` output strings from  
+  all `ConvertTo-*` functions.  
 
 ##### GenerateAzDoMarkdownHierarchyTemplate.ps1  
 - Update template comments and example output to use `{Field Name}` syntax.  
@@ -268,6 +315,8 @@ and `GenerateAzDoMarkdownHierarchyTemplate.ps1` to produce templates in the new 
 | ▢ | Generator outputs `{Story Acceptance Tests}` when the field is populated | | |
 | ▢ | Generator outputs `{Feature Acceptance Tests}` on Features when the field is populated | | |
 | ▢ | `Get-ConfigFieldsMarkdown` uses `{label}:` for non-html fields and `{label}` for html fields | | |
+| ▢ | No hardcoded `**FieldName**` or `#### Section` output strings remain in any `ConvertTo-*` function | | |
+| ▢ | All fields are emitted in the order declared in appSettings.json for the work item type | | |
 | ▢ | Round-trip parse of generated output matches original field values | | |
 | ▢ | `GenerateAzDoMarkdownHierarchyTemplate.ps1` output uses `{Field Name}` syntax | | |
 | ▢ | `example-hierarchy.md` uses `{Field Name}` syntax throughout | | |
