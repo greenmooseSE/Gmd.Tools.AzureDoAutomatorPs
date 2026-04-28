@@ -49,7 +49,6 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
   - Brief summary of what was implemented
   - Table of test files/`It` blocks that verify the AC Scenarios
 - Update existing comment instead of adding new ones
-- Do NOT commit changes (user must do this manually)
 - Validate and check items (✅) in both fields "Acceptance Criteria" and "AC Scenarios"
 
 ## Validation Checklist

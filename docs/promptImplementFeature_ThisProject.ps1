@@ -222,8 +222,6 @@ This project uses **Pester** for integration-level PowerShell tests.
 - **No deployment:** skip CI/CD steps entirely.
 - **Fail fast:** throw exceptions rather than implementing silent fallbacks.
 - **Update the plan file** to mark each story complete as you go.
-- **No commits:** Do NOT commit changes — the user performs commits manually, unless explicitly
-  instructed otherwise.
 - **ssInvokeExpr.ps1**: Use this helper when invoking shell expressions or external commands.
 - **copilot-instructions.md**: Always read and apply ``.github/copilot-instructions.md`` before
   implementing anything.

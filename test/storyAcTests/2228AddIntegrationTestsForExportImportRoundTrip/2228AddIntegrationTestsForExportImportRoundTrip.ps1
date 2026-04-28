@@ -192,8 +192,7 @@ Invoke-Test "GivenTestHierarchyWithFeatureBug2StoriesAndTask_WhenExportedParsedA
     # Detect changes - should be 0 since nothing was modified
     $diff = & "$SRC_DIR/DetectHierarchyChanges.ps1" `
         -OriginalHierarchy $originalJson `
-        -ModifiedHierarchy $parsedJson `
-        -StateConfigPath "$REPO_ROOT/azdoStateConfig-falco-it-GMD.json"
+        -ModifiedHierarchy $parsedJson
 
     if ($diff.validationPassed -ne $true) {
         throw "Validation failed unexpectedly for unmodified round-trip. Errors: $($diff.errors -join '; ')"
@@ -307,8 +306,7 @@ Invoke-Test "GivenStoryWithOriginalTitleAndDescription_WhenExportedModifiedAndRe
     # Detect changes - should find 1 Update operation for the Story
     $diff = & "$SRC_DIR/DetectHierarchyChanges.ps1" `
         -OriginalHierarchy $originalJson `
-        -ModifiedHierarchy $modifiedJson `
-        -StateConfigPath "$REPO_ROOT/azdoStateConfig-falco-it-GMD.json"
+        -ModifiedHierarchy $modifiedJson
 
     if ($diff.validationPassed -ne $true) {
         throw "Validation failed unexpectedly. Errors: $($diff.errors -join '; ')"
@@ -439,7 +437,7 @@ Invoke-Test "GivenStoryInWritableState_WhenMarkdownStateChangedToNonWritableStat
         -RepositoryRoot $REPO_ROOT
 
     # Load state config to find a non-writable state for Story type
-    $stateConfig = Get-Content -Raw "$REPO_ROOT/azdoStateConfig-falco-it-GMD.json" | ConvertFrom-Json
+    $stateConfig = & "$SRC_DIR/LoadStateConfiguration.ps1" -Organization $Organization -Project $Project -RepositoryRoot $REPO_ROOT
     $storyWritableStates = @($stateConfig.writableStates.Story)
     # "Planning Done" is in Feature writable states but NOT in Story writable states
     $nonWritableState = "Planning Done"
@@ -451,7 +449,7 @@ Invoke-Test "GivenStoryInWritableState_WhenMarkdownStateChangedToNonWritableStat
     $originalJson = & "$SRC_DIR/ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $originalMarkdown
 
     # Modify markdown: change Story state to a non-writable state
-    $modifiedMarkdown = $originalMarkdown -replace "\*\*State\*\*: $([regex]::Escape($initialState))\b[^\n]*", "**State**: $nonWritableState"
+    $modifiedMarkdown = $originalMarkdown -replace "\{State\}: $([regex]::Escape($initialState))[^\n]*", "{State}: $nonWritableState"
 
     # Parse modified markdown
     $modifiedJson = & "$SRC_DIR/ConvertMarkdownToHierarchyJson.ps1" -MarkdownContent $modifiedMarkdown
@@ -459,8 +457,7 @@ Invoke-Test "GivenStoryInWritableState_WhenMarkdownStateChangedToNonWritableStat
     # Detect changes - state validation should reject the non-writable state
     $diff = & "$SRC_DIR/DetectHierarchyChanges.ps1" `
         -OriginalHierarchy $originalJson `
-        -ModifiedHierarchy $modifiedJson `
-        -StateConfigPath "$REPO_ROOT/azdoStateConfig-falco-it-GMD.json"
+        -ModifiedHierarchy $modifiedJson
 
     # Validation must have failed
     if ($diff.validationPassed -eq $true) {

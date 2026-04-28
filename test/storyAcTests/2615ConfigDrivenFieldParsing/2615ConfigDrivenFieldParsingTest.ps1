@@ -32,8 +32,8 @@ Describe 'Story 2615 - Config-driven field parsing and generation' {
         It 'GivenAIImplementedTrue_WhenParsing_ItShouldProduceBooleanTrue' {
             $md = @"
 ## Feature: My Feature
-**AI Implemented**: true
-**Description**
+{AI Implemented}: true
+{Description}
 A feature
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
@@ -47,8 +47,8 @@ A feature
         It 'GivenAIImplementedFalse_WhenParsing_ItShouldProduceBooleanFalse' {
             $md = @"
 ## Feature: My Feature
-**AI Implemented**: false
-**Description**
+{AI Implemented}: false
+{Description}
 A feature
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
@@ -62,22 +62,22 @@ A feature
         It 'GivenOriginalEstimate_WhenParsing_ItShouldProduceDouble' {
             $md = @"
 ### Story: My Story
-**Original Estimate**: 8
-**Description**
+{Original Estimate}: 8
+{Description}
 A story
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
                 -MarkdownContent $md -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
             $item = $result.workItems[0]
-            $item.configFields['Microsoft.VSTS.Scheduling.OriginalEstimate'] | Should Be 8.0
-            $item.configFields['Microsoft.VSTS.Scheduling.OriginalEstimate'].GetType().Name | Should Be 'Double'
+            $item.originalEstimate | Should Be 8.0
+            $item.originalEstimate.GetType().Name | Should Be 'Double'
         }
 
         It 'GivenRemainingWork_WhenParsing_ItShouldProduceDouble' {
             $md = @"
 ### Story: My Story
-**Remaining Work**: 4
-**Description**
+{Remaining Work}: 4
+{Description}
 A story
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
@@ -92,8 +92,8 @@ A story
         It 'GivenFixedIn_WhenParsing_ItShouldProduceString' {
             $md = @"
 ## Feature: My Feature
-**Fixed In**: v2.1.0
-**Description**
+{Fixed In}: v2.1.0
+{Description}
 A feature
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
@@ -108,8 +108,8 @@ A feature
         It 'GivenWorkItemId_WhenParsing_ItShouldBeInWorkItemIdNotConfigFields' {
             $md = @"
 ### Story: A Story
-**WorkItemId**: 123
-**Description**
+{WorkItemId}: 123
+{Description}
 A story
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
@@ -129,8 +129,8 @@ A story
         It 'GivenUnknownLabel_WhenParsing_ItShouldNotThrowAndReturnOtherFieldsCorrectly' {
             $md = @"
 ### Story: My Story
-**Nonexistent Custom Field**: somevalue
-**Description**
+{Nonexistent Custom Field}: somevalue
+{Description}
 A story
 "@
             $result = $null
@@ -174,9 +174,9 @@ A story
                 -Hierarchy $story -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT 2>&1 |
                 Where-Object { $_ -is [string] } | Out-String
 
-            $output -match '\*\*AI Implemented\*\*:' | Should Be $true
-            $output -match '\*\*Fixed In\*\*:'       | Should Be $true
-            $output -match '\*\*Original Estimate\*\*:' | Should Be $true
+            $output -match '\{AI Implemented\}:' | Should Be $true
+            $output -match '\{Fixed In\}:'       | Should Be $true
+            $output -match '\{Original Estimate\}:' | Should Be $true
         }
     }
 
@@ -202,41 +202,42 @@ A story
                 -Hierarchy $feature -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT 2>&1 |
                 Where-Object { $_ -is [string] } | Out-String
 
-            $fixedInPos   = $output.IndexOf('**Fixed In**')
-            $aiImplPos    = $output.IndexOf('**AI Implemented**')
+            $fixedInPos   = $output.IndexOf('{Fixed In}')
+            $aiImplPos    = $output.IndexOf('{AI Implemented}')
             # "Fixed In" should appear AFTER "AI Implemented" in the Feature config order
             # (in appSettings.json: AI Implemented is at index ~17, Fixed In is at index ~23)
             $fixedInPos -gt $aiImplPos | Should Be $true
         }
     }
 
-    Context 'AC9: Backward compatibility - markdown without config fields parses correctly' {
+    Context 'AC9: Curly-brace format parses correctly with org/project config' {
 
-        It 'GivenMarkdownWithoutConfigFields_WhenParsing_ItShouldStillParseCoreFields' {
+        It 'GivenCurlyBraceCoreFields_WhenParsing_ItShouldParseCoreFields' {
             $md = @"
-### Story: Legacy Story
-**WorkItemId**: 55
-**Story Points**: 3
-**State**: New
-**Description**
-Old-style story
+### Story: New Style Story
+{WorkItemId}: 55
+{Story Points}: 3
+{State}: New
+{Description}
+New-style story
 "@
-            $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') -MarkdownContent $md
+            $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
+                -MarkdownContent $md -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
             $item = $result.workItems[0]
             $item.workItemId | Should Be 55
             $item.storyPoints | Should Be 3
             $item.state | Should Be 'New'
+            $item.description | Should Be 'New-style story'
         }
 
-        It 'GivenMarkdownWithoutOrgProject_WhenParsing_ItShouldParseCoreFieldsWithNoConfigDriven' {
+        It 'GivenMarkdownWithoutOrgProject_WhenParsing_ItShouldReturnWorkItemTypeWithoutFieldParsing' {
             $md = @"
 ## Feature: A Feature
-**AI Implemented**: true
-**Description**
+{AI Implemented}: true
+{Description}
 No config available
 "@
-            # Without -Organization and -Project: no config loading, no type coercion,
-            # falls into customFields as string (no error)
+            # Without -Organization and -Project: no config loading, curly-brace fields not recognized
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') -MarkdownContent $md
             $result.workItems.Count | Should Be 1
             $result.workItems[0].type | Should Be 'Feature'

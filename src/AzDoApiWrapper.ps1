@@ -23,10 +23,50 @@ $ErrorActionPreference = 'Stop'
 [int]$script:RETRY_MAX_ATTEMPTS = 3
 [int]$script:RETRY_DELAY_MS = 1000
 [int]$script:API_TIMEOUT_SECONDS = 120
+[hashtable]$script:_htmlFieldCache = @{}
 
 # ============================================================================
 # Private Helper Functions
 # ============================================================================
+
+<#
+.SYNOPSIS
+Returns the set of field reference names whose type is 'html' for the given org/project,
+read from appSettings.json. Result is cached per org/project for the session.
+#>
+function Get-HtmlFieldReferenceNames {
+    param([string]$Organization, [string]$Project)
+
+    [string]$cacheKey = "$Organization/$Project"
+    if ($script:_htmlFieldCache.ContainsKey($cacheKey)) {
+        return $script:_htmlFieldCache[$cacheKey]
+    }
+
+    [string[]]$htmlFields = @()
+    try {
+        [string]$appSettingsPath = Join-Path $PSScriptRoot '../appSettings.json'
+        if (-not (Test-Path $appSettingsPath)) {
+            $appSettingsPath = Join-Path (Get-Location).Path 'appSettings.json'
+        }
+        if (Test-Path $appSettingsPath) {
+            $appSettings = Get-Content -Raw $appSettingsPath | ConvertFrom-Json
+            $projectFields = $appSettings.organizations.$Organization.projects.$Project.fields
+            if ($null -ne $projectFields) {
+                foreach ($typeName in $projectFields.PSObject.Properties.Name) {
+                    $htmlFields += @($projectFields.$typeName |
+                        Where-Object { $_.type -eq 'html' } |
+                        Select-Object -ExpandProperty referenceName)
+                }
+                $htmlFields = @($htmlFields | Select-Object -Unique)
+            }
+        }
+    } catch {
+        # Fall through to empty list; field will be sent without markdown hint
+    }
+
+    $script:_htmlFieldCache[$cacheKey] = $htmlFields
+    return $htmlFields
+}
 
 <#
 .SYNOPSIS
@@ -405,13 +445,8 @@ function New-AzDoWorkItem {
         # Use string concatenation to produce literal $VariableName in URL
         $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/`$" + $WorkItemType + "?api-version=7.1"
 
-        # Multiline fields that require markdown format specification
-        [string[]]$multilineFields = @(
-            'System.Description',
-            'Microsoft.VSTS.Common.AcceptanceCriteria',
-            'Custom.ACScenarios',
-            'Custom.ExtraInformation'
-        )
+        # Multiline fields that require markdown format specification — derived from appSettings.json
+        [string[]]$multilineFields = @(Get-HtmlFieldReferenceNames -Organization $Organization -Project $Project)
 
         # Build PATCH operations for fields
         $patchOps = @()
@@ -523,13 +558,8 @@ function Update-AzDoWorkItem {
 
         $uri = "https://dev.azure.com/$Organization/$Project/_apis/wit/workitems/$WorkItemId`?api-version=7.1-preview.3"
 
-        # Multiline fields that require markdown format specification
-        [string[]]$multilineFields = @(
-            'System.Description',
-            'Microsoft.VSTS.Common.AcceptanceCriteria',
-            'Custom.ACScenarios',
-            'Custom.ExtraInformation'
-        )
+        # Multiline fields that require markdown format specification — derived from appSettings.json
+        [string[]]$multilineFields = @(Get-HtmlFieldReferenceNames -Organization $Organization -Project $Project)
 
         # Build PATCH operations for fields
         $patchOps = @()
@@ -544,10 +574,11 @@ function Update-AzDoWorkItem {
                 value = $Fields[$fieldName]
             }
 
-            # Add multiline format specification for markdown fields
+            # Add multiline format specification for markdown fields.
+            # Use 'add' (not 'replace') so it works even when the format path has never been set before.
             if ($fieldName -in $multilineFields -and -not [string]::IsNullOrWhiteSpace($Fields[$fieldName])) {
                 $patchOps += @{
-                    op    = 'replace'
+                    op    = 'add'
                     path  = "/multilineFieldsFormat/$fieldName"
                     value = 'Markdown'
                 }
