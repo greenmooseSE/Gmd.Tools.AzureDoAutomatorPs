@@ -35,6 +35,7 @@ This project provides a complete automation toolkit for Azure DevOps work item l
   - [LoadFieldConfiguration.ps1](#loadfieldconfigurationps1)
   - [ValidateUpsertFields.ps1](#validateupsertfieldsps1)
   - [AssignedTo Support](#assignedto-support)
+- [Field Migration](#field-migration)
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
 - [Download and Compare Workflow](#download-and-compare-workflow)
@@ -695,6 +696,59 @@ $updated = .\SetAzDoEffort.ps1 `
     -WorkItemId 123 `
     -Effort 21
 ```
+
+### Field Migration
+
+#### `MoveAzDoWorkItemField.ps1`
+Move or copy a field value from one field to another across a work item hierarchy or all project work items. Supports `DryRun` to preview changes without writing to the API, and `ConfirmEachItem` for interactive approval.
+
+**Parameters**
+
+| Parameter | Type | Mandatory | ParameterSet | Description |
+|-----------|------|-----------|--------------|-------------|
+| Organization | string | Yes | Both | Azure DevOps organization name |
+| Project | string | Yes | Both | Azure DevOps project name |
+| PatToken | string | No | Both | PAT token (defaults to `$env:GMD_AZDO_MACHINE_WORKITEMSRW`) |
+| SourceField | string | Yes | Both | Display label of the field to move/copy from |
+| TargetField | string | Yes | Both | Display label of the field to move/copy into |
+| WorkItemId | int | Yes | ById | Root work item — processes it and all descendants |
+| Global | switch | Yes | Global | Processes every work item in the project via WIQL |
+| Copy | switch | No | Both | Keep source field intact (default: clear source after copy) |
+| DryRun | switch | No | Both | Preview without making any API changes |
+| ConfirmEachItem | switch | No | Both | Prompt before updating each work item |
+
+```powershell
+# Move 'Extra Information' into 'Story Acceptance Tests' for a hierarchy (dry run)
+$results = .\MoveAzDoWorkItemField.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 1234 `
+    -SourceField "Extra Information" `
+    -TargetField "Story Acceptance Tests" `
+    -DryRun
+
+# Copy the field globally across all project work items
+$results = .\MoveAzDoWorkItemField.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -SourceField "Extra Information" `
+    -TargetField "Story Acceptance Tests" `
+    -Global `
+    -Copy
+```
+
+Pipeline output shape per evaluated item:
+
+| Property | Description |
+|----------|-------------|
+| WorkItemId | Work item ID |
+| Title | Work item title |
+| WorkItemType | Epic / Feature / User Story / Bug / Task |
+| SourceField | Source field display label |
+| TargetField | Target field display label |
+| Action | `Move`, `Copy`, `Skip`, or `DryRun` |
+| Result | `Updated`, `Skipped`, `Declined`, or `Error` |
+| Detail | Additional information |
 
 ### Tag Management
 
@@ -2604,6 +2658,7 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoAcceptanceCriteria.ps1        (Set acceptance criteria)
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
 │   ├── SetAzDoEffort.ps1                    (Set effort for Epic/Feature)
+│   ├── MoveAzDoWorkItemField.ps1            (Move/copy field value across hierarchy or project-wide)
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
 │   ├── UpdateAzDoWorkItemTags.ps1           (Update/add/remove tags - modern replacement)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)
