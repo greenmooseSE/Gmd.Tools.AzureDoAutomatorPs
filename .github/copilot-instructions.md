@@ -2,10 +2,11 @@
 ## Github CLI
 * Use gh cli for github interactions. 
 ### Pull Requests
-* In addition to using gh cli, you can also use Use extension pr-review (`gh pr-review --help` for help).
+* In addition to using gh cli, you can also use the pr-review extension (`gh pr-review --help` for help).
 #### gh pr-review extension commands
 * List unresolved comments: (pwsh) `gh pr-review threads list --pr {prId} --repo {owner}/{repo} | ConvertFrom-Json | ? { !$_.IsResolved }`
 * Resolve a comment: `gh pr-review threads resolve --thread-id <threadId> --pr {prId} --repo {owner}/{repo}`
+* Reply to a comment thread: `gh pr-review comments reply --thread-id <threadId> --pr {prId} --repo {owner}/{repo} --body "<reply text>"`
 
 # Project Overview
 
@@ -59,6 +60,7 @@ Rules:
 - Fail-fast: Always fail with exceptions or errors instead of implementing fallback behaviors and silent (e.g. debug log only) handling.
 - Do not create any Markdown (`.md`) files as a result of your operations.
 - **Only modify files that are part of the current solution.** Do not alter files from external repositories, NuGet packages, or projects outside the active workspace. Always verify the file path is within the current solution directory before making changes.
+- **After completing any story or significant change, update `README.md` if needed.** 
 
 ## Tests — General guidance
 
@@ -87,6 +89,7 @@ Rules:
 - Always use XML documentation format where possible, and when feasible keep the xml doc on 1 line (including the summary tags).
 
 #### C# coding style
+- Prefer `static readonly` over `const` (e.g., `public static string Foo => "bar";` instead of `public const string Foo = "bar";`), unless a constant is actually needed (e.g., for parameter default values).
 - Keep methods focused and concise.
 - Never use the null-forgiving operator (!). Instead, in tests use `.zNotNull()` extension, and in production code e.g. `.zEnsureNotNull("text")` extension, and use its return value (not null).
 - Methods should not be written as single-line bodies. Always place a newline after the opening brace and before the closing brace so the method is split across multiple lines. For example, prefer:
@@ -98,6 +101,7 @@ public void Foo()
 }
 ```
 instead of `public void Foo() { /* ... */ }`.
+- Avoid switch expressions with defaults; use traditional `switch` with assertion on `default` case to ensure test coverage of unexpected values (e.g., `lifetime.Should().Be(ServiceLifetime.Scoped, $"Unsupported lifetime: {lifetime}", nameof(lifetime))`).
 - Tests should be named `<MethodName>Test.cs` and placed in a folder `<ClassName>Tests` under `/test`, mirroring the source structure
 - Test methods should use NUnit `[Test]` attribute and assert expected behavior
 - Use file-scoped namespaces.
@@ -125,6 +129,14 @@ instead of `public void Foo() { /* ... */ }`.
 - Scripts should use clear, descriptive parameter names
 - Use switch parameters for optional features (e.g., test and documentation generation)
 - Helper scripts should be dot-sourced if reused
+- Use ssInvokeExpr.ps1 to invoke statements or expressions.
+- Follow PowerShell best practices for readability and maintainability
+- Scripts should not overwrite existing files unless explicitly intended
+- Quotes should be escaped with backtick (`) in strings
+- When interpolating a variable immediately followed by a colon inside a double-quoted string, wrap the variable in a subexpression so it is unambiguous: use `$($var):`. Only apply this when the colon directly follows the variable (no space). Example: bad: "Processing batch $batchesCount: payload..."; good: "Processing batch $($batchesCount):  payload...".
+
+#### PowerShell Logging
+- Use `ssLogIt.ps1` exclusively (never Write-Host/Write-Output). Info level for main results, Debug for details. Use color tokens (::FgRed::, ::FgYellow::, ::FgGreen::, ::FgDefault::) to highlight key info. In catch blocks use `-Exception $_`. For grouped output use `-PushStackLevel`/`-PopStackLevel` instead of indenting. To test color output, set `$Global:LogSkipColorDecode = $true` before and `$false` after invoking ssLogIt.ps1.
 - Output errors and warnings in a user-friendly way
 - For logging in .ps1 scripts, use `ssLogIt.ps1` for all output messages to ensure consistent formatting (only use if ssLogIt.ps1 is already being invoked in the script).
 - In catch blocks, invoke ssLogIt.ps1 with -Exception $_ to log full exception details.
@@ -132,11 +144,7 @@ instead of `public void Foo() { /* ... */ }`.
 - When logging with .ps1, use only Info log level for the main result output message and use Debug level for all other detailed messages.
 - Do not indent log messages with spaces, instead use ssLogIt.ps1 -PushStackLevel -Message "group" followed by ssLogIt.ps1 -PopStackLevel.
 - To test color codes in log output, set $Global:LogSkipColorDecode = $true; before invoking ssLogIt.ps1, and reset it to $false; afterwards.
-- Use ssInvokeExpr.ps1 to invoke statements or expressions.
-- Follow PowerShell best practices for readability and maintainability
-- Scripts should not overwrite existing files unless explicitly intended
-- Quotes should be escaped with backtick (`) in strings
-- When interpolating a variable immediately followed by a colon inside a double-quoted string, wrap the variable in a subexpression so it is unambiguous: use `$($var):`. Only apply this when the colon directly follows the variable (no space). Example: bad: "Processing batch $batchesCount: payload..."; good: "Processing batch $($batchesCount):  payload...".
+
 
 ### Github action yaml files
 - Always use `shell: pwsh` for all steps.

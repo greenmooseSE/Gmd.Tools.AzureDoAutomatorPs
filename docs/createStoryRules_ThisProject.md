@@ -10,6 +10,7 @@
   - A specific parameter value produces a specific AzDo API call
   - Output written to the pipeline matches a specific object shape
   - A specific error/exception is thrown for invalid input
+- **Always add a README AC item** when the story adds or modifies scripts, parameters, output shapes, config formats, or MCP tool parameters: `README.md is updated to reflect this story's changes`
 
 ## Story details (PowerShell)
 ### Script interface

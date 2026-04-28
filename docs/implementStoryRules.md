@@ -29,6 +29,7 @@
 * Ensure each scenario is implemented in tests, check off the the items (`- [x]` or `✅`) and update scenario with suffix of test name (e.g. `- [x] Scenario: User logs in 🧪 ``GivenStartPage_WhenUserLogsIn_SystemUpdatesDbWithUserSession`` ` )
 
 ## When completed implementing a story
-* Always update README.md when applicable.
+
+* Update `README.md` if the story introduces or modifies user-facing functionality.
 * Add a comment to the story with a short summary and a table of tests you crated to verify the BDD scenarios. But ensure you only have one comment per work item for this. Update existing instead of adding a new comment.
 

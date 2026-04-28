@@ -6,12 +6,13 @@ Comprehensive PowerShell script collection for automating Azure DevOps work item
 
 This project provides a complete automation toolkit for Azure DevOps work item lifecycle management including:
 
-- **Creating/Updating** Epics, Features, Stories, and Tasks
-- **Getting/Setting** work item properties (description, acceptance criteria, story points, effort)
+- **Creating/Updating** Epics, Features, Stories, Bugs, and Tasks — all with `-Fields`, `-State`, and `-AssignedTo` support
+- **Getting/Setting** work item properties (description, acceptance criteria, story points, effort, AssignedTo)
 - **Managing Tags** (add, replace, remove)
 - **Managing Iterations** (retrieving, creating future iterations based on existing patterns)
 - **Generating hierarchies** from markdown files
 - **Deleting** work items with optional recursive child deletion (`-Recursive`) and safety confirmations (Epics, Features, Stories, Bugs, Tasks)
+- **Unified Configuration** via `appSettings.json` — field definitions, state definitions, and identity resolution driven by a single config file per org/project
 
 ## Table of Contents
 
@@ -29,6 +30,11 @@ This project provides a complete automation toolkit for Azure DevOps work item l
 - [Creating Tasks Within Stories](#creating-tasks-within-stories)
 - [Creating Bugs Within Stories](#creating-bugs-within-stories)
 - [Example Hierarchy](#example-hierarchy)
+- [Unified Field and State Configuration](#unified-field-and-state-configuration)
+  - [appSettings.json](#appSettingsjson)
+  - [LoadFieldConfiguration.ps1](#loadfieldconfigurationps1)
+  - [ValidateUpsertFields.ps1](#validateupsertfieldsps1)
+  - [AssignedTo Support](#assignedto-support)
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
 - [Download and Compare Workflow](#download-and-compare-workflow)
@@ -82,10 +88,29 @@ These are dot-sourced by all automation scripts:
 #### `AzDoAutomatorConstants.ps1`
 Defines all constants used throughout the automation suite:
 - API endpoints and versions
-- Work item types (Epic, Feature, Story, Task)
-- Field reference names (System.Title, Microsoft.VSTS.Common.AcceptanceCriteria, etc.)
+- Work item types (Epic, Feature, Story, Task, Bug)
+- Field reference names (System.Title, System.AssignedTo, Microsoft.VSTS.Common.AcceptanceCriteria, etc.)
 - Regex patterns for markdown parsing
 - HTTP methods and patch operations
+
+#### `LoadFieldConfiguration.ps1`
+Loads field definitions for a specific work item type from `appSettings.json`:
+- Returns an array of field objects: `referenceName`, `label`, `description`, `type`, `readOnly`
+- Used by `GetAzDoWorkItem.ps1` to enrich results with named properties
+- Used by `GenerateAzDoMarkdownHierarchyTemplate.ps1` to build the SUPPORTED FIELDS REFERENCE section
+- No-op (returns empty array) when appSettings.json is absent or has no matching entry
+
+#### `ValidateUpsertFields.ps1`
+Pre-flight validation helpers called by all Upsert scripts before making any API call:
+- `Assert-FieldsNotReadOnly -Organization -Project -WorkItemType -Fields`: Throws if any key in the `-Fields` hashtable is marked `readOnly: true` in `appSettings.json`
+- `Assert-StateIsWritable -Organization -Project -WorkItemType -State`: Throws if `-State` is not in the `writableStates` list for the given work item type
+
+#### `ResolveAzDoIdentity.ps1`
+Resolves an email address to an Azure DevOps identity object before any PATCH/POST call:
+- Calls `GET _apis/identities?searchFilter=MailAddress&filterValue={email}&api-version=7.1-preview.1`
+- Fails fast with a clear error if no matching identity is found
+- Returns `[PSCustomObject]@{ DisplayName = "..."; UniqueName = "<email>" }`
+- Used by all five Upsert scripts when `-AssignedTo` is supplied
 
 #### `AzDoPatTokenHelper.ps1`
 Manages PAT token retrieval and authentication:
@@ -118,6 +143,54 @@ High-level work item operations:
 ## Automation Scripts
 
 ### Feature/Story Management
+
+#### `UpsertAzDoEpic.ps1`
+Create or update Epics (UPSERT operation). Epics are the top-level work items with no parent.
+
+```powershell
+# Create or update Epic by title (standard UPSERT)
+$epic = .\UpsertAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Platform Modernization" `
+    -Description "Modernise the entire platform stack" `
+    -Effort 80
+
+# Transition an Epic to a new state and assign it
+$epic = .\UpsertAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Platform Modernization" `
+    -State "Active" `
+    -AssignedTo "lead@myorg.com"
+
+# Pass arbitrary writable fields via hashtable
+$epic = .\UpsertAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Title "Platform Modernization" `
+    -Fields @{ 'System.Tags' = 'platform; initiative' }
+
+# Update existing Epic by ID
+$epic = .\UpsertAzDoEpic.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -Id 100 `
+    -Effort 100
+```
+
+**Parameters:**
+- `Organization` (required): Azure DevOps organization
+- `Project` (required): Project name
+- `Title` (required for create, optional for ID-based update): Epic title
+- `Id` (optional): Epic ID for direct update (cannot be used with `-FailIfExist`)
+- `Description` (optional): Epic description
+- `Effort` (optional): Effort value (non-negative number; decimals supported)
+- `State` (optional): Transition the Epic to a writable state; validated against `appSettings.json` before the API call
+- `AssignedTo` (optional): Email address of the team member to assign this Epic to; resolved to an Azure DevOps identity before the API call — fails fast if the email is not found
+- `Fields` (optional): Hashtable of additional writable fields keyed by `referenceName`; validated against `appSettings.json` before the API call — read-only fields are rejected
+- `FailIfExist` (switch): Create-only mode; fails if an Epic with this title already exists
+- `PatToken` (optional): Override default PAT token
 
 #### `UpsertAzDoFeature.ps1`
 Create or update Features (UPSERT operation) with optional parent Epic.
@@ -169,6 +242,9 @@ $feature = .\UpsertAzDoFeature.ps1 `
 - `DeployedToDev` (optional): Boolean — whether the feature has been deployed to Dev
 - `DeployedToStaging` (optional): Boolean — whether the feature has been deployed to Staging
 - `DeployedToProduction` (optional): Boolean — whether the feature has been deployed to Production
+- `State` (optional): Transition the Feature to a writable state; validated against `appSettings.json` before the API call
+- `AssignedTo` (optional): Email address of the team member to assign this Feature to; resolved to an Azure DevOps identity before the API call — fails fast if the email is not found
+- `Fields` (optional): Hashtable of additional writable fields keyed by `referenceName`; validated against `appSettings.json` before the API call — read-only fields are rejected
 - `FailIfExist` (switch): Create-only mode; fails if feature exists. Cannot be used with -Id
 - `PatToken` (optional): Override default PAT token
 
@@ -237,6 +313,9 @@ $story = .\UpsertAzDoStory.ps1 `
 - `DeployedToDev` (optional): Boolean — whether the story has been deployed to Dev
 - `DeployedToStaging` (optional): Boolean — whether the story has been deployed to Staging
 - `DeployedToProduction` (optional): Boolean — whether the story has been deployed to Production
+- `State` (optional): Transition the Story to a writable state; validated against `appSettings.json` before the API call
+- `AssignedTo` (optional): Email address of the team member to assign this Story to; resolved to an Azure DevOps identity before the API call — fails fast if the email is not found
+- `Fields` (optional): Hashtable of additional writable fields keyed by `referenceName`; validated against `appSettings.json` before the API call — read-only fields are rejected
 - `ParentFeatureId` (optional): Parent Feature ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
@@ -291,7 +370,9 @@ $task = .\UpsertAzDoTask.ps1 `
 - `Id` (optional): Task ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Task description
 - `Effort` (optional): Effort value (non-negative number; decimals supported, e.g. 0.5)
-- `State` (optional): Task state (e.g., "To Do", "In Progress", "Done")
+- `State` (optional): Task state (e.g., "To Do", "In Progress", "Done"); validated against `appSettings.json` before the API call
+- `AssignedTo` (optional): Email address of the team member to assign this Task to; resolved to an Azure DevOps identity before the API call — fails fast if the email is not found
+- `Fields` (optional): Hashtable of additional writable fields keyed by `referenceName`; validated against `appSettings.json` before the API call — read-only fields are rejected
 - `ParentStoryId` (optional): Parent Story ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if title exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
@@ -387,6 +468,9 @@ $bug = .\UpsertAzDoBug.ps1 `
 - `StoryPoints` (optional): Story points (non-negative integer)
 - `FoundInBuild` (optional): Build where bug was found
 - `IntegratedInBuild` (optional): Build where fix was integrated
+- `State` (optional): Transition the Bug to a writable state; validated against `appSettings.json` before the API call
+- `AssignedTo` (optional): Email address of the team member to assign this Bug to; resolved to an Azure DevOps identity before the API call — fails fast if the email is not found
+- `Fields` (optional): Hashtable of additional writable fields keyed by `referenceName`; validated against `appSettings.json` before the API call — read-only fields are rejected
 - `ParentStoryId` (optional): Parent Story ID (for creation only)
 - `FailIfExist` (switch): Create-only mode; fails if bug exists (cannot be used with `-Id`)
 - `PatToken` (optional): Override default PAT token
@@ -421,7 +505,10 @@ Write-Host "System Info: $($bug.fields.'Microsoft.VSTS.TCM.SystemInfo')"
 - `PatToken` (optional): Override default PAT token
 
 **Output:**
-- Complete Bug work item object as JSON with all fields including Priority, ReproSteps, SystemInfo, StoryPoints, FoundInBuild, IntegratedInBuild, comments, and tags
+- Complete Bug work item object with all standard AzDo fields plus enriched properties:
+  - All fields from `appSettings.json` are added as named properties (label with spaces removed)
+  - `AssignedTo` — a `[PSCustomObject]@{ DisplayName; UniqueName }` normalized object (null if unassigned)
+  - Priority, ReproSteps, SystemInfo, StoryPoints, FoundInBuild, IntegratedInBuild, comments, and tags
 
 #### `RemoveAzDoBug.ps1`
 Delete a Bug work item with optional recursive deletion of child Tasks.
@@ -465,7 +552,7 @@ $result = .\RemoveAzDoBug.ps1 `
 - Returns summary hashtable with `Cancelled`, `DeletedCount`, `BugId`, `BugTitle`
 
 #### `GetAzDoWorkItem.ps1`
-Retrieve complete work item information.
+Retrieve complete work item information. The result is enriched with named properties based on `appSettings.json` field definitions.
 
 ```powershell
 # Get work item
@@ -474,11 +561,19 @@ $workItem = .\GetAzDoWorkItem.ps1 `
     -Project "myproj" `
     -WorkItemId 123
 
-# Access fields
+# Access raw fields
 $title = $workItem.fields['System.Title']
 $description = $workItem.fields['System.Description']
 $storyPoints = $workItem.fields['Microsoft.VSTS.Scheduling.StoryPoints']
+
+# Access enriched named properties (from appSettings.json field config)
+$storyPoints = $workItem.StoryPoints
+$assignedTo = $workItem.AssignedTo.DisplayName   # [PSCustomObject]@{ DisplayName; UniqueName }
 ```
+
+**Output enrichment:**
+- For each field defined in `appSettings.json` for the work item type, a named property is added to the result using the field label (with spaces removed) as the property name
+- `AssignedTo` is always normalized to a `[PSCustomObject]@{ DisplayName; UniqueName }` object
 
 #### `GetAzDoUserStory.ps1`
 Retrieve a User Story with full details or key properties only.
@@ -515,6 +610,8 @@ $fullStory = .\GetAzDoUserStory.ps1 `
 - Id, State, Title
 - Description, AcceptanceCriteria, ACScenarios
 - StoryPoints, ExtraInformation, Tags
+- OriginalEstimate, RemainingWork, CompletedWork
+- AssignedTo (`[PSCustomObject]@{ DisplayName; UniqueName }`, null if unassigned)
 - Comments (array with latest version of each comment including id, createdDate, lastModifiedDate, text, and createdBy.displayName)
 
 #### `UpdateAzDoUserStory.ps1`
@@ -1295,9 +1392,83 @@ The repository includes an example hierarchy file that matches the parser format
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
 
+## Unified Field and State Configuration
+
+`appSettings.json` is the single source of truth for field definitions and state definitions per organization, project, and work item type. It replaces the older per-org `azdoStateConfig-{org}-{project}.json` approach for state configuration and extends it with full field metadata.
+
+### appSettings.json
+
+Located at the repository root. Structure:
+
+```json
+{
+  "organizations": {
+    "{org}": {
+      "projects": {
+        "{project}": {
+          "fields": {
+            "Story": [
+              {
+                "referenceName": "Microsoft.VSTS.Scheduling.StoryPoints",
+                "label": "Story Points",
+                "description": "Work item estimation",
+                "type": "integer",
+                "readOnly": false
+              }
+            ],
+            "Epic": [ ... ],
+            "Feature": [ ... ],
+            "Task": [ ... ],
+            "Bug": [ ... ]
+          },
+          "states": {
+            "Story": [
+              { "name": "New",    "category": "Proposed", "readOnly": false },
+              { "name": "Active", "category": "InProgress", "readOnly": false },
+              { "name": "Closed", "category": "Completed", "readOnly": true }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Key rules:
+- `readOnly: true` on a **field** means it cannot be passed via `-Fields` to any Upsert script
+- `readOnly: true` on a **state** means it is a terminal state and cannot be transitioned to via `-State`
+- `System.AssignedTo` is always listed as a writable `identity`-type field; use the dedicated `-AssignedTo` email parameter instead of putting it in `-Fields`
+
+### LoadFieldConfiguration.ps1
+
+Loads field definitions for a given work item type from `appSettings.json`. Called internally by:
+- `GetAzDoWorkItem.ps1` — to build named properties on the result object
+- `ValidateUpsertFields.ps1` — to check field writeability before any Upsert API call
+- `GenerateAzDoMarkdownHierarchyTemplate.ps1` — to append the SUPPORTED FIELDS REFERENCE section
+
+### ValidateUpsertFields.ps1
+
+Provides two pre-flight guard functions called automatically by all five Upsert scripts:
+
+| Function | Purpose |
+|---|---|
+| `Assert-FieldsNotReadOnly` | Throws if any key in `-Fields` is `readOnly: true` in `appSettings.json` |
+| `Assert-StateIsWritable` | Throws if `-State` is a terminal state (`readOnly: true`) in `appSettings.json` |
+
+Both functions are silent no-ops when `appSettings.json` is absent or has no matching entry for the org/project.
+
+### AssignedTo Support
+
+All five Upsert scripts accept an `-AssignedTo <email>` parameter. Before any API call, the email is resolved to an Azure DevOps identity via `ResolveAzDoIdentity.ps1`. If no matching identity is found, the script fails immediately with a descriptive error.
+
+`GetAzDoWorkItem.ps1`, `GetAzDoUserStory.ps1`, and `GetAzDoBug.ps1` all normalize the `System.AssignedTo` field into a `[PSCustomObject]@{ DisplayName; UniqueName }` object on the returned result.
+
 ## State Configuration Management
 
 The State Configuration system enables team-specific rules for which work item states are editable during hierarchy exports and reimports. This supports multiple organizations and projects with organization/project-scoped configuration files and sensible defaults.
+
+> **Note:** The preferred approach is now `appSettings.json` (see [Unified Field and State Configuration](#unified-field-and-state-configuration)). The legacy `azdoStateConfig-{org}-{project}.json` files are still supported for backward compatibility.
 
 ### Overview
 
@@ -2080,12 +2251,12 @@ The `src/mcpConfig.yaml` file defines 33 tools mapped to PowerShell scripts. All
 - **Get Operations** (8): Retrieve work items, comments, hierarchies
 - **Set Operations** (6): Update properties (story points, effort, tags, description)
 - **New Operations** (2): Create comments and reactions
-- **Upsert Operations** (5): Create/update Epics, Features, Stories, Tasks, Bugs
+- **Upsert Operations** (5): Create/update Epics, Features, Stories, Tasks, Bugs — all accept `Fields` (object), `State` (string), and `AssignedTo` (string/email) parameters; tool descriptions inline the list of writable fields from `appSettings.json`
 - **Remove Operations** (7): Delete work items and comments (Epic, Feature, Story, Bug, Task, Comment, CommentReaction)
 - **Update Operations** (2): Modify existing comments and tags
 - **Find Operations** (1): Search for work items by title
 - **Generate/Validate** (3):
-  - `generate-markdown-hierarchy-template`: Create template with rules
+  - `generate-markdown-hierarchy-template`: Create template with rules and SUPPORTED FIELDS REFERENCE
   - `convert-markdown-to-hierarchy-json`: Validate structure
   - `create-workitems-from-markdown`: Create items in Azure DevOps
 
@@ -2416,16 +2587,24 @@ All scripts follow strict error handling practices:
 
 ```
 .
+├── appSettings.json                          (Unified field and state config per org/project/type)
 ├── src/
 │   ├── AzDoAutomatorConstants.ps1           (Core constants)
 │   ├── AzDoPatTokenHelper.ps1               (PAT token management)
 │   ├── AzDoApiWrapper.ps1                   (REST API wrapper)
 │   ├── AzDoWorkItemHelper.ps1               (Helper functions)
+│   ├── LoadFieldConfiguration.ps1           (Load field definitions from appSettings.json)
+│   ├── LoadStateConfiguration.ps1           (Load state definitions from appSettings.json)
+│   ├── ValidateUpsertFields.ps1             (Pre-flight validation for Fields and State params)
+│   ├── ResolveAzDoIdentity.ps1              (Email → AzDo identity resolution)
 │   ├── UpsertAzDoEpic.ps1                   (Create/update Epics)
 │   ├── UpsertAzDoFeature.ps1                (Create/update Features)
 │   ├── UpsertAzDoStory.ps1                  (Create/update Stories)
-│   ├── GetAzDoWorkItem.ps1                  (Retrieve work item)
+│   ├── UpsertAzDoBug.ps1                    (Create/update Bugs)
+│   ├── UpsertAzDoTask.ps1                   (Create/update Tasks)
+│   ├── GetAzDoWorkItem.ps1                  (Retrieve work item with enriched named properties)
 │   ├── GetAzDoUserStory.ps1                 (Retrieve User Story with subset or full data)
+│   ├── GetAzDoBug.ps1                       (Retrieve Bug with enriched named properties)
 │   ├── NewAzDoComment.ps1                   (Add comment to work item)
 │   ├── GetAzDoComments.ps1                  (Retrieve all comments from work item)
 │   ├── UpdateAzDoComment.ps1                (Update comment content)
@@ -2461,7 +2640,13 @@ All scripts follow strict error handling practices:
 │   ├── NewAzDoCommentReactionTest.ps1       (NewAzDoCommentReaction tests)
 │   ├── storyAcTests/
 │   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments AC scenario tests)
-│   │   └── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment AC scenario tests)
+│   │   ├── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment AC scenario tests)
+│   │   ├── 2616ConfigDrivenApiReadWrite/
+│   │   │   └── 2616ConfigDrivenApiReadWriteTest.ps1  (ValidateUpsertFields AC scenario tests)
+│   │   ├── 2617McpConfigTemplateAllFields/
+│   │   │   └── 2617McpConfigTemplateAllFieldsTest.ps1 (Template generator / MCP config tests)
+│   │   └── 2618AssignedToByEmail/
+│   │       └── 2618AssignedToByEmailTest.ps1  (ResolveAzDoIdentity + AssignedTo AC tests)
 │   └── RunAllTests.ps1                      (Master test runner)
 └── README.md                                 (This file)
 ```
@@ -2824,13 +3009,14 @@ $content = Get-Content "my-plan.md" -Raw
 
 ## Markdown Hierarchy Template Generation
 
-The `GenerateAzDoMarkdownHierarchyTemplate.ps1` script generates a markdown template with embedded rules from [docs/createMarkdownPlan.md](./docs/createMarkdownPlan.md) and [docs/architecturalRules.md](./docs/architecturalRules.md).
+The `GenerateAzDoMarkdownHierarchyTemplate.ps1` script generates a markdown template with embedded rules from [docs/createMarkdownPlan.md](./docs/createMarkdownPlan.md) and [docs/architecturalRules.md](./docs/architecturalRules.md), and appends a **SUPPORTED FIELDS REFERENCE** section built from `appSettings.json`.
 
 ### Features
 
 - **Embedded Rules**: All markdown rules included as inline comments
 - **Example Structure**: Shows correct formatting for Epics, Features, and Stories
 - **Rule Enforcement**: Guides creation of valid hierarchies (tags, titles, headers)
+- **SUPPORTED FIELDS REFERENCE**: Auto-generated section listing all writable fields per work item type with label, referenceName, and type hint — sourced from `appSettings.json` at generation time
 - **Best Practices**: Demonstrates proper:
   - Tag naming (camelCase)
   - Story Point estimation
@@ -2872,7 +3058,7 @@ The generated template includes:
 3. **Field Reference**
    - `**tags**`: Comma-separated (camelCase)
    - `**Effort**`: For Epics/Features
-   - `**SP**`: Story points for Stories/Bugs
+   - `**Story Points**`: Story points for Stories/Bugs
    - `**Priority**`: For Tasks/Bugs
    - `**Description****: With user story format
 
@@ -2880,7 +3066,11 @@ The generated template includes:
    - Checkbox format for criteria
    - Gherkin Given/When/Then structure
 
-5. **Complete Example** (with `-IncludeExample`)
+5. **SUPPORTED FIELDS REFERENCE** (auto-generated from `appSettings.json`)
+   - All writable fields per work item type
+   - Each entry shows: label, `referenceName`, and type hint
+
+6. **Complete Example** (with `-IncludeExample`)
    - Real-world "Customer Portal Redesign"
    - Multiple Features and Stories
    - Tasks and Bugs with proper nesting
