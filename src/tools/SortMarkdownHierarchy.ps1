@@ -199,14 +199,14 @@ function Format-ItemAsMarkdown {
 
     # WorkItemId
     if ($null -ne $Item['workItemId']) {
-        [void]$sb.AppendLine("**WorkItemId**: $($Item['workItemId'])")
+        [void]$sb.AppendLine("{WorkItemId}: $($Item['workItemId'])")
     }
 
     # State (if present and non-empty — strip any trailing " ⚠️ (read-only)" marker)
     $stateVal = $Item['state']
     if (-not [string]::IsNullOrWhiteSpace($stateVal)) {
         $stateVal = ($stateVal -replace '\s*⚠️.*$', '').Trim()
-        [void]$sb.AppendLine("**State**: $stateVal")
+        [void]$sb.AppendLine("{State}: $stateVal")
     }
 
     # Tags (sorted alphabetically, semicolon-separated)
@@ -216,17 +216,17 @@ function Format-ItemAsMarkdown {
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             ForEach-Object { $_.Trim() } |
             Sort-Object) -join '; '
-        [void]$sb.AppendLine("**tags**: $normalizedTags")
+        [void]$sb.AppendLine("{tags}: $normalizedTags")
     }
 
     # SP (story points — for stories)
     if ($null -ne $Item['storyPoints']) {
-        [void]$sb.AppendLine("**Story Points**: $($Item['storyPoints'])")
+        [void]$sb.AppendLine("{Story Points}: $($Item['storyPoints'])")
     }
 
     # Effort (for epics/features)
     if ($null -ne $Item['effort']) {
-        [void]$sb.AppendLine("**Effort**: $($Item['effort'])")
+        [void]$sb.AppendLine("{Effort}: $($Item['effort'])")
     }
 
     # Custom fields (Priority, OriginalEstimate, etc.) — sorted alphabetically
@@ -234,14 +234,14 @@ function Format-ItemAsMarkdown {
     foreach ($key in $customKeys) {
         $val = $Item[$key]
         if ($null -ne $val -and -not [string]::IsNullOrWhiteSpace($val.ToString())) {
-            [void]$sb.AppendLine("**$key**: $val")
+            [void]$sb.AppendLine("{$key}: $val")
         }
     }
 
     # Description
     $desc = Normalize-Text $Item['description']
     if (-not [string]::IsNullOrWhiteSpace($desc)) {
-        [void]$sb.AppendLine('**Description**')
+        [void]$sb.AppendLine('{Description}')
         [void]$sb.AppendLine($desc)
     }
 

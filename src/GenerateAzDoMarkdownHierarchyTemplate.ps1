@@ -93,7 +93,7 @@ $template = @"
 # {DeployedToDev}: (true/false, Features/Stories)
 # {DeployedToStaging}: (true/false, Features/Stories)
 # {DeployedToProduction}: (true/false, Features/Stories)
-# **Description**
+# {Description}
 # Multi-line description with proper header levels
 
 # STORY FORMAT - STRUCTURED USER STORY
@@ -136,7 +136,7 @@ $template = @"
 
 {tags}: epicName, component1, testWi  
 {Effort}: 21  
-**Description**  
+{Description}  
 Write a clear, compelling description of what this epic accomplishes.  
 This is the high-level strategic goal. Include:  
 - What problem does it solve?
@@ -156,7 +156,7 @@ If applicable, describe the technical approach or design patterns.
 {DeployedToDev}: false  
 {DeployedToStaging}: false  
 {DeployedToProduction}: false  
-**Description**  
+{Description}  
 Clear description of the feature's purpose and scope.  
 Explain what users can do with this feature.  
 Include any key technical decisions or design choices.  
@@ -175,7 +175,7 @@ Include any key technical decisions or design choices.
 {DeployedToDev}: false  
 {DeployedToStaging}: false  
 {DeployedToProduction}: false  
-**Description**  
+{Description}  
 **As a** [user type/persona]  
 **I want** [specific action or capability]  
 **So that** [business value or outcome]  
@@ -212,7 +212,7 @@ Keep the description focused on the "what" and "why", not "how".
 {tags}: epicName, feature1, dev  
 {Priority}: 1  
 {OriginalEstimate}: 4  
-**Description**  
+{Description}  
 Specific implementation task. Break down the story's work into concrete,  
 actionable tasks. Include what needs to be built, modified, or integrated.  
 
@@ -226,7 +226,7 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 {DeployedToDev}: false  
 {DeployedToStaging}: false  
 {DeployedToProduction}: false  
-**Description**  
+{Description}  
 **As a** [another persona]  
 **I want** [related capability]  
 **So that** [related benefit]  
@@ -253,7 +253,7 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 {DeployedToDev}: false  
 {DeployedToStaging}: false  
 {DeployedToProduction}: false  
-**Description**  
+{Description}  
 Features can be created without Stories if they represent infrastructure or  
 foundational work. This feature sets up any supporting systems needed.  
 
@@ -267,7 +267,7 @@ foundational work. This feature sets up any supporting systems needed.
 {DeployedToDev}: false  
 {DeployedToStaging}: false  
 {DeployedToProduction}: false  
-**Description**  
+{Description}  
 **As a** [system maintainer]  
 **I want** [infrastructure capability]  
 **So that** [system can function properly]  
@@ -289,7 +289,7 @@ foundational work. This feature sets up any supporting systems needed.
 {tags}: epicName, feature2, bug, priority-high  
 {Story Points}: 2  
 {Priority}: 1  
-**Description**  
+{Description}  
 **As a** [user/operator]  
 **I want** [specific error handled gracefully]  
 **So that** [system remains stable]  
@@ -319,7 +319,7 @@ if ($IncludeExample) {
 
 {tags}: customerPortal, frontend, testWi  
 {Effort}: 40  
-**Description**  
+{Description}  
 Complete overhaul of the customer support portal to provide a modern, intuitive interface  
 with improved accessibility and mobile responsiveness. This epic encompasses all design,  
 development, and testing activities for the new portal experience.  
@@ -338,7 +338,7 @@ to enable faster iteration and better scalability.
 
 {tags}: customerPortal, authentication, security, testWi  
 {Effort}: 13  
-**Description**  
+{Description}  
 Implement modern OAuth 2.0 authentication with Microsoft Entra ID and allow users  
 to manage their profiles, preferences, and security settings. This feature provides  
 the foundation for user identity in the new portal.  
@@ -355,7 +355,7 @@ and manage connected applications.
 
 {tags}: customerPortal, authentication, auth-integration  
 {Story Points}: 5  
-**Description**  
+{Description}  
 **As a** [application owner]  
 **I want** [OAuth 2.0 authentication integrated with Microsoft Entra ID]  
 **So that** [users can securely authenticate using corporate credentials]  
@@ -383,7 +383,7 @@ and manage connected applications.
 
 {tags}: customerPortal, authentication, mfa, security  
 {Story Points}: 3  
-**Description**  
+{Description}  
 **As a** [security-conscious user]  
 **I want** [multi-factor authentication with authenticator app support]  
 **So that** [my account is protected against unauthorized access]  

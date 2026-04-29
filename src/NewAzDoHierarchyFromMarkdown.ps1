@@ -15,26 +15,26 @@ Organization, Project, and PatToken are retrieved from environment variables:
 
 Markdown format:
     # Epic: Epic Title
-    **WorkItemId**: 2215  (written back after first run)
-    **tags**: tag1, tag2
-    **Description**
+    {WorkItemId}: 2215  (written back after first run)
+    {tags}: tag1, tag2
+    {Description}
     Multi-line description text
     
     ## Feature: Feature Title
-    **tags**: tag1, tag2
-    **Description**
+    {tags}: tag1, tag2
+    {Description}
     Feature description
     
     ### Story: Story Title
-    **tags**: tag1, tag2
-    **Story Points**: 5
-    **Description**
+    {tags}: tag1, tag2
+    {Story Points}: 5
+    {Description}
     Story description ...
     
     #### Task: Task Title
-    **Priority**: 1
-    **OriginalEstimate**: 4
-    **Description**
+    {Priority}: 1
+    {OriginalEstimate}: 4
+    {Description}
     Task details
 
 .PARAMETER MarkdownContent
@@ -42,7 +42,7 @@ The markdown hierarchy content as a string. Either -MarkdownContent or -Markdown
 
 .PARAMETER MarkdownFile
 Path to a markdown file containing the hierarchy content. Either -MarkdownContent or -MarkdownFile must be provided.
-After work items are created, **WorkItemId**: <id> lines are inserted after each work item header
+After work items are created, {WorkItemId}: <id> lines are inserted after each work item header
 so that subsequent runs update existing items instead of creating new ones.
 
 .PARAMETER EpicId
@@ -772,8 +772,8 @@ function Convert-WorkItemsToLegacyFormat {
     return @{ Epics = $epics; TopLevelFeatures = $topLevelFeatures }
 }
 
-# Update the markdown file to insert **WorkItemId**: <id> after each work item header that does not already have one,
-# and insert **State**: <state> after the WorkItemId line when not already present.
+# Update the markdown file to insert {WorkItemId}: <id> after each work item header that does not already have one,
+# and insert {State}: <state> after the WorkItemId line when not already present.
 function Update-MarkdownWithWorkItemIds {
     param(
         [string]$MarkdownFilePath,
@@ -791,9 +791,9 @@ function Update-MarkdownWithWorkItemIds {
         if ($line -match '^(#{1,5})\s+(Epic|Feature|Story|Task|Bug):\s+(.+)$') {
             [string]$titleFromHeader = $Matches[3].Trim()
 
-            # Check if the next line already has **WorkItemId**: N
+            # Check if the next line already has {WorkItemId}: N (curly-brace) or the legacy asterisk form
             [string]$nextLine = if ($i + 1 -lt $lines.Count) { $lines[$i + 1] } else { '' }
-            if ($nextLine -match '^\*\*WorkItemId\*\*:') {
+            if ($nextLine -match '^\{WorkItemId\}:' -or $nextLine -match '^\*\*WorkItemId\*\*:') {
                 continue
             }
 
@@ -811,7 +811,7 @@ function Update-MarkdownWithWorkItemIds {
             }
 
             if ($null -ne $foundId) {
-                $newLines.Add("**WorkItemId**: $foundId")
+                $newLines.Add("{WorkItemId}: $foundId")
 
                 # Also insert State when a state map is provided and State is not already on next-next line
                 if ($null -ne $TitleToStateMap) {
@@ -824,10 +824,10 @@ function Update-MarkdownWithWorkItemIds {
                         }
                     }
                     if (-not [string]::IsNullOrWhiteSpace($foundState)) {
-                        # Check the line after the one we just inserted is not already a State line
+                        # Check the line after the one we just inserted is not already a State line (either syntax)
                         [string]$lineAfterNextLine = if ($i + 1 -lt $lines.Count) { $lines[$i + 1] } else { '' }
-                        if ($lineAfterNextLine -notmatch '^\*\*State\*\*:') {
-                            $newLines.Add("**State**: $foundState")
+                        if ($lineAfterNextLine -notmatch '^\{State\}:' -and $lineAfterNextLine -notmatch '^\*\*State\*\*:') {
+                            $newLines.Add("{State}: $foundState")
                         }
                     }
                 }

@@ -71,14 +71,14 @@ the same mode, absorbing all content until the item ends or a _known_ marker is 
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
-| | When an unknown `{label}` marker is encountered, the parser **stops** the active collecting mode (description or custom field) |
-| | The unknown field marker line is NOT added to the description buffer |
-| | Content after the unknown marker is not consumed into description |
-| | A debug-level warning is emitted for unrecognised field labels |
-| | Known fields that follow an unknown marker are still correctly populated |
-| | Existing behaviour for known field markers is unchanged (no regression) |
-| | Re-running the bug plan (with `{Acceptance Criteria}` in a Bug item) correctly populates those fields in AzDO (or skips them cleanly) |
-| | All existing Pester tests pass |
+| x | When an unknown `{label}` marker is encountered, the parser **stops** the active collecting mode (description or custom field) |
+| x | The unknown field marker line is NOT added to the description buffer |
+| x | Content after the unknown marker is not consumed into description |
+| x | A debug-level warning is emitted for unrecognised field labels |
+| x | Known fields that follow an unknown marker are still correctly populated |
+| x | Existing behaviour for known field markers is unchanged (no regression) |
+| x | Re-running the bug plan (with `{Acceptance Criteria}` in a Bug item) correctly populates those fields in AzDO (or skips them cleanly) |
+| x | All existing Pester tests pass |
 
 #### {Acceptance Tests}
 ```gherkin
@@ -88,15 +88,18 @@ Scenario: Unknown field marker stops description collection
   When ConvertMarkdownToHierarchyJson.ps1 parses the plan
   Then the Description field contains only the text between {Description} and {Acceptance Criteria}
   And the {Acceptance Criteria} marker line does not appear in Description
+# Test passing: CurlyFieldSyntaxTest.ps1 - GivenUnknownCurlyLabel_WhenInDescription_ItShouldStopCollectionAndNotAbsorbContent
 
 Scenario: Known field after unknown field is still populated
   Given a Bug item with {Description}, then {UnknownField}, then {Priority}: 2
   When ConvertMarkdownToHierarchyJson.ps1 parses the plan
   Then Description contains only the text before {UnknownField}
   And Priority is set to 2
+# Test passing: 2615ConfigDrivenFieldParsingTest.ps1 - GivenUnknownLabel_WhenParsing_ItShouldNotThrowAndReturnOtherFieldsCorrectly
 
 Scenario: No regression on items where all fields are known
   Given a User Story with {Description}, {Acceptance Criteria}, {Acceptance Tests}
   When ConvertMarkdownToHierarchyJson.ps1 parses the plan
   Then Description, AcceptanceCriteria, and AcceptanceTests are each populated correctly
+# Test passing: CurlyFieldSyntaxTest.ps1 - GivenDescriptionFollowedByAcceptanceCriteria_WhenParsing_ItShouldNotCrossContaminate
 ```
