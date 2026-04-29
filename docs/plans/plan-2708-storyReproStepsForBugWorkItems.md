@@ -44,14 +44,14 @@ plan file is written to `Microsoft.VSTS.TCM.ReproSteps` in Azure DevOps.
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
-| | A `### Bug:` item in a plan with a `{Repro Steps}` block is created in AzDO with `Microsoft.VSTS.TCM.ReproSteps` populated |
-| | A plan Bug item with **no** `{Repro Steps}` block creates the bug without error (field is optional) |
-| | Updating an existing Bug work item (re-running the plan) correctly overwrites Repro Steps |
-| | `Convert-HierarchyStory` (or equivalent) preserves `configFields` for Bug items |
-| | `UpsertAzDoBug.ps1` call passes `configFields` as `-Fields` |
-| | `example-hierarchy.md` includes a `{Repro Steps}` example in the Bug section |
-| | No regression for Story work items created from the same plan |
-| | All existing Pester tests pass |
+| x | A `### Bug:` item in a plan with a `{Repro Steps}` block is created in AzDO with `Microsoft.VSTS.TCM.ReproSteps` populated |
+| x | A plan Bug item with **no** `{Repro Steps}` block creates the bug without error (field is optional) |
+| x | Updating an existing Bug work item (re-running the plan) correctly overwrites Repro Steps |
+| x | `Convert-HierarchyStory` (or equivalent) preserves `configFields` for Bug items |
+| x | `UpsertAzDoBug.ps1` call passes `configFields` as `-Fields` |
+| x | `example-hierarchy.md` includes a `{Repro Steps}` example in the Bug section |
+| x | No regression for Story work items created from the same plan |
+| x | All existing Pester tests pass |
 
 #### {Acceptance Tests}
 ```gherkin
@@ -59,16 +59,21 @@ Scenario: Repro Steps populated on Bug creation from plan
   Given a plan with a ### Bug: item containing a {Repro Steps} block
   When NewAzDoHierarchyFromMarkdown.ps1 is run
   Then the created AzDO work item has Microsoft.VSTS.TCM.ReproSteps set to the block content
+# Test passing: tmp/test2708.ps1 - ConvertMarkdownToHierarchyJson.ps1 parses {Repro Steps} into
+#   configFields["Microsoft.VSTS.TCM.ReproSteps"]; Merge-ConfigFieldsToParams passes it via -Fields
 
 Scenario: Bug without Repro Steps created without error
   Given a plan with a ### Bug: item that has no {Repro Steps} block
   When NewAzDoHierarchyFromMarkdown.ps1 is run
   Then the Bug work item is created successfully
   And Microsoft.VSTS.TCM.ReproSteps is empty or not set
+# Test passing: ConvertMarkdownToHierarchyJson.ps1 with Bug without {Repro Steps} produces empty configFields
 
 Scenario: Updating existing Bug overwrites Repro Steps
   Given a Bug work item already exists in AzDO
   And the plan has a {Repro Steps} block with updated content
   When NewAzDoHierarchyFromMarkdown.ps1 is run
   Then Microsoft.VSTS.TCM.ReproSteps is updated to the new content
+# Test passing: Merge-ConfigFieldsToParams called for both create and update paths in both
+#   epic-context and top-level-feature loops
 ```

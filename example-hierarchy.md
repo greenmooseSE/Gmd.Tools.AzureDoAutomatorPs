@@ -387,4 +387,25 @@ and moderation to ensure quality content.
 - Implement spam filtering on submitted content
 - Display contributor reputation badge (bronze/silver/gold based on helpful votes)
 
+### Bug: 🐛 Search Returns Stale Results After Article Update
+
+{tags}: search, bug, testWi
+{Priority}: 2
+{Description}
+After an article is updated or deleted, the search index is not immediately refreshed.
+Users see stale search results pointing to outdated or removed content for up to 24 hours
+after the change.
+
+{Repro Steps}
+1. Create a knowledge base article titled "How to reset your password"
+2. Run a search for "reset password" — confirm the article appears in results
+3. Delete the article in the admin console
+4. Run the same search again within 5 minutes
+5. Observe: the deleted article still appears in search results
+
+{Acceptance Tests}
+- [ ] **Test 1**: Search index refreshes within 60 seconds of article update
+- [ ] **Test 2**: Deleted articles are removed from search results within 60 seconds
+- [ ] **Test 3**: Updated article title and content appear in results after refresh
+
 
