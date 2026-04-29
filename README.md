@@ -35,7 +35,9 @@ This project provides a complete automation toolkit for Azure DevOps work item l
   - [LoadFieldConfiguration.ps1](#loadfieldconfigurationps1)
   - [ValidateUpsertFields.ps1](#validateupsertfieldsps1)
   - [AssignedTo Support](#assignedto-support)
+  - [SyncAppSettingsFields.ps1](#syncappsettingsfieldsps1)
 - [Field Migration](#field-migration)
+  - [MoveAzDoWorkItemField.ps1](#moveazdoworkitemfieldps1)
 - [State Configuration Management](#state-configuration-management)
 - [Export-Modify-Reimport Workflow](#export-modify-reimport-workflow)
 - [Download and Compare Workflow](#download-and-compare-workflow)
@@ -716,6 +718,11 @@ Move or copy a field value from one field to another across a work item hierarch
 | Copy | switch | No | Both | Keep source field intact (default: clear source after copy) |
 | DryRun | switch | No | Both | Preview without making any API changes |
 | ConfirmEachItem | switch | No | Both | Prompt before updating each work item |
+| WorkItemType | string | No | Both | Restrict to one type: `Epic`, `Feature`, `Story`, `Bug`, `Task`, `Any` (default: `Any`) |
+| OverwriteNonEmptyTarget | switch | No | Both | Overwrite target even when it already has a value (default: skip non-empty targets) |
+| ValuePreviewLength | int | No | Both | Max characters shown for field value previews in log output (default: `100`, range 10–1000) |
+| MinId | int | No | Both | Only process work items with ID ≥ this value; in Global mode also filters the WIQL query (default: `0`, no filter) |
+| ChangedSince | datetime | No | Both | Only process work items last changed on or after this date; in Global mode also filters the WIQL query |
 
 ```powershell
 # Move 'Extra Information' into 'Story Acceptance Tests' for a hierarchy (dry run)
@@ -735,6 +742,16 @@ $results = .\MoveAzDoWorkItemField.ps1 `
     -TargetField "Story Acceptance Tests" `
     -Global `
     -Copy
+
+# Move only on User Stories, overwriting non-empty targets
+$results = .\MoveAzDoWorkItemField.ps1 `
+    -Organization "myorg" `
+    -Project "myproj" `
+    -WorkItemId 1234 `
+    -SourceField "Extra Information" `
+    -TargetField "Story Acceptance Tests" `
+    -WorkItemType Story `
+    -OverwriteNonEmptyTarget
 ```
 
 Pipeline output shape per evaluated item:
@@ -1517,6 +1534,43 @@ Both functions are silent no-ops when `appSettings.json` is absent or has no mat
 All five Upsert scripts accept an `-AssignedTo <email>` parameter. Before any API call, the email is resolved to an Azure DevOps identity via `ResolveAzDoIdentity.ps1`. If no matching identity is found, the script fails immediately with a descriptive error.
 
 `GetAzDoWorkItem.ps1`, `GetAzDoUserStory.ps1`, and `GetAzDoBug.ps1` all normalize the `System.AssignedTo` field into a `[PSCustomObject]@{ DisplayName; UniqueName }` object on the returned result.
+
+### SyncAppSettingsFields.ps1
+
+Synchronizes the field definitions in `appSettings.json` against the live Azure DevOps project. Queries each work item type via the REST API and adds any fields that are missing from `appSettings.json`. Existing entries are never modified, preserving curated labels, descriptions, and `readOnly` overrides.
+
+Use `-DryRun` to preview changes without writing to disk. Use `-Prune` to also remove entries whose `referenceName` is no longer returned by the API.
+
+**Parameters**
+
+| Parameter | Type | Mandatory | Description |
+|-----------|------|-----------|-------------|
+| Organization | string | No | Azure DevOps organization name (default: `$env:GMD_AZDO_ORGANIZATION`) |
+| Project | string | No | Azure DevOps project name (default: `$env:GMD_AZDO_PROJECT`) |
+| PatToken | string | No | PAT token (defaults to `$env:GMD_AZDO_MACHINE_WORKITEMSRW`) |
+| RepositoryRoot | string | No | Directory containing `appSettings.json` (default: parent of script directory) |
+| DryRun | switch | No | Preview additions/removals without writing to disk |
+| Prune | switch | No | Remove entries no longer returned by the API (use with caution) |
+
+```powershell
+# Preview what fields would be added
+.\src\SyncAppSettingsFields.ps1 -DryRun
+
+# Apply additions
+.\src\SyncAppSettingsFields.ps1
+
+# Apply additions and remove stale entries
+.\src\SyncAppSettingsFields.ps1 -Prune
+```
+
+Pipeline output shape per change:
+
+| Property | Description |
+|----------|-------------|
+| WorkItemType | Epic / Feature / User Story / Bug / Task |
+| ReferenceName | Field reference name (e.g. `Custom.ExtraInformation`) |
+| Label | Field display name |
+| ChangeType | `Add` or `Remove` |
 
 ## State Configuration Management
 
@@ -2659,6 +2713,7 @@ All scripts follow strict error handling practices:
 │   ├── SetAzDoStoryPoints.ps1               (Set story points)
 │   ├── SetAzDoEffort.ps1                    (Set effort for Epic/Feature)
 │   ├── MoveAzDoWorkItemField.ps1            (Move/copy field value across hierarchy or project-wide)
+│   ├── SyncAppSettingsFields.ps1            (Sync appSettings.json field definitions from live API)
 │   ├── SetAzDoWorkItemTags.ps1              (Manage tags)
 │   ├── UpdateAzDoWorkItemTags.ps1           (Update/add/remove tags - modern replacement)
 │   ├── NewAzDoHierarchyFromMarkdown.ps1     (Create from markdown)

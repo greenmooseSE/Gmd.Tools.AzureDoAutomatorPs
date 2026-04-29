@@ -54,6 +54,28 @@ Previews operations without making any API PATCH calls. Pipeline output shows Ac
 Prompts Y/N before each individual update. Declining skips the item with Result =
 "Declined".
 
+.PARAMETER WorkItemType
+Restrict processing to a specific work item type. Accepted values: Epic, Feature, Story,
+Bug, Task, Any. Default: Any (processes all types).
+
+.PARAMETER OverwriteNonEmptyTarget
+When specified, overwrites the target field even if it already contains a value.
+By default, work items where the target field is non-empty are skipped.
+
+.PARAMETER ValuePreviewLength
+Maximum number of characters shown when previewing field values in log output.
+Newlines are stripped before truncation. Default: 100.
+
+.PARAMETER MinId
+Only process work items whose ID is greater than or equal to this value.
+In Global mode the filter is also embedded in the WIQL query to avoid fetching
+excluded items. Default: 0 (no filter).
+
+.PARAMETER ChangedSince
+Only process work items last changed on or after this date.
+In Global mode the filter is also embedded in the WIQL query to avoid fetching
+excluded items. If not specified, no date filter is applied.
+
 .OUTPUTS
 One PSObject per processed work item with properties:
   WorkItemId, Title, WorkItemType, SourceField, TargetField, Action, Result, Detail
@@ -112,7 +134,24 @@ param(
     [switch]$DryRun,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ConfirmEachItem
+    [switch]$ConfirmEachItem,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Epic', 'Feature', 'Story', 'Bug', 'Task', 'Any')]
+    [string]$WorkItemType = 'Any',
+
+    [Parameter(Mandatory = $false)]
+    [switch]$OverwriteNonEmptyTarget,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(10, 1000)]
+    [int]$ValuePreviewLength = 100,
+
+    [Parameter(Mandatory = $false)]
+    [int]$MinId = 0,
+
+    [Parameter(Mandatory = $false)]
+    [datetime]$ChangedSince = [datetime]::MinValue
 )
 
 Set-StrictMode -Version 3.0
@@ -149,15 +188,26 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 [string]$actionLabel = if ($Copy) { 'Copy' } else { 'Move' }
 [string[]]$script:knownTypes = @('Epic', 'Feature', 'User Story', 'Bug', 'Task')
 
-[int]$script:totalCount   = 0
-[int]$script:updatedCount = 0
-[int]$script:skippedCount = 0
-[int]$script:errorCount   = 0
-$script:fieldConfigCache  = @{}
+[int]$script:totalCount    = 0
+[int]$script:updatedCount  = 0
+[int]$script:skippedCount  = 0
+[int]$script:errorCount    = 0
+[int]$script:declinedCount = 0
+$script:fieldConfigCache   = @{}
 
 # ============================================================================
 # Private helpers
 # ============================================================================
+
+function hFormatValuePreview {
+    [CmdletBinding()]
+    param([string]$Value)
+    $flat = $Value -replace '[\r\n]+', ' '
+    if ($flat.Length -gt $ValuePreviewLength) {
+        return $flat.Substring(0, $ValuePreviewLength) + '...'
+    }
+    return $flat
+}
 
 function hGetFieldConfig {
     [CmdletBinding()]
@@ -239,7 +289,7 @@ function hCollectDescendants {
             }
         }
         catch {
-            $null = & ssLogIt.ps1 -Level Warn -Message "Could not fetch child work item $($childId): $_"
+            $null = & ssLogIt.ps1 -Level Warn -Message "Could not fetch child work item ::FgYellow::#$($childId)::FgDefault::: $_"
         }
     }
 }
@@ -257,11 +307,42 @@ function hProcessWorkItem {
     $itemTitle = $RawItem.fields.'System.Title'
     $itemType  = $RawItem.fields.'System.WorkItemType'
 
-    $null = & ssLogIt.ps1 -Level Debug -Message "Evaluating #$($itemId) '$($itemTitle)' [$($itemType)]"
+    $null = & ssLogIt.ps1 -Level Debug -Message "Evaluating ::FgCyan::#$($itemId)::FgDefault:: '$($itemTitle)' [::FgCyan::$($itemType)::FgDefault::]"
+
+    if ($MinId -gt 0 -and $itemId -lt $MinId) {
+        $script:skippedCount++
+        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: ::FgCyan::#$($itemId)::FgDefault:: is below MinId filter (::FgYellow::$($MinId)::FgDefault::)"
+        return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
+            -Action 'Skip' -Result 'Skipped' -Detail "Item ID below MinId filter ($MinId)"
+    }
+
+    if ($ChangedSince -gt [datetime]::MinValue) {
+        $changedProp = $RawItem.fields.PSObject.Properties['System.ChangedDate']
+        if ($null -ne $changedProp) {
+            [datetime]$changedDate = [datetime]$changedProp.Value
+            if ($changedDate -lt $ChangedSince) {
+                $script:skippedCount++
+                $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: ::FgCyan::#$($itemId)::FgDefault:: changed $($changedDate.ToString('yyyy-MM-dd')), before ChangedSince filter (::FgYellow::$($ChangedSince.ToString('yyyy-MM-dd'))::FgDefault::)"
+                return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
+                    -Action 'Skip' -Result 'Skipped' -Detail "Item changed before ChangedSince filter ($($ChangedSince.ToString('yyyy-MM-dd')))"
+            }
+        }
+    }
+
+    if ($WorkItemType -ne 'Any') {
+        # 'Story' in the parameter maps to 'User Story' in Azure DevOps
+        $filterType = if ($WorkItemType -eq 'Story') { 'User Story' } else { $WorkItemType }
+        if ($itemType -ne $filterType) {
+            $script:skippedCount++
+            $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: type filter is '::FgYellow::$($WorkItemType)::FgDefault::', item type is '::FgYellow::$($itemType)::FgDefault::'"
+            return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
+                -Action 'Skip' -Result 'Skipped' -Detail "Excluded by WorkItemType filter '$WorkItemType'"
+        }
+    }
 
     if (-not $SourceMap.ContainsKey($itemType)) {
         $script:skippedCount++
-        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: '$SourceField' not available on $itemType"
+        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: '::FgYellow::$($SourceField)::FgDefault::' not available on $($itemType)"
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action 'Skip' -Result 'Skipped' -Detail "Source field not available on $itemType"
     }
@@ -271,7 +352,7 @@ function hProcessWorkItem {
 
     if (-not $TargetMap.ContainsKey($itemType)) {
         $script:skippedCount++
-        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: '$TargetField' not available on $itemType"
+        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: '::FgYellow::$($TargetField)::FgDefault::' not available on $($itemType)"
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action 'Skip' -Result 'Skipped' -Detail "Target field not available on $itemType"
     }
@@ -281,7 +362,7 @@ function hProcessWorkItem {
 
     if ($tgtDef.readOnly -eq $true) {
         $script:skippedCount++
-        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: target '$TargetField' is readOnly on $itemType"
+        $null = & ssLogIt.ps1 -Level Debug -Message "  Skipped: target '::FgYellow::$($TargetField)::FgDefault::' is readOnly on $($itemType)"
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action 'Skip' -Result 'Skipped' -Detail "Target field is readOnly on $itemType"
     }
@@ -299,9 +380,32 @@ function hProcessWorkItem {
             -Action 'Skip' -Result 'Skipped' -Detail 'Source field is empty'
     }
 
+    $targetValue = if ($null -ne $RawItem.fields.PSObject.Properties[$tgtRefName]) {
+        $RawItem.fields.$tgtRefName
+    }
+    else {
+        $null
+    }
+    if ($sourceValue -eq $targetValue) {
+        $script:skippedCount++
+        $null = & ssLogIt.ps1 -Level Info -Message "  Skipped: source and target field values are already identical on ::FgCyan::#$($itemId)::FgDefault::"
+        return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
+            -Action 'Skip' -Result 'Skipped' -Detail 'Source and target field values are already identical'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($targetValue) -and -not $OverwriteNonEmptyTarget) {
+        $script:skippedCount++
+        $null = & ssLogIt.ps1 -Level Info -Message "  Skipped: target field is non-empty on ::FgCyan::#$($itemId)::FgDefault:: (use ::FgYellow::-OverwriteNonEmptyTarget::FgDefault:: to overwrite)"
+        return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
+            -Action 'Skip' -Result 'Skipped' -Detail 'Target field already has a value'
+    }
+
     if ($ConfirmEachItem) {
-        $preview = if ($sourceValue.Length -gt 80) { $sourceValue.Substring(0, 80) + '...' } else { $sourceValue }
-        $null = & ssLogIt.ps1 -Level Info -Message "$($actionLabel) '$SourceField' -> '$TargetField' on #$($itemId) '$($itemTitle)'. Value preview: '$($preview)'"
+        $srcPreview = hFormatValuePreview -Value $sourceValue
+        $tgtPreview = if (-not [string]::IsNullOrWhiteSpace($targetValue)) {
+            hFormatValuePreview -Value $targetValue
+        } else { '(empty)' }
+        $null = & ssLogIt.ps1 -Level Info -Message "$($actionLabel) '::FgYellow::$($SourceField)::FgDefault::' -> '::FgYellow::$($TargetField)::FgDefault::' on ::FgCyan::#$($itemId)::FgDefault:: '$($itemTitle)'`n  Source: '::FgGreen::$($srcPreview)::FgDefault::'`n  Target: '::FgYellow::$($tgtPreview)::FgDefault::'"
         $answer = Read-Host "Proceed? (Y/N)"
         if ($answer -notmatch '^[Yy]') {
             $script:skippedCount++
@@ -314,7 +418,7 @@ function hProcessWorkItem {
 
     if ($DryRun) {
         $script:updatedCount++
-        $null = & ssLogIt.ps1 -Level Info -Message "  [DryRun] Would $($actionLabel.ToLower()) '$SourceField' -> '$TargetField' on #$($itemId)"
+        $null = & ssLogIt.ps1 -Level Info -Message "  [DryRun] Would $($actionLabel.ToLower()) '::FgYellow::$($SourceField)::FgDefault::' -> '::FgYellow::$($TargetField)::FgDefault::' on ::FgCyan::#$($itemId)::FgDefault::"
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action 'DryRun' -Result 'Updated' -Detail "Would $($actionLabel.ToLower()) value"
     }
@@ -335,14 +439,14 @@ function hProcessWorkItem {
             -PatToken $PatToken
 
         $script:updatedCount++
-        $null = & ssLogIt.ps1 -Level Info -Message "  ✅ $($actionLabel)d '$SourceField' -> '$TargetField' on #$($itemId)"
+        $null = & ssLogIt.ps1 -Level Info -Message "  ::FgGreen::✅ $($actionLabel)d::FgDefault:: '::FgYellow::$($SourceField)::FgDefault::' -> '::FgYellow::$($TargetField)::FgDefault::' on ::FgCyan::#$($itemId)::FgDefault::"
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action $actionLabel -Result 'Updated'
     }
     catch {
         $script:errorCount++
         $errMsg = $_.Exception.Message
-        $null = & ssLogIt.ps1 -Level Error -Message "  Error on #$($itemId): $errMsg" -Exception $_
+        $null = & ssLogIt.ps1 -Level Error -Message "  ::FgRed::Error::FgDefault:: on ::FgCyan::#$($itemId)::FgDefault::: $($errMsg)" -Exception $_
         return hNewResult -ItemId $itemId -ItemTitle $itemTitle -ItemType $itemType `
             -Action $actionLabel -Result 'Error' -Detail $errMsg
     }
@@ -352,7 +456,7 @@ function hProcessWorkItem {
 # Validate field labels (pre-flight)
 # ============================================================================
 
-$null = & ssLogIt.ps1 -Level Info -Message "Validating field labels '$SourceField' and '$TargetField'..."
+$null = & ssLogIt.ps1 -Level Info -Message "Validating field labels '::FgYellow::$($SourceField)::FgDefault::' and '::FgYellow::$($TargetField)::FgDefault::'..."
 
 $sourceFieldMap = hResolveFieldLabel -Label $SourceField
 $targetFieldMap = hResolveFieldLabel -Label $TargetField
@@ -365,13 +469,11 @@ if ($targetFieldMap.Count -eq 0) {
 }
 
 # ============================================================================
-# Collect work items
+# Collect and process work items
 # ============================================================================
 
-$collected = [System.Collections.Generic.List[object]]::new()
-
 if ($PSCmdlet.ParameterSetName -eq 'ById') {
-    $null = & ssLogIt.ps1 -Level Info -Message "Collecting hierarchy for work item $WorkItemId..."
+    $null = & ssLogIt.ps1 -Level Info -Message "Collecting hierarchy for work item ::FgCyan::$($WorkItemId)::FgDefault::..."
 
     $rootItem = Get-AzDoWorkItemById `
         -Organization $Organization `
@@ -383,15 +485,28 @@ if ($PSCmdlet.ParameterSetName -eq 'ById') {
         throw "Work item $WorkItemId not found."
     }
 
-    $null = & ssLogIt.ps1 -Level Info -Message "Root: '$($rootItem.fields.'System.Title')' [$($rootItem.fields.'System.WorkItemType')]"
+    $null = & ssLogIt.ps1 -Level Info -Message "Root: '::FgCyan::$($rootItem.fields.'System.Title')::FgDefault::' [::FgCyan::$($rootItem.fields.'System.WorkItemType')::FgDefault::]"
+    $collected = [System.Collections.Generic.List[object]]::new()
     hCollectDescendants -RawItem $rootItem -Collected $collected
-    $null = & ssLogIt.ps1 -Level Info -Message "Total work items to evaluate: $($collected.Count)"
+    $null = & ssLogIt.ps1 -Level Info -Message "Total work items to evaluate: ::FgCyan::$($collected.Count)::FgDefault::"
+
+    foreach ($wi in $collected) {
+        hProcessWorkItem -RawItem $wi -SourceMap $sourceFieldMap -TargetMap $targetFieldMap
+    }
 }
 else {
-    # Global scope
-    $null = & ssLogIt.ps1 -Level Info -Message "Global scope: querying all work items in project '$Project'..."
+    # Global scope: build WIQL with optional filters, then fetch and process item by item
+    $null = & ssLogIt.ps1 -Level Info -Message "Global scope: querying all work items in project '::FgCyan::$($Project)::FgDefault::'..."
 
-    $wiqlQuery   = "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id] ASC"
+    [string]$wiqlWhere = "[System.TeamProject] = @project"
+    if ($MinId -gt 0) {
+        $wiqlWhere += " AND [System.Id] >= $MinId"
+    }
+    if ($ChangedSince -gt [datetime]::MinValue) {
+        $wiqlWhere += " AND [System.ChangedDate] >= '$($ChangedSince.ToString('yyyy-MM-dd'))'"
+    }
+    $wiqlQuery = "SELECT [System.Id] FROM WorkItems WHERE $wiqlWhere ORDER BY [System.Id] ASC"
+
     $wiqlResults = Invoke-AzDoWiql `
         -Organization $Organization `
         -Project $Project `
@@ -399,11 +514,16 @@ else {
         -PatToken $PatToken
 
     if ($null -ne $wiqlResults -and $wiqlResults.Count -gt 0) {
-        $null = & ssLogIt.ps1 -Level Info -Message "WIQL returned $($wiqlResults.Count) work item(s). Fetching details..."
+        $null = & ssLogIt.ps1 -Level Info -Message "WIQL returned ::FgCyan::$($wiqlResults.Count)::FgDefault:: work item(s). Fetching and processing..."
 
+        [int]$processedSoFar = 0
         foreach ($wiRef in $wiqlResults) {
             $wiId = if ($null -ne $wiRef.id) { $wiRef.id } else {
                 [int]($wiRef.url -split '/' | Select-Object -Last 1)
+            }
+            $processedSoFar++
+            if ($processedSoFar % 25 -eq 0) {
+                $null = & ssLogIt.ps1 -Level Debug -Message "Progress: ::FgCyan::$($processedSoFar)/$($wiqlResults.Count)::FgDefault::..."
             }
             try {
                 $wi = Get-AzDoWorkItemById `
@@ -412,15 +532,13 @@ else {
                     -WorkItemId $wiId `
                     -PatToken $PatToken
                 if ($null -ne $wi) {
-                    $collected.Add($wi)
+                    hProcessWorkItem -RawItem $wi -SourceMap $sourceFieldMap -TargetMap $targetFieldMap
                 }
             }
             catch {
-                $null = & ssLogIt.ps1 -Level Warn -Message "Could not fetch work item $($wiId): $_"
+                $null = & ssLogIt.ps1 -Level Warn -Message "Could not fetch work item ::FgYellow::$($wiId)::FgDefault::: $_"
             }
         }
-
-        $null = & ssLogIt.ps1 -Level Info -Message "Fetched $($collected.Count) work item(s) for evaluation."
     }
     else {
         $null = & ssLogIt.ps1 -Level Info -Message "No work items found in project."
@@ -428,24 +546,8 @@ else {
 }
 
 # ============================================================================
-# Process collected items
-# ============================================================================
-
-[int]$processedSoFar = 0
-
-foreach ($wi in $collected) {
-    $processedSoFar++
-
-    if ($PSCmdlet.ParameterSetName -eq 'Global' -and ($processedSoFar % 25 -eq 0)) {
-        $null = & ssLogIt.ps1 -Level Debug -Message "Processing $($processedSoFar)/$($collected.Count)..."
-    }
-
-    hProcessWorkItem -RawItem $wi -SourceMap $sourceFieldMap -TargetMap $targetFieldMap
-}
-
-# ============================================================================
 # Summary
 # ============================================================================
 
 $summaryAction = if ($DryRun) { "DryRun ($($actionLabel))" } else { $actionLabel }
-$null = & ssLogIt.ps1 -Level Info -Message "✅ $($summaryAction) complete: $($script:totalCount) evaluated, $($script:updatedCount) updated, $($script:skippedCount) skipped, $($script:errorCount) errors"
+$null = & ssLogIt.ps1 -Level Info -Message "::FgGreen::✅ $($summaryAction) complete::FgDefault::: ::FgCyan::$($script:totalCount)::FgDefault:: evaluated, ::FgGreen::$($script:updatedCount)::FgDefault:: updated, ::FgYellow::$($script:skippedCount)::FgDefault:: skipped, ::FgRed::$($script:errorCount)::FgDefault:: errors"
