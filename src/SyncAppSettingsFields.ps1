@@ -266,14 +266,14 @@ foreach ($wiType in $knownTypes) {
 # ============================================================================
 
 if ($DryRun) {
-    $addCount    = ($changes | Where-Object { $_.ChangeType -eq 'Add' }).Count
-    $removeCount = ($changes | Where-Object { $_.ChangeType -eq 'Remove' }).Count
+    $addCount    = @($changes | Where-Object { $_.ChangeType -eq 'Add' }).Count
+    $removeCount = @($changes | Where-Object { $_.ChangeType -eq 'Remove' }).Count
     $null = & ssLogIt.ps1 -Level Info -Message "::FgYellow::[DryRun]::FgDefault:: ::FgGreen::$($addCount)::FgDefault:: field(s) would be added, ::FgRed::$($removeCount)::FgDefault:: would be removed. No changes written."
 } else {
     $null = & ssLogIt.ps1 -Level Info -Message "Writing updated ::FgCyan::appSettings.json::FgDefault::..."
     $settings | ConvertTo-Json -Depth 20 | Set-Content -Path $appSettingsPath -Encoding UTF8 -NoNewline
-    $addCount    = ($changes | Where-Object { $_.ChangeType -eq 'Add' }).Count
-    $removeCount = ($changes | Where-Object { $_.ChangeType -eq 'Remove' }).Count
+    $addCount    = @($changes | Where-Object { $_.ChangeType -eq 'Add' }).Count
+    $removeCount = @($changes | Where-Object { $_.ChangeType -eq 'Remove' }).Count
     $null = & ssLogIt.ps1 -Level Info -Message "::FgGreen::✅ Sync complete::FgDefault::: ::FgGreen::$($addCount)::FgDefault:: field(s) added, ::FgRed::$($removeCount)::FgDefault:: removed."
 }
 
