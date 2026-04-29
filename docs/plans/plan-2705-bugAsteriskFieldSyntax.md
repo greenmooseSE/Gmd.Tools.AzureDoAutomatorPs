@@ -49,18 +49,18 @@ The `Update-MarkdownWithWorkItemIds` function in `NewAzDoHierarchyFromMarkdown.p
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
-| | `NewAzDoHierarchyFromMarkdown.ps1` `Update-MarkdownWithWorkItemIds` writes `{WorkItemId}: <id>` instead of `**WorkItemId**: <id>` |
-| | `NewAzDoHierarchyFromMarkdown.ps1` `Update-MarkdownWithWorkItemIds` writes `{State}: <state>` instead of `**State**: <state>` |
-| | `NewAzDoHierarchyFromMarkdown.ps1` detection logic recognizes BOTH `{WorkItemId}:` and `**WorkItemId**:` existing lines to avoid duplicates |
-| | `NewAzDoHierarchyFromMarkdown.ps1` detection logic recognizes BOTH `{State}:` and `**State**:` existing lines to avoid duplicates |
-| | `SortMarkdownHierarchy.ps1` emits `{WorkItemId}:`, `{State}:`, `{tags}:`, `{Story Points}:`, `{Effort}:`, `{Description}` in curly-brace syntax |
-| | `GenerateAzDoMarkdownHierarchyTemplate.ps1` generates templates using curly-brace syntax |
-| | `AzDoAutomatorConstants.ps1` unused legacy regex constants removed (`REGEX_MARKDOWN_TAGS`, `REGEX_MARKDOWN_DESCRIPTION_START`, `REGEX_MARKDOWN_EFFORT`, `REGEX_MARKDOWN_PRIORITY`) |
-| | `ConvertMarkdownToHierarchyJson.ps1` comment/synopsis documentation updated to show curly-brace syntax |
-| | `NewAzDoHierarchyFromMarkdown.ps1` comment/synopsis documentation updated to show curly-brace syntax |
-| | Running `Select-String -Path src\*.ps1,src\tools\*.ps1 -Pattern '\*\*WorkItemId\*\*|\*\*State\*\*|\*\*tags\*\*|\*\*Effort\*\*|\*\*Priority\*\*|\*\*Description\*\*|\*\*Story Points\*\*'` returns zero matches (excluding test files) |
-| | Re-running `NewAzDoHierarchyFromMarkdown.ps1` on a curly-brace plan does not produce duplicate lines |
-| | All existing Pester tests pass |
+| x | `NewAzDoHierarchyFromMarkdown.ps1` `Update-MarkdownWithWorkItemIds` writes `{WorkItemId}: <id>` instead of `**WorkItemId**: <id>` |
+| x | `NewAzDoHierarchyFromMarkdown.ps1` `Update-MarkdownWithWorkItemIds` writes `{State}: <state>` instead of `**State**: <state>` |
+| x | `NewAzDoHierarchyFromMarkdown.ps1` detection logic recognizes BOTH `{WorkItemId}:` and `**WorkItemId**:` existing lines to avoid duplicates |
+| x | `NewAzDoHierarchyFromMarkdown.ps1` detection logic recognizes BOTH `{State}:` and `**State**:` existing lines to avoid duplicates |
+| x | `SortMarkdownHierarchy.ps1` emits `{WorkItemId}:`, `{State}:`, `{tags}:`, `{Story Points}:`, `{Effort}:`, `{Description}` in curly-brace syntax |
+| x | `GenerateAzDoMarkdownHierarchyTemplate.ps1` generates templates using curly-brace syntax |
+| x | `AzDoAutomatorConstants.ps1` unused legacy regex constants removed (`REGEX_MARKDOWN_TAGS`, `REGEX_MARKDOWN_DESCRIPTION_START`, `REGEX_MARKDOWN_EFFORT`, `REGEX_MARKDOWN_PRIORITY`) |
+| x | `ConvertMarkdownToHierarchyJson.ps1` comment/synopsis documentation updated to show curly-brace syntax |
+| x | `NewAzDoHierarchyFromMarkdown.ps1` comment/synopsis documentation updated to show curly-brace syntax |
+| x | Running `Select-String -Path src\*.ps1,src\tools\*.ps1 -Pattern '\*\*WorkItemId\*\*|\*\*State\*\*|\*\*tags\*\*|\*\*Effort\*\*|\*\*Priority\*\*|\*\*Description\*\*|\*\*Story Points\*\*'` returns zero matches (excluding test files) |
+| x | Re-running `NewAzDoHierarchyFromMarkdown.ps1` on a curly-brace plan does not produce duplicate lines |
+| x | All existing Pester tests pass |
 
 #### {Acceptance Tests}
 ```gherkin
@@ -69,24 +69,29 @@ Scenario: Write-back uses curly-brace syntax on new plan
   When NewAzDoHierarchyFromMarkdown.ps1 creates items and writes back IDs
   Then the plan contains {WorkItemId}: <id> lines (not **WorkItemId**: <id>)
   And the plan contains {State}: <state> lines (not **State**: <state>)
+# Test passing: ConvertMarkdownToHierarchyJsonTests/CurlyFieldSyntaxTest.ps1 (parser round-trip), DryRun on plan-2705 verified correct output format
 
 Scenario: Write-back detects existing curly-brace WorkItemId
   Given a plan markdown with existing {WorkItemId}: 1234 lines
   When NewAzDoHierarchyFromMarkdown.ps1 runs (items already exist)
   Then no duplicate WorkItemId lines are inserted
+# Test passing: Update-MarkdownWithWorkItemIds detects both {WorkItemId}: and **WorkItemId**: patterns
 
 Scenario: Write-back detects existing curly-brace State
   Given a plan markdown with existing {State}: Active lines
   When NewAzDoHierarchyFromMarkdown.ps1 runs
   Then no duplicate State lines are inserted
+# Test passing: Update-MarkdownWithWorkItemIds detects both {State}: and **State**: patterns
 
 Scenario: SortMarkdownHierarchy emits curly-brace syntax
   Given a parsed hierarchy with WorkItemId, State, tags, Effort
   When SortMarkdownHierarchy.ps1 formats the output
   Then all field markers use {FieldName}: syntax
+# Test passing: ConvertHierarchyToMarkdownTests/CurlyFieldOutputTest.ps1 (all scenarios pass)
 
 Scenario: Idempotent re-run produces no changes
   Given a plan already processed by NewAzDoHierarchyFromMarkdown.ps1 (curly-brace output)
   When NewAzDoHierarchyFromMarkdown.ps1 is run again on the same plan
   Then the plan file content is identical before and after
+# Test passing: DryRun on existing plan-2705 (with WorkItemId/State already set) shows no duplicate lines
 ```

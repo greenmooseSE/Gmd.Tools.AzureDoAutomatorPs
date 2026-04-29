@@ -109,10 +109,11 @@ The AC content.
         }
     }
 
-    Context 'Scenario 5: Unknown {FieldLabel} is treated as literal text' {
+    Context 'Scenario 5: Unknown {FieldLabel} stops description collection (Bug 2707)' {
 
-        It 'GivenUnknownCurlyLabel_WhenInDescription_ItShouldBeStoredLiterallyInDescription' {
-            # Scenario 5: {NonExistentField} not in appSettings.json → stored as literal description text
+        It 'GivenUnknownCurlyLabel_WhenInDescription_ItShouldStopCollectionAndNotAbsorbContent' {
+            # Bug 2707: {NonExistentField} not in appSettings.json → stops description collecting;
+            # the marker line itself and any subsequent content are NOT added to the description buffer.
             $md = @"
 ### Story: My Story
 {Description}
@@ -123,8 +124,10 @@ More description text.
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
                 -MarkdownContent $md -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
             $item = $result.workItems[0]
-            $item.description | Should Match '\{NonExistentField\}: value'
-            $item.description | Should Match 'More description text'
+            # Description should contain only text before the unknown marker
+            $item.description | Should Match 'Normal description text'
+            $item.description | Should Not Match '\{NonExistentField\}: value'
+            $item.description | Should Not Match 'More description text'
             # No separate field should be created
             $cfgFields = if ($item -is [hashtable]) { $item['configFields'] } else { $item.configFields }
             ($null -eq $cfgFields -or -not $cfgFields.ContainsKey('NonExistentField')) | Should Be $true

@@ -4,48 +4,48 @@ Convert markdown hierarchy to machine-friendly JSON structure with optional Work
 
 .DESCRIPTION
 Unified parser for markdown hierarchies with flexible work item identification:
-- **WorkItemId optional**: If present, uses it for identification. If absent, leaves null (for new items or title-based matching)
-- **Type prefixes optional**: Titles may include "Epic:", "Feature:" etc. prefixes (automatically stripped)
-- **State field supported**: Parses **State** metadata field for work item status
-- **Hierarchical structure**: Maintains Epic > Feature > Story/Task/Bug nesting
+- {WorkItemId} optional: If present, uses it for identification. If absent, leaves null (for new items or title-based matching)
+- Type prefixes optional: Titles may include "Epic:", "Feature:" etc. prefixes (automatically stripped)
+- {State} field supported: Parses {State}: metadata field for work item status
+- Hierarchical structure: Maintains Epic > Feature > Story/Task/Bug nesting
 
 Supported markdown format:
     # Epic: Epic Title
-    **WorkItemId**: 2215
-    **State**: Active
-    **tags**: tag1, tag2
-    **Description**
+    {WorkItemId}: 2215
+    {State}: Active
+    {tags}: tag1, tag2
+    {Description}
     Epic description text here
     
     ## Feature: Feature Title
-    **WorkItemId**: 2216
-    **State**: Under Development
-    **tags**: tag1, tag2
-    **Effort**: 13
-    **Description**
+    {WorkItemId}: 2216
+    {State}: Under Development
+    {tags}: tag1, tag2
+    {Effort}: 13
+    {Description}
     Feature description...
     
     ### Story: Story Title
-    **WorkItemId**: 2217
-    **tags**: tag1, tag2
-    **Story Points**: 5
-    **State**: Active
-    **Description**
+    {WorkItemId}: 2217
+    {tags}: tag1, tag2
+    {Story Points}: 5
+    {State}: Active
+    {Description}
     Story description...
     
     #### Task: Task Title
-    **WorkItemId**: 2220
-    **State**: Active
-    **Description**
+    {WorkItemId}: 2220
+    {State}: Active
+    {Description}
     Task description...
 
 Metadata fields (all optional):
-- **WorkItemId**: N (for identifying existing work items, can be omitted for new items)
-- **State**: Active, Under Development, etc. (optional)
-- **tags**: comma-separated list (optional)
-- **Story Points**: story points (for stories, optional)
-- **Effort**: effort estimate (for features/epics, optional)
-- **Description**: multi-line description (optional)
+- {WorkItemId}: N (for identifying existing work items, can be omitted for new items)
+- {State}: Active, Under Development, etc. (optional)
+- {tags}: comma-separated list (optional)
+- {Story Points}: story points (for stories, optional)
+- {Effort}: effort estimate (for features/epics, optional)
+- {Description}: multi-line description (optional)
 
 Output JSON structure:
     {
@@ -79,9 +79,9 @@ Parse from file:
 Parse from content:
     $content = @"
     ## Feature: My Feature
-    **WorkItemId**: 2216
-    **Story Points**: 5
-    **Description**
+    {WorkItemId}: 2216
+    {Story Points}: 5
+    {Description}
     Feature details...
     "@
     $result = .\ConvertMarkdownToHierarchyJson.ps1 -MarkdownContent $content
@@ -301,6 +301,7 @@ function Parse-MarkdownToWorkItems {
     [array]$script:customFieldBuffer   = @()
     [hashtable]$currentItemFieldConfig = @{}
     [bool]$inCodeFence                 = $false
+    [bool]$skippingUnknownSection      = $false
 
     for ($lineNum = 0; $lineNum -lt $lines.Count; $lineNum++) {
         $line = $lines[$lineNum]
@@ -349,6 +350,7 @@ function Parse-MarkdownToWorkItems {
             $script:customFieldName      = $null
             $script:customFieldBuffer    = @()
             $inCodeFence                 = $false
+            $skippingUnknownSection      = $false
             continue
         }
 
@@ -360,11 +362,13 @@ function Parse-MarkdownToWorkItems {
             $inCodeFence = -not $inCodeFence
             if ($script:collectingCustomField) { $script:customFieldBuffer += $line }
             elseif ($collectingDescription)    { $descriptionBuffer += $line }
+            # Lines inside an unknown section are ignored
             continue
         }
         if ($inCodeFence) {
             if ($script:collectingCustomField) { $script:customFieldBuffer += $line }
             elseif ($collectingDescription)    { $descriptionBuffer += $line }
+            # Lines inside an unknown section are ignored
             continue
         }
 
@@ -380,7 +384,8 @@ function Parse-MarkdownToWorkItems {
             }
 
             if ($null -ne $cfgField) {
-                # ── Known field: finalise any active collection first ────────
+                # ── Known field: reset skip mode and finalise any active collection first —
+                $skippingUnknownSection = $false
                 if ($script:collectingCustomField) {
                     Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
                     $script:collectingCustomField = $false
@@ -454,22 +459,33 @@ function Parse-MarkdownToWorkItems {
                 }
             }
             else {
-                # ── Unknown label: treat as literal content in active buffer ─
-                if ($script:collectingCustomField) {
-                    $script:customFieldBuffer += $line
+                # ── Unknown label: stop active collecting mode; do NOT add marker to any buffer
+                if ($script:collectingCustomField -and $script:customFieldBuffer.Count -gt 0) {
+                    Save-CollectedField -Item $currentItem -Name $script:customFieldName -Buffer $script:customFieldBuffer
+                    $script:collectingCustomField = $false
+                    $script:customFieldName       = $null
+                    $script:customFieldBuffer     = @()
                 }
-                elseif ($collectingDescription) {
-                    $descriptionBuffer += $line
+                if ($collectingDescription -and $descriptionBuffer.Count -gt 0) {
+                    $currentItem.description = ($descriptionBuffer -join "`n").Trim()
+                    $descriptionBuffer       = @()
+                    $collectingDescription   = $false
                 }
-                # If not collecting anything, the line is ignored (field not known without config)
+                $skippingUnknownSection = $true
+                if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Unrecognised field label '$($marker.label)' for $($currentItem.type) item - skipping section"
+                }
             }
         }
-        # ── No curly-brace marker: route to active collecting buffer or ignore ─
+        # ── No curly-brace marker: route to active collecting buffer or ignore —
         elseif ($script:collectingCustomField) {
             $script:customFieldBuffer += $line
         }
         elseif ($collectingDescription) {
             $descriptionBuffer += $line
+        }
+        elseif ($skippingUnknownSection) {
+            # Content after an unknown field marker is discarded until the next known marker
         }
         elseif (-not [string]::IsNullOrWhiteSpace($line)) {
             # Non-header, non-field-marker, non-whitespace line outside any collecting mode
@@ -585,12 +601,13 @@ function Cleanup-Item {
 
     # Map config-driven html fields to top-level properties consumed by downstream scripts
     # (NewAzDoHierarchyFromMarkdown.ps1 and DetectHierarchyChanges.ps1 access these by name)
+    # Handles both legacy Custom.* reference names and the canonical VSTS names.
     if ($null -ne $Item.configFields) {
-        if ($Item.configFields.ContainsKey('Custom.AcceptanceCriteria') -and -not $cleaned.ContainsKey('acceptanceCriteria')) {
-            $cleaned.acceptanceCriteria = $Item.configFields['Custom.AcceptanceCriteria']
+        if (($Item.configFields.ContainsKey('Custom.AcceptanceCriteria') -or $Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) -and -not $cleaned.ContainsKey('acceptanceCriteria')) {
+            $cleaned.acceptanceCriteria = if ($Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) { $Item.configFields['Microsoft.VSTS.Common.AcceptanceCriteria'] } else { $Item.configFields['Custom.AcceptanceCriteria'] }
         }
-        if ($Item.configFields.ContainsKey('Custom.ACScenarios') -and -not $cleaned.ContainsKey('acScenarios')) {
-            $cleaned.acScenarios = $Item.configFields['Custom.ACScenarios']
+        if (($Item.configFields.ContainsKey('Custom.ACScenarios') -or $Item.configFields.ContainsKey('Custom.AcceptanceTests')) -and -not $cleaned.ContainsKey('acScenarios')) {
+            $cleaned.acScenarios = if ($Item.configFields.ContainsKey('Custom.AcceptanceTests')) { $Item.configFields['Custom.AcceptanceTests'] } else { $Item.configFields['Custom.ACScenarios'] }
         }
         if ($Item.configFields.ContainsKey('Custom.ExtraInformation') -and -not $cleaned.ContainsKey('extraInformation')) {
             $cleaned.extraInformation = $Item.configFields['Custom.ExtraInformation']
@@ -605,12 +622,12 @@ function Cleanup-Item {
     # Include config-driven fields in output (non-empty only).
     # Clone and remove fields already promoted to named top-level properties to prevent
     # them being sent twice (once via named param, once via the generic -Fields path).
-    # Custom.AcceptanceCriteria promotes to acceptanceCriteria → Microsoft.VSTS.Common.AcceptanceCriteria;
-    # Custom.ACScenarios → acScenarios → Custom.ACScenarios; Custom.ExtraInformation → extraInformation.
     if ($null -ne $Item.configFields -and $Item.configFields.Count -gt 0) {
         $cfgClone = @{} + $Item.configFields
         $cfgClone.Remove('Custom.AcceptanceCriteria')
+        $cfgClone.Remove('Microsoft.VSTS.Common.AcceptanceCriteria')
         $cfgClone.Remove('Custom.ACScenarios')
+        $cfgClone.Remove('Custom.AcceptanceTests')
         $cfgClone.Remove('Custom.ExtraInformation')
         if ($cfgClone.Count -gt 0) {
             $cleaned.configFields = $cfgClone
