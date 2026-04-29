@@ -2,18 +2,12 @@
 {WorkItemId}: 1577
 {State}: New
 {tags}: azDoAutomator, automation, azdo, crudOperations, mcpServer
-{Effort}: 79
-{Description}
-Complete build-out of Azure DevOps work item automation tooling to support full CRUD operations on  
-Epics, Features, User Stories, Bugs, and Tasks. Implement comprehensive comment management with  
-reaction support, tag management, and hierarchical retrieval with all associated metadata. Operations  
-are consolidated into Upsert* scripts with -FailIfExist switch for create/update unification.  
-Culminate in MCP (Model Context Protocol) server integration to expose all operations as standardized  
-tools for AI assistants and automation frameworks.  
 
 ## Feature: Move/Copy Work Item Field Values
 {WorkItemId}: 2619
-{State}: New
+{State}: Resolved
+{AI Designed}: true
+{AI Implemented}: true
 {tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
 {Effort}: 5
 {Priority}: 2
@@ -91,7 +85,10 @@ modes: by WorkItemId (processes the specified item and all its hierarchical desc
 
 ### Story: Implement MoveAzDoWorkItemField.ps1 with WorkItemId scope (001) ✅
 {WorkItemId}: 2620
-{State}: Done
+{State}: RTM
+{Assigned To}: gmd.machine@gmail.com
+{AI Designed}: true
+{AI Implemented}: true
 {tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
 {Story Points}: 2
 {Story Acceptance Tests}
@@ -230,7 +227,10 @@ Each processed item emits a PSObject with these properties:
 
 ### Story: Add Global scope to MoveAzDoWorkItemField.ps1 (002) ✅
 {WorkItemId}: 2621
-{State}: Done
+{Assigned To}: gmd.machine@gmail.com
+{State}: RTM
+{AI Designed}: true
+{AI Implemented}: true
 {tags}: azDoAutomator, fieldMgmt, epicAzDoAutomator
 {Story Points}: 1
 {Story Acceptance Tests}
