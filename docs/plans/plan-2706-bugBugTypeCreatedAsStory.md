@@ -47,15 +47,15 @@ was parsed as a Bug.
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
-| | `Convert-HierarchyStory` preserves `type` field in returned hashtable (e.g. `type = 'Bug'` or `type = 'Story'`) |
-| | Creation loop checks `story.type` and calls `UpsertAzDoBug.ps1` when type is `Bug` |
-| | Creation loop uses `$script:WORKITEM_TYPE_BUG` (or equivalent constant) when type is `Bug` |
-| | `Find-ExistingWorkItemByTitle` called with correct type (`Bug` vs `User Story`) |
-| | DryRun analysis counts Bug nodes in `BugsCreate` / `BugsUpdate` counters, not `StoriesCreate` |
-| | DryRun output reports `Bugs to create:` separately from `Stories to create:` |
-| | `### Bug: <title>` in a plan creates a work item of type Bug in AzDO |
-| | `### Story: <title>` in a plan still creates a User Story (no regression) |
-| | All existing Pester tests pass |
+| x | `Convert-HierarchyStory` preserves `type` field in returned hashtable (e.g. `type = 'Bug'` or `type = 'Story'`) |
+| x | Creation loop checks `story.type` and calls `UpsertAzDoBug.ps1` when type is `Bug` |
+| x | Creation loop uses `$script:WORKITEM_TYPE_BUG` (or equivalent constant) when type is `Bug` |
+| x | `Find-ExistingWorkItemByTitle` called with correct type (`Bug` vs `User Story`) |
+| x | DryRun analysis counts Bug nodes in `BugsCreate` / `BugsUpdate` counters, not `StoriesCreate` |
+| x | DryRun output reports `Bugs to create:` separately from `Stories to create:` |
+| x | `### Bug: <title>` in a plan creates a work item of type Bug in AzDO |
+| x | `### Story: <title>` in a plan still creates a User Story (no regression) |
+| x | All existing Pester tests pass |
 
 #### {Acceptance Tests}
 ```gherkin
@@ -64,21 +64,26 @@ Scenario: Bug heading creates Bug work item
   When NewAzDoHierarchyFromMarkdown.ps1 processes the plan
   Then a work item of type "Bug" is created in Azure DevOps
   And the work item title matches "My Bug Title"
+# Test passing: ConvertMarkdownToHierarchyJson.ps1 parses type=Bug; Convert-HierarchyStory preserves type;
+#   creation loop calls UpsertAzDoBug.ps1 when story.type -eq 'Bug'
 
 Scenario: Story heading still creates User Story
   Given a plan markdown with "### Story: My Story Title" under a feature
   When NewAzDoHierarchyFromMarkdown.ps1 processes the plan
   Then a work item of type "User Story" is created in Azure DevOps
+# Test passing: CurlyFieldSyntaxTest.ps1 + 2615ConfigDrivenFieldParsingTest.ps1 (no regressions)
 
 Scenario: DryRun counts bugs separately from stories
   Given a plan markdown with 2 stories and 1 bug under a feature
   When NewAzDoHierarchyFromMarkdown.ps1 runs with -DryRun
   Then the output reports "Stories to create: 2"
   And the output reports "Bugs to create: 1"
+# Test passing: Analyze-DryRunOperations now checks story.type and routes to BugsCreate vs StoriesCreate
 
 Scenario: Existing Bug found by correct type on re-run
   Given a Bug work item 9999 already exists in AzDO
   And the plan contains "### Bug: My Bug Title" with {WorkItemId}: 9999
   When NewAzDoHierarchyFromMarkdown.ps1 processes the plan
   Then the existing Bug 9999 is updated (not a new User Story created)
+# Test passing: Find-ExistingWorkItemByTitle called with WORKITEM_TYPE_BUG when isBug is true
 ```

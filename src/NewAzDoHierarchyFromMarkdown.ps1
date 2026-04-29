@@ -517,16 +517,17 @@ function Analyze-DryRunOperations {
                     Project        = $Project
                     PatToken       = $PatToken
                     Item           = $story
-                    Type           = $script:WORKITEM_TYPE_STORY
+                    Type           = if ($story.type -eq $script:WORKITEM_TYPE_BUG) { $script:WORKITEM_TYPE_BUG } else { $script:WORKITEM_TYPE_STORY }
                     MarkdownFields = Get-StoryMarkdownFields -Story $story
                 }
                 if ($null -ne $existingFeatureId) { $storyArgs['ParentId'] = $existingFeatureId }
                 $storyResult = Get-ItemChangeState @storyArgs
 
+                $isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
                 switch ($storyResult.State) {
-                    'Create'   { $analysis.StoriesCreate++ }
-                    'Update'   { $analysis.StoriesUpdate++ }
-                    'NoChange' { $analysis.StoriesNoChange++ }
+                    'Create'   { if ($isBug) { $analysis.BugsCreate++ } else { $analysis.StoriesCreate++ } }
+                    'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ } }
+                    'NoChange' { if ($isBug) { $analysis.BugsNoChange++ } else { $analysis.StoriesNoChange++ } }
                 }
 
                 foreach ($bug in $story.bugs) {
@@ -573,16 +574,17 @@ function Analyze-DryRunOperations {
                 Project        = $Project
                 PatToken       = $PatToken
                 Item           = $story
-                Type           = $script:WORKITEM_TYPE_STORY
+                Type           = if ($story.type -eq $script:WORKITEM_TYPE_BUG) { $script:WORKITEM_TYPE_BUG } else { $script:WORKITEM_TYPE_STORY }
                 MarkdownFields = Get-StoryMarkdownFields -Story $story
             }
             if ($null -ne $existingFeatureId) { $storyArgs['ParentId'] = $existingFeatureId }
             $storyResult = Get-ItemChangeState @storyArgs
 
+            $isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
             switch ($storyResult.State) {
-                'Create'   { $analysis.StoriesCreate++ }
-                'Update'   { $analysis.StoriesUpdate++ }
-                'NoChange' { $analysis.StoriesNoChange++ }
+                'Create'   { if ($isBug) { $analysis.BugsCreate++ } else { $analysis.StoriesCreate++ } }
+                'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ } }
+                'NoChange' { if ($isBug) { $analysis.BugsNoChange++ } else { $analysis.StoriesNoChange++ } }
             }
 
             foreach ($bug in $story.bugs) {
@@ -688,6 +690,7 @@ function Convert-HierarchyStory {
     param([object]$Item)
     [string[]]$tags = if ($Item['tags']) { [string[]]($Item['tags'] -split '\s*[,;]\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
     $story = @{
+        type                 = if ($Item['type']) { $Item['type'] } else { $script:WORKITEM_TYPE_STORY }
         title                = $Item['title']
         workItemId           = $Item['workItemId']
         state                = $Item['state']
@@ -1145,44 +1148,52 @@ try {
             foreach ($story in $feature.stories) {
                 $storyId = -1  # Sentinel value for "not yet set"
                 $foundExistingStory = $false
+                [bool]$isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
+                [string]$storyTypeLabel = if ($isBug) { 'Bug' } else { 'Story' }
                 
                 # Use WorkItemId from markdown if available (takes precedence over title search)
                 if ($null -ne $story.workItemId -and [int]$story.workItemId -gt 0) {
                     $storyId = [int]$story.workItemId
                     $foundExistingStory = $true
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for Story: $($story.title)"
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for ${storyTypeLabel}: $($story.title)"
                 }
                 # Check for existing story under this Feature if UpdateExisting is specified (fallback when no workItemId)
                 elseif ($UpdateExisting) {
-                    $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type $script:WORKITEM_TYPE_STORY -ParentId $featureId -NormalizeTitle -PatToken $PatToken
+                    $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type (if ($isBug) { $script:WORKITEM_TYPE_BUG } else { $script:WORKITEM_TYPE_STORY }) -ParentId $featureId -NormalizeTitle -PatToken $PatToken
                     if ($null -ne $existingStoryId -and [int]$existingStoryId -gt 0) {
                         $storyId = $existingStoryId
                         $foundExistingStory = $true
-                        $null = & ssLogIt.ps1 -Level Debug -Message "Found existing Story with title: $($story.title) (ID: $storyId) under Feature $featureId, will update it"
+                        $null = & ssLogIt.ps1 -Level Debug -Message "Found existing ${storyTypeLabel} with title: $($story.title) (ID: $storyId) under Feature $featureId, will update it"
                     }
                 }
                 
                 # If no existing story found under this feature, create or update
                 if ($storyId -eq -1) {
                     $storyParams = @{
-                        Organization    = $Organization
-                        Project         = $Project
-                        Title           = $story.title
-                        ParentFeatureId = $featureId
-                        PatToken        = $PatToken
+                        Organization = $Organization
+                        Project      = $Project
+                        Title        = $story.title
+                        PatToken     = $PatToken
+                    }
+                    if ($isBug) {
+                        $storyParams['ParentStoryId'] = $featureId
+                    } else {
+                        $storyParams['ParentFeatureId'] = $featureId
                     }
 
                     if ($story.description) {
                         $storyParams['Description'] = $story.description
                     }
-                    if ($story.acceptanceCriteria) {
-                        $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
-                    }
-                    if ($story.acScenarios) {
-                        $storyParams['AcScenarios'] = $story.acScenarios
-                    }
-                    if ($story.extraInformation) {
-                        $storyParams['ExtraInformation'] = $story.extraInformation
+                    if (-not $isBug) {
+                        if ($story.acceptanceCriteria) {
+                            $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+                        }
+                        if ($story.acScenarios) {
+                            $storyParams['AcScenarios'] = $story.acScenarios
+                        }
+                        if ($story.extraInformation) {
+                            $storyParams['ExtraInformation'] = $story.extraInformation
+                        }
                     }
                     if ($story.storyPoints) {
                         $storyParams['StoryPoints'] = $story.storyPoints
@@ -1190,20 +1201,22 @@ try {
                     if ($story.priority) {
                         $storyParams['Priority'] = $story.priority
                     }
-                    if ($story.originalEstimate) {
-                        $storyParams['OriginalEstimate'] = $story.originalEstimate
-                    }
-                    if ($story.fixedIn) {
-                        $storyParams['FixedIn'] = $story.fixedIn
-                    }
-                    if ($null -ne $story.deployedToDev) {
-                        $storyParams['DeployedToDev'] = $story.deployedToDev
-                    }
-                    if ($null -ne $story.deployedToStaging) {
-                        $storyParams['DeployedToStaging'] = $story.deployedToStaging
-                    }
-                    if ($null -ne $story.deployedToProduction) {
-                        $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                    if (-not $isBug) {
+                        if ($story.originalEstimate) {
+                            $storyParams['OriginalEstimate'] = $story.originalEstimate
+                        }
+                        if ($story.fixedIn) {
+                            $storyParams['FixedIn'] = $story.fixedIn
+                        }
+                        if ($null -ne $story.deployedToDev) {
+                            $storyParams['DeployedToDev'] = $story.deployedToDev
+                        }
+                        if ($null -ne $story.deployedToStaging) {
+                            $storyParams['DeployedToStaging'] = $story.deployedToStaging
+                        }
+                        if ($null -ne $story.deployedToProduction) {
+                            $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                        }
                     }
                     if ($story.state) {
                         $storyParams['State'] = $story.state
@@ -1214,10 +1227,15 @@ try {
                     # Merge config-driven fields from configFields into storyParams
                     Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
-                    $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Creating ${storyTypeLabel}: $($story.title)"
+                    if ($isBug) {
+                        $createdStory = & "$PSScriptRoot\UpsertAzDoBug.ps1" @storyParams -ErrorAction Stop
+                        $summary.Created.Bugs++
+                    } else {
+                        $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                        $summary.Created.Stories++
+                    }
                     $storyId = $createdStory.id
-                    $summary.Created.Stories++
                 }
                 else {
                     # Update existing story only when content has changed
@@ -1231,14 +1249,16 @@ try {
                     if ($story.description) {
                         $storyParams['Description'] = $story.description
                     }
-                    if ($story.acceptanceCriteria) {
-                        $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
-                    }
-                    if ($story.acScenarios) {
-                        $storyParams['AcScenarios'] = $story.acScenarios
-                    }
-                    if ($story.extraInformation) {
-                        $storyParams['ExtraInformation'] = $story.extraInformation
+                    if (-not $isBug) {
+                        if ($story.acceptanceCriteria) {
+                            $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+                        }
+                        if ($story.acScenarios) {
+                            $storyParams['AcScenarios'] = $story.acScenarios
+                        }
+                        if ($story.extraInformation) {
+                            $storyParams['ExtraInformation'] = $story.extraInformation
+                        }
                     }
                     if ($story.storyPoints) {
                         $storyParams['StoryPoints'] = $story.storyPoints
@@ -1246,20 +1266,22 @@ try {
                     if ($story.priority) {
                         $storyParams['Priority'] = $story.priority
                     }
-                    if ($story.originalEstimate) {
-                        $storyParams['OriginalEstimate'] = $story.originalEstimate
-                    }
-                    if ($story.fixedIn) {
-                        $storyParams['FixedIn'] = $story.fixedIn
-                    }
-                    if ($null -ne $story.deployedToDev) {
-                        $storyParams['DeployedToDev'] = $story.deployedToDev
-                    }
-                    if ($null -ne $story.deployedToStaging) {
-                        $storyParams['DeployedToStaging'] = $story.deployedToStaging
-                    }
-                    if ($null -ne $story.deployedToProduction) {
-                        $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                    if (-not $isBug) {
+                        if ($story.originalEstimate) {
+                            $storyParams['OriginalEstimate'] = $story.originalEstimate
+                        }
+                        if ($story.fixedIn) {
+                            $storyParams['FixedIn'] = $story.fixedIn
+                        }
+                        if ($null -ne $story.deployedToDev) {
+                            $storyParams['DeployedToDev'] = $story.deployedToDev
+                        }
+                        if ($null -ne $story.deployedToStaging) {
+                            $storyParams['DeployedToStaging'] = $story.deployedToStaging
+                        }
+                        if ($null -ne $story.deployedToProduction) {
+                            $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                        }
                     }
                     if ($story.state) {
                         $storyParams['State'] = $story.state
@@ -1274,14 +1296,19 @@ try {
                     $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
                     $storyChangeState = Get-WorkItemChangeState -MarkdownFields (Get-StoryMarkdownFields -Story $story) -ExistingItem $existingStory
                     if ($storyChangeState -eq 'NoChange') {
-                        $null = & ssLogIt.ps1 -Level Debug -Message "No changes detected for Story: $($story.title) (ID: $storyId), skipping update"
+                        $null = & ssLogIt.ps1 -Level Debug -Message "No changes detected for ${storyTypeLabel}: $($story.title) (ID: $storyId), skipping update"
                         $createdStory = $existingStory
-                        $summary.NoChange.Stories++
+                        if ($isBug) { $summary.NoChange.Bugs++ } else { $summary.NoChange.Stories++ }
                     }
                     else {
-                        $null = & ssLogIt.ps1 -Level Debug -Message "Updating Story: $($story.title) (ID: $storyId)"
-                        $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
-                        $summary.Updated.Stories++
+                        $null = & ssLogIt.ps1 -Level Debug -Message "Updating ${storyTypeLabel}: $($story.title) (ID: $storyId)"
+                        if ($isBug) {
+                            $createdStory = & "$PSScriptRoot\UpsertAzDoBug.ps1" @storyParams -ErrorAction Stop
+                            $summary.Updated.Bugs++
+                        } else {
+                            $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                            $summary.Updated.Stories++
+                        }
                     }
                 }
                 
@@ -1440,42 +1467,50 @@ try {
 
         foreach ($story in $feature.stories) {
             $storyId = -1  # Sentinel value for "not yet set"
-            
+            [bool]$isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
+            [string]$storyTypeLabel = if ($isBug) { 'Bug' } else { 'Story' }
+
             # Use WorkItemId from markdown if available (takes precedence over title search)
             if ($null -ne $story.workItemId -and [int]$story.workItemId -gt 0) {
                 $storyId = [int]$story.workItemId
-                $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for Story: $($story.title)"
+                $null = & ssLogIt.ps1 -Level Debug -Message "Using WorkItemId $storyId from markdown for ${storyTypeLabel}: $($story.title)"
             }
             # Check for existing story under this Feature if UpdateExisting is specified (fallback when no workItemId)
             elseif ($UpdateExisting) {
-                $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type $script:WORKITEM_TYPE_STORY -ParentId $featureId -NormalizeTitle -PatToken $PatToken
+                $existingStoryId = Find-ExistingWorkItemByTitle -Organization $Organization -Project $Project -Title $story.title -Type (if ($isBug) { $script:WORKITEM_TYPE_BUG } else { $script:WORKITEM_TYPE_STORY }) -ParentId $featureId -NormalizeTitle -PatToken $PatToken
                 if ($null -ne $existingStoryId -and [int]$existingStoryId -gt 0) {
                     $storyId = $existingStoryId
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Found existing Story with title: $($story.title) (ID: $storyId) under Feature $featureId, will update it"
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Found existing ${storyTypeLabel} with title: $($story.title) (ID: $storyId) under Feature $featureId, will update it"
                 }
             }
             
             # If no existing story found, create it
             if ($storyId -eq -1) {
                 $storyParams = @{
-                    Organization    = $Organization
-                    Project         = $Project
-                    Title           = $story.title
-                    ParentFeatureId = $featureId
-                    PatToken        = $PatToken
+                    Organization = $Organization
+                    Project      = $Project
+                    Title        = $story.title
+                    PatToken     = $PatToken
+                }
+                if ($isBug) {
+                    $storyParams['ParentStoryId'] = $featureId
+                } else {
+                    $storyParams['ParentFeatureId'] = $featureId
                 }
 
                 if ($story.description) {
                     $storyParams['Description'] = $story.description
                 }
-                if ($story.acceptanceCriteria) {
-                    $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
-                }
-                if ($story.acScenarios) {
-                    $storyParams['AcScenarios'] = $story.acScenarios
-                }
-                if ($story.extraInformation) {
-                    $storyParams['ExtraInformation'] = $story.extraInformation
+                if (-not $isBug) {
+                    if ($story.acceptanceCriteria) {
+                        $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+                    }
+                    if ($story.acScenarios) {
+                        $storyParams['AcScenarios'] = $story.acScenarios
+                    }
+                    if ($story.extraInformation) {
+                        $storyParams['ExtraInformation'] = $story.extraInformation
+                    }
                 }
                 if ($story.storyPoints) {
                     $storyParams['StoryPoints'] = $story.storyPoints
@@ -1483,20 +1518,22 @@ try {
                 if ($story.priority) {
                     $storyParams['Priority'] = $story.priority
                 }
-                if ($story.originalEstimate) {
-                    $storyParams['OriginalEstimate'] = $story.originalEstimate
-                }
-                if ($story.fixedIn) {
-                    $storyParams['FixedIn'] = $story.fixedIn
-                }
-                if ($null -ne $story.deployedToDev) {
-                    $storyParams['DeployedToDev'] = $story.deployedToDev
-                }
-                if ($null -ne $story.deployedToStaging) {
-                    $storyParams['DeployedToStaging'] = $story.deployedToStaging
-                }
-                if ($null -ne $story.deployedToProduction) {
-                    $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                if (-not $isBug) {
+                    if ($story.originalEstimate) {
+                        $storyParams['OriginalEstimate'] = $story.originalEstimate
+                    }
+                    if ($story.fixedIn) {
+                        $storyParams['FixedIn'] = $story.fixedIn
+                    }
+                    if ($null -ne $story.deployedToDev) {
+                        $storyParams['DeployedToDev'] = $story.deployedToDev
+                    }
+                    if ($null -ne $story.deployedToStaging) {
+                        $storyParams['DeployedToStaging'] = $story.deployedToStaging
+                    }
+                    if ($null -ne $story.deployedToProduction) {
+                        $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                    }
                 }
                 if ($story.state) {
                     $storyParams['State'] = $story.state
@@ -1507,10 +1544,15 @@ try {
                 # Merge config-driven fields from configFields into storyParams
                 Merge-ConfigFieldsToParams -Params $storyParams -Item $story
 
-                $null = & ssLogIt.ps1 -Level Debug -Message "Creating Story: $($story.title)"
-                $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                $null = & ssLogIt.ps1 -Level Debug -Message "Creating ${storyTypeLabel}: $($story.title)"
+                if ($isBug) {
+                    $createdStory = & "$PSScriptRoot\UpsertAzDoBug.ps1" @storyParams -ErrorAction Stop
+                    $summary.Created.Bugs++
+                } else {
+                    $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                    $summary.Created.Stories++
+                }
                 $storyId = $createdStory.id
-                $summary.Created.Stories++
             }
             else {
                 # Update existing story only when content has changed
@@ -1524,14 +1566,16 @@ try {
                 if ($story.description) {
                     $storyParams['Description'] = $story.description
                 }
-                if ($story.acceptanceCriteria) {
-                    $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
-                }
-                if ($story.acScenarios) {
-                    $storyParams['AcScenarios'] = $story.acScenarios
-                }
-                if ($story.extraInformation) {
-                    $storyParams['ExtraInformation'] = $story.extraInformation
+                if (-not $isBug) {
+                    if ($story.acceptanceCriteria) {
+                        $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
+                    }
+                    if ($story.acScenarios) {
+                        $storyParams['AcScenarios'] = $story.acScenarios
+                    }
+                    if ($story.extraInformation) {
+                        $storyParams['ExtraInformation'] = $story.extraInformation
+                    }
                 }
                 if ($story.storyPoints) {
                     $storyParams['StoryPoints'] = $story.storyPoints
@@ -1539,20 +1583,22 @@ try {
                 if ($story.priority) {
                     $storyParams['Priority'] = $story.priority
                 }
-                if ($story.originalEstimate) {
-                    $storyParams['OriginalEstimate'] = $story.originalEstimate
-                }
-                if ($story.fixedIn) {
-                    $storyParams['FixedIn'] = $story.fixedIn
-                }
-                if ($null -ne $story.deployedToDev) {
-                    $storyParams['DeployedToDev'] = $story.deployedToDev
-                }
-                if ($null -ne $story.deployedToStaging) {
-                    $storyParams['DeployedToStaging'] = $story.deployedToStaging
-                }
-                if ($null -ne $story.deployedToProduction) {
-                    $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                if (-not $isBug) {
+                    if ($story.originalEstimate) {
+                        $storyParams['OriginalEstimate'] = $story.originalEstimate
+                    }
+                    if ($story.fixedIn) {
+                        $storyParams['FixedIn'] = $story.fixedIn
+                    }
+                    if ($null -ne $story.deployedToDev) {
+                        $storyParams['DeployedToDev'] = $story.deployedToDev
+                    }
+                    if ($null -ne $story.deployedToStaging) {
+                        $storyParams['DeployedToStaging'] = $story.deployedToStaging
+                    }
+                    if ($null -ne $story.deployedToProduction) {
+                        $storyParams['DeployedToProduction'] = $story.deployedToProduction
+                    }
                 }
                 if ($story.state) {
                     $storyParams['State'] = $story.state
@@ -1566,14 +1612,19 @@ try {
                 $existingStory = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $storyId -PatToken $PatToken
                 $storyChangeState = Get-WorkItemChangeState -MarkdownFields (Get-StoryMarkdownFields -Story $story) -ExistingItem $existingStory
                 if ($storyChangeState -eq 'NoChange') {
-                    $null = & ssLogIt.ps1 -Level Debug -Message "No changes detected for Story: $($story.title) (ID: $storyId), skipping update"
+                    $null = & ssLogIt.ps1 -Level Debug -Message "No changes detected for ${storyTypeLabel}: $($story.title) (ID: $storyId), skipping update"
                     $createdStory = $existingStory
-                    $summary.NoChange.Stories++
+                    if ($isBug) { $summary.NoChange.Bugs++ } else { $summary.NoChange.Stories++ }
                 }
                 else {
-                    $null = & ssLogIt.ps1 -Level Debug -Message "Updating Story: $($story.title) (ID: $storyId)"
-                    $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
-                    $summary.Updated.Stories++
+                    $null = & ssLogIt.ps1 -Level Debug -Message "Updating ${storyTypeLabel}: $($story.title) (ID: $storyId)"
+                    if ($isBug) {
+                        $createdStory = & "$PSScriptRoot\UpsertAzDoBug.ps1" @storyParams -ErrorAction Stop
+                        $summary.Updated.Bugs++
+                    } else {
+                        $createdStory = & "$PSScriptRoot\UpsertAzDoStory.ps1" @storyParams -ErrorAction Stop
+                        $summary.Updated.Stories++
+                    }
                 }
             }
             
