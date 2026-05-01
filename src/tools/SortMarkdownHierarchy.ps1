@@ -253,11 +253,11 @@ function Format-ItemAsMarkdown {
         [void]$sb.AppendLine($ac)
     }
 
-    # AC Scenarios
+    # Acceptance Tests
     $acs = Normalize-Text $Item['acScenarios']
     if (-not [string]::IsNullOrWhiteSpace($acs)) {
         [void]$sb.AppendLine('')
-        [void]$sb.AppendLine('#### AC Scenarios')
+        [void]$sb.AppendLine('#### Acceptance Tests')
         [void]$sb.AppendLine($acs)
     }
 
