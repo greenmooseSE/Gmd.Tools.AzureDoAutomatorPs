@@ -31,7 +31,7 @@ references to the canonical label "Acceptance Tests".
 
 ### Story: Rename SetAzDoAcScenarios.ps1 to SetAzDoAcceptanceTests.ps1
 {WorkItemId}: 2689
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 2
