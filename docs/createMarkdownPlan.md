@@ -35,7 +35,10 @@ Does NOT apply to:
 
 # Title rules
 * Avoid emoticons in titles, but use them in other fields if it adds value.
-* To indicate an order of implementation, you may add numeric suffix e.g. `(001)` in the title, but it is optional.
+* **Stories must always include a zero-padded three-digit numeric order suffix** to indicate the intended implementation order, e.g. `### Story: My story title (001)`.
+  * Number stories sequentially starting at `(001)`, reflecting the order they should be implemented.
+  * The order of story blocks in the plan file itself must match the suffix order (i.e. `(001)` appears before `(002)`, etc.).
+  * Apply the same suffix convention to epics and features **only when the plan file contains multiple epics or multiple features**.
 
 # General description rules
 ## Headers inside descriptions
