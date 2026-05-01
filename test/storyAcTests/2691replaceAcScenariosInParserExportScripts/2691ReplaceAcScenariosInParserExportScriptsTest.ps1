@@ -8,8 +8,8 @@ Verifies <see cref="ConvertMarkdownToHierarchyJson"/>, <see cref="ConvertHierarc
 "Acceptance Tests" as the canonical field label.
 
 .DESCRIPTION
-Tests: new {Acceptance Tests} curly-brace label is parsed to acScenarios, legacy {Acceptance Tests}
-still parsed with deprecation warning, ConvertHierarchyToMarkdown outputs {Acceptance Tests},
+Tests: new {Acceptance Tests} curly-brace label is parsed to acceptanceTests,
+ConvertHierarchyToMarkdown outputs {Acceptance Tests},
 SortMarkdownHierarchy outputs #### Acceptance Tests heading, and CoreOutputLabels updated.
 
 Run with: Invoke-Pester .\test\storyAcTests\2691replaceAcScenariosInParserExportScripts\2691ReplaceAcScenariosInParserExportScriptsTest.ps1
@@ -31,7 +31,7 @@ Describe 'Story 2691 - Replace Acceptance Tests in parser and export scripts' {
 
     Context 'ConvertMarkdownToHierarchyJson.ps1 - new Acceptance Tests label' {
 
-        It 'GivenCurlyAcceptanceTestsLabel_WhenParsed_ItShouldPopulateAcScenarios' {
+        It 'GivenCurlyAcceptanceTestsLabel_WhenParsed_ItShouldPopulateAcceptanceTests' {
             $md = @"
 # Epic: My Epic
 {WorkItemId}: 1
@@ -52,8 +52,8 @@ Then the field value is stored
                 -ErrorAction Stop
 
             $story = $result.workItems[0].children[0].children[0]
-            $story.acScenarios | Should Not BeNullOrEmpty
-            ($story.acScenarios -match 'Given a story exists') | Should Be $true
+            $story.acceptanceTests | Should Not BeNullOrEmpty
+            ($story.acceptanceTests -match 'Given a story exists') | Should Be $true
         }
 
         It 'GivenAcceptanceTestsLabel_ItShouldBeInMappedFieldsList' {
@@ -97,23 +97,23 @@ Then the field value is stored
 
     Context 'NewAzDoHierarchyFromMarkdown.ps1 - still maps to Custom.AcceptanceTests' {
 
-        It 'GivenNewAzDoHierarchyScript_ItShouldMapAcScenariosToFieldConstant' {
+        It 'GivenNewAzDoHierarchyScript_ItShouldMapAcceptanceTestsToFieldConstant' {
             $content = Get-Content (Join-Path $SRC_DIR 'NewAzDoHierarchyFromMarkdown.ps1') -Raw
-            ($content -match '\$Story\.acScenarios') | Should Be $true
-            ($content -match 'FIELD_AC_SCENARIOS') | Should Be $true
+            ($content -match '\$Story\.acceptanceTests') | Should Be $true
+            ($content -match 'FIELD_ACCEPTANCE_TESTS') | Should Be $true
         }
     }
 
     Context 'Integration: Acceptance Tests field round-trip via parser+export with org/project' {
 
-        It 'GivenMarkdownWithAcceptanceTestsField_WhenParsedWithOrgProject_ItShouldPopulateAcScenarios' {
+        It 'GivenMarkdownWithAcceptanceTestsField_WhenParsedWithOrgProject_ItShouldPopulateAcceptanceTests' {
             $md = @"
 ### Story: Round-trip story
 {WorkItemId}: 9999
 {Acceptance Tests}
 Given a round-trip test
 When we parse with org/project
-Then acScenarios is populated
+Then acceptanceTests is populated
 "@
             $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
                 -MarkdownContent $md `
@@ -121,8 +121,8 @@ Then acScenarios is populated
                 -ErrorAction Stop
 
             $story = $result.workItems[0]
-            $story.acScenarios | Should Not BeNullOrEmpty
-            ($story.acScenarios -match 'Given a round-trip test') | Should Be $true
+            $story.acceptanceTests | Should Not BeNullOrEmpty
+            ($story.acceptanceTests -match 'Given a round-trip test') | Should Be $true
         }
 
     }

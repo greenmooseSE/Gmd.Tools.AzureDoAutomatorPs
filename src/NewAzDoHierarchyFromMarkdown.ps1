@@ -435,7 +435,7 @@ function Get-StoryMarkdownFields {
     if (-not [string]::IsNullOrWhiteSpace($Story.assignedTo)) { $fields[$script:FIELD_SYSTEM_ASSIGNED_TO] = $Story.assignedTo }
     if ($Story.description) { $fields[$script:FIELD_DESCRIPTION] = $Story.description }
     if ($Story.acceptanceCriteria) { $fields[$script:FIELD_ACCEPTANCE_CRITERIA] = $Story.acceptanceCriteria }
-    if ($Story.acScenarios) { $fields[$script:FIELD_AC_SCENARIOS] = $Story.acScenarios }
+    if ($Story.acceptanceTests) { $fields[$script:FIELD_ACCEPTANCE_TESTS] = $Story.acceptanceTests }
     if ($Story.extraInformation) { $fields[$script:FIELD_EXTRA_INFORMATION] = $Story.extraInformation }
     if ($Story.storyPoints) { $fields[$script:FIELD_STORY_POINTS] = [string]$Story.storyPoints }
     if ($Story.priority) { $fields[$script:FIELD_PRIORITY] = [string]$Story.priority }
@@ -779,7 +779,7 @@ function Convert-HierarchyStory {
         description          = Encode-NonHtmlAngleBrackets $Item['description']
         storyPoints          = $Item['storyPoints']
         acceptanceCriteria   = Encode-NonHtmlAngleBrackets $Item['acceptanceCriteria']
-        acScenarios          = Encode-NonHtmlAngleBrackets $Item['acScenarios']
+        acceptanceTests          = Encode-NonHtmlAngleBrackets $Item['acceptanceTests']
         extraInformation     = Encode-NonHtmlAngleBrackets $Item['extraInformation']
         priority             = $Item['priority']
         originalEstimate     = $Item['originalEstimate']
@@ -1265,8 +1265,8 @@ try {
                         if ($story.acceptanceCriteria) {
                             $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
                         }
-                        if ($story.acScenarios) {
-                            $storyParams['AcScenarios'] = $story.acScenarios
+                        if ($story.acceptanceTests) {
+                            $storyParams['AcceptanceTests'] = $story.acceptanceTests
                         }
                         if ($story.extraInformation) {
                             $storyParams['ExtraInformation'] = $story.extraInformation
@@ -1330,8 +1330,8 @@ try {
                         if ($story.acceptanceCriteria) {
                             $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
                         }
-                        if ($story.acScenarios) {
-                            $storyParams['AcScenarios'] = $story.acScenarios
+                        if ($story.acceptanceTests) {
+                            $storyParams['AcceptanceTests'] = $story.acceptanceTests
                         }
                         if ($story.extraInformation) {
                             $storyParams['ExtraInformation'] = $story.extraInformation
@@ -1582,8 +1582,8 @@ try {
                     if ($story.acceptanceCriteria) {
                         $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
                     }
-                    if ($story.acScenarios) {
-                        $storyParams['AcScenarios'] = $story.acScenarios
+                    if ($story.acceptanceTests) {
+                        $storyParams['AcceptanceTests'] = $story.acceptanceTests
                     }
                     if ($story.extraInformation) {
                         $storyParams['ExtraInformation'] = $story.extraInformation
@@ -1647,8 +1647,8 @@ try {
                     if ($story.acceptanceCriteria) {
                         $storyParams['AcceptanceCriteria'] = $story.acceptanceCriteria
                     }
-                    if ($story.acScenarios) {
-                        $storyParams['AcScenarios'] = $story.acScenarios
+                    if ($story.acceptanceTests) {
+                        $storyParams['AcceptanceTests'] = $story.acceptanceTests
                     }
                     if ($story.extraInformation) {
                         $storyParams['ExtraInformation'] = $story.extraInformation

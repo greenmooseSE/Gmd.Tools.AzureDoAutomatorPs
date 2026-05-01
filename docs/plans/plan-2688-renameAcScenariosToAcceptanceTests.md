@@ -2,7 +2,7 @@
 {WorkItemId}: 1577
 {State}: New
 
-## Feature: Rename "Acceptance Tests" to "Acceptance Tests" Everywhere
+## Feature: Rename "AC Scenarios" to "Acceptance Tests" Everywhere
 {WorkItemId}: 2688
 {State}: New
 {tags}: azDoAutomator, rename, cleanup, epicAzDoAutomator
@@ -11,19 +11,19 @@
 
 ### {Description}
 The Azure DevOps field `Custom.AcceptanceTests` already uses label "Acceptance Tests" in  
-`appSettings.json`, but the codebase still references the legacy name "Acceptance Tests" in scripts,  
+`appSettings.json`, but the codebase still references the legacy name "AC Scenarios" in scripts,  
 markdown examples, documentation, prompt templates, and test files. This feature aligns all  
 references to the canonical label "Acceptance Tests".
 
 ### {Acceptance Tests}
 - [ ] **Test 1: All scripts use "Acceptance Tests" label consistently**  
-  1. Run: `Select-String -Path src\*.ps1 -Pattern "Acceptance Tests" -SimpleMatch`  
+  1. Run: `Select-String -Path src\*.ps1 -Pattern "AC Scenarios" -SimpleMatch`  
   2. Verify zero matches.  
 
 - [ ] **Test 2: Markdown examples parse correctly with new field name**  
   1. Run: `.\src\ConvertMarkdownToHierarchyJson.ps1` against `example-hierarchy.md`.  
-  2. Verify "Acceptance Tests" field is populated in output JSON.  
-  3. Verify no "Acceptance Tests" key exists in output JSON.  
+  2. Verify "acceptanceTests" field is populated in output JSON.  
+  3. Verify no "AC Scenarios" key exists in output JSON.  
 
 - [ ] **Test 3: Existing Pester tests pass after rename**  
   1. Run all Pester tests in `test/`.  
@@ -58,7 +58,7 @@ Scenario: Renamed script sets Acceptance Tests field
   Then the Custom.AcceptanceTests field is updated in Azure DevOps
 ```
 
-### Story: Replace "Acceptance Tests" references in all markdown example files
+### Story: Replace "AC Scenarios" references in all markdown example files
 {WorkItemId}: 2690
 {State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
@@ -66,7 +66,7 @@ Scenario: Renamed script sets Acceptance Tests field
 {Priority}: 2
 
 #### {Description}
-Replace all occurrences of `{Acceptance Tests}` and `#### Acceptance Tests` with `{Acceptance Tests}`  
+Replace all occurrences of `{AC Scenarios}` and `#### AC Scenarios` with `{Acceptance Tests}`  
 in `example-hierarchy.md`, `example-hierarchy2.md`, and `feature-markdown-export-import-plan.md`.
 
 #### {Acceptance Criteria}
@@ -75,7 +75,7 @@ in `example-hierarchy.md`, `example-hierarchy2.md`, and `feature-markdown-export
 | | `example-hierarchy.md` uses `{Acceptance Tests}` |
 | | `example-hierarchy2.md` uses `{Acceptance Tests}` (and new curly-brace syntax) |
 | | `feature-markdown-export-import-plan.md` uses `{Acceptance Tests}` |
-| | `Select-String -Path *.md -Pattern "Acceptance Tests"` returns zero matches in root .md files |
+| | `Select-String -Path *.md -Pattern "AC Scenarios"` returns zero matches in root .md files |
 
 #### {Acceptance Tests}
 ```gherkin
@@ -85,7 +85,7 @@ Scenario: Parser recognizes Acceptance Tests field from example files
   Then the output JSON contains "Acceptance Tests" field entries
 ```
 
-### Story: Replace "Acceptance Tests" in parser and export scripts
+### Story: Replace "AC Scenarios" in parser and export scripts
 {WorkItemId}: 2691
 {State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
@@ -95,7 +95,7 @@ Scenario: Parser recognizes Acceptance Tests field from example files
 #### {Description}
 Update `ConvertMarkdownToHierarchyJson.ps1`, `ConvertHierarchyToMarkdown.ps1`,  
 `NewAzDoHierarchyFromMarkdown.ps1`, and `src/tools/SortMarkdownHierarchy.ps1` to use  
-"Acceptance Tests" as the field label. Remove legacy `#### Acceptance Tests` header detection  
+"Acceptance Tests" as the field label. Remove legacy `#### AC Scenarios` header detection  
 while keeping backward compatibility during a transition period (emit warning on old syntax).
 
 #### {Acceptance Criteria}
@@ -105,7 +105,7 @@ while keeping backward compatibility during a transition period (emit warning on
 | | `ConvertHierarchyToMarkdown.ps1` outputs `{Acceptance Tests}` |
 | | `NewAzDoHierarchyFromMarkdown.ps1` maps field to `Custom.AcceptanceTests` |
 | | `SortMarkdownHierarchy.ps1` uses "Acceptance Tests" heading |
-| | Legacy `{Acceptance Tests}` still parsed with deprecation warning |
+| | Legacy `{AC Scenarios}` still parsed with deprecation warning |
 | | All related Pester tests pass |
 
 #### {Acceptance Tests}
@@ -115,8 +115,8 @@ Scenario: Parser handles new Acceptance Tests field name
   When ConvertMarkdownToHierarchyJson.ps1 processes it
   Then the JSON output maps to Custom.AcceptanceTests
 
-Scenario: Legacy Acceptance Tests field emits deprecation warning
-  Given a markdown file with {Acceptance Tests} field
+Scenario: Legacy AC Scenarios field emits deprecation warning
+  Given a markdown file with {AC Scenarios} field
   When ConvertMarkdownToHierarchyJson.ps1 processes it
   Then the field is still parsed correctly
   And a deprecation warning is emitted
@@ -130,7 +130,7 @@ Scenario: Legacy Acceptance Tests field emits deprecation warning
 {Priority}: 2
 
 #### {Description}
-Update all references to "Acceptance Tests" in:
+Update all references to "AC Scenarios" in:
 - `README.md`
 - `docs/implementStoryRules.md`
 - `docs/promptImplementStory.md`
@@ -141,7 +141,7 @@ Update all references to "Acceptance Tests" in:
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
-| | `Select-String -Path docs\*.md,docs\*.ps1,README.md -Pattern "Acceptance Tests"` returns zero |
+| | `Select-String -Path docs\*.md,docs\*.ps1,README.md -Pattern "AC Scenarios"` returns zero |
 | | All prompt templates reference "Acceptance Tests" |
 | | README.md sections describing the field use "Acceptance Tests" |
 | | `docs/implementStoryRules.md` updated |
@@ -150,7 +150,7 @@ Update all references to "Acceptance Tests" in:
 ```gherkin
 Scenario: Prompt templates use Acceptance Tests terminology
   Given docs/promptImplementStory_ThisProject.md content
-  When searching for "Acceptance Tests"
+  When searching for "AC Scenarios"
   Then zero matches are found
   And "Acceptance Tests" appears in the verification section
 ```
@@ -164,13 +164,13 @@ Scenario: Prompt templates use Acceptance Tests terminology
 
 #### {Description}
 Update existing plan files in `docs/plans/` and `docs/legacyPlans/` to replace  
-"Acceptance Tests" with "Acceptance Tests" where applicable.
+"AC Scenarios" with "Acceptance Tests" where applicable.
 
 #### {Acceptance Criteria}
 | Status | Criteria |
 |--------|----------|
 | | All plan files use "Acceptance Tests" |
-| | No plan file contains "Acceptance Tests" |
+| | No plan file contains "AC Scenarios" |
 | | Plans still parse correctly via ConvertMarkdownToHierarchyJson.ps1 |
 
 #### {Acceptance Tests}

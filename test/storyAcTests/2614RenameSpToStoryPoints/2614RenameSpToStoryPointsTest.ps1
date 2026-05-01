@@ -75,7 +75,7 @@ Feature description
                 StoryPoints        = 5.0
                 Description        = 'A story'
                 AcceptanceCriteria = $null
-                ACScenarios        = $null
+                AcceptanceTests        = $null
                 ExtraInformation   = $null
                 Children           = @()
             }

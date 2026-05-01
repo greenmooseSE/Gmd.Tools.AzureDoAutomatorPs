@@ -33,7 +33,7 @@ function New-TestStory {
         [object]$StoryPoints = $null,
         [object]$Description = $null,
         [object]$AcceptanceCriteria = $null,
-        [object]$ACScenarios = $null,
+        [object]$AcceptanceTests = $null,
         [object]$ExtraInformation = $null,
         [object]$AssignedTo = $null,
         [object]$OriginalEstimate = $null,
@@ -48,7 +48,7 @@ function New-TestStory {
         StoryPoints        = $StoryPoints
         Description        = $Description
         AcceptanceCriteria = $AcceptanceCriteria
-        ACScenarios        = $ACScenarios
+        AcceptanceTests        = $AcceptanceTests
         ExtraInformation   = $ExtraInformation
         AssignedTo         = $AssignedTo
         OriginalEstimate   = $OriginalEstimate
@@ -153,7 +153,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
                 -Tags 'foo' -StoryPoints 3 `
                 -Description 'Description here.' `
                 -AcceptanceCriteria 'AC here.' `
-                -ACScenarios 'Scenarios here.' `
+                -AcceptanceTests 'Scenarios here.' `
                 -ExtraInformation 'Extra info.'
             $output = & (Join-Path $SRC_DIR 'ConvertHierarchyToMarkdown.ps1') `
                 -Hierarchy $story -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT 2>&1 |

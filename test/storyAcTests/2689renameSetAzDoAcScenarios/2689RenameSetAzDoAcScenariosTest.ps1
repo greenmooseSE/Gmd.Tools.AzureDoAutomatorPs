@@ -53,7 +53,7 @@ Describe 'Story 2689 - Rename SetAzDoAcScenarios to SetAzDoAcceptanceTests' {
 
         It 'GivenNewScript_ItShouldReferenceCorrectFieldConstant' {
             $content = Get-Content (Join-Path $SRC_DIR 'SetAzDoAcceptanceTests.ps1') -Raw
-            $content -match 'FIELD_AC_SCENARIOS' | Should Be $true
+            $content -match 'FIELD_ACCEPTANCE_TESTS' | Should Be $true
         }
     }
 

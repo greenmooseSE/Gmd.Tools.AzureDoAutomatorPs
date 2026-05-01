@@ -259,7 +259,7 @@ function Convert-StoryToMarkdown {
     $State = $Story.State
     $Description = $Story.Description
     $AcceptanceCriteria = $Story.AcceptanceCriteria
-    $ACScenarios = $Story.ACScenarios
+    $AcceptanceTests = $Story.AcceptanceTests
     $StoryPoints = $Story.StoryPoints
     $Tags = $Story.Tags
     $ExtraInformation = $Story.ExtraInformation
@@ -315,9 +315,9 @@ function Convert-StoryToMarkdown {
     }
     
     # Add Acceptance Tests
-    if ($ACScenarios) {
+    if ($AcceptanceTests) {
         $markdown += "`n{Acceptance Tests}  `n"
-        $markdown += (Add-MarkdownLineBreaks $ACScenarios)
+        $markdown += (Add-MarkdownLineBreaks $AcceptanceTests)
         $markdown += "`n"
     }
     

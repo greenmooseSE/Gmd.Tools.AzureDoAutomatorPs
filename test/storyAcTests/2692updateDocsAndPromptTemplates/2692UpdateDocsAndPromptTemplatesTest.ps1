@@ -4,10 +4,10 @@
 .SYNOPSIS
 AC tests for Story 2692: Update documentation and prompt templates.
 Verifies that README.md and all files under docs/ contain no references
-to "Acceptance Tests" and use "Acceptance Tests" instead.
+to "AC Scenarios" and use "Acceptance Tests" instead.
 
 .DESCRIPTION
-Tests: README.md, docs/*.md, and docs/*.ps1 contain no "Acceptance Tests" text.
+Tests: README.md, docs/*.md, and docs/*.ps1 contain no "AC Scenarios" text.
 Also verifies "Acceptance Tests" is present in key documentation files.
 
 Run with: Invoke-Pester .\test\storyAcTests\2692updateDocsAndPromptTemplates\2692UpdateDocsAndPromptTemplatesTest.ps1
@@ -20,11 +20,11 @@ $ErrorActionPreference = 'Stop'
 
 Describe 'Story 2692 - Update documentation and prompt templates' {
 
-    Context 'README.md - no Acceptance Tests references' {
+    Context 'README.md - no AC Scenarios references' {
 
         It 'GivenReadme_ItShouldNotContainAcScenariosText' {
             $content = Get-Content (Join-Path $REPO_ROOT 'README.md') -Raw
-            ($content -match 'Acceptance Tests') | Should Be $false
+            ($content -match 'AC Scenarios') | Should Be $false
         }
 
         It 'GivenReadme_ItShouldNotContainSingularAcScenarioText' {
@@ -38,7 +38,7 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
         }
     }
 
-    Context 'docs/*.md - no Acceptance Tests references' {
+    Context 'docs/*.md - no AC Scenarios references' {
 
         $docFiles = Get-ChildItem (Join-Path $REPO_ROOT 'docs') -Filter '*.md' -File |
             Where-Object { $_.DirectoryName -notmatch '\\(plans|legacyPlans)' }
@@ -47,7 +47,7 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
             $fileName = $file.Name
             It "GivenDocFile_${fileName}_ItShouldNotContainAcScenariosText" {
                 $content = Get-Content $file.FullName -Raw
-                ($content -match 'Acceptance Tests') | Should Be $false
+                ($content -match 'AC Scenarios') | Should Be $false
             }
             It "GivenDocFile_${fileName}_ItShouldNotContainSingularAcScenarioText" {
                 $content = Get-Content $file.FullName -Raw
@@ -56,7 +56,7 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
         }
     }
 
-    Context 'docs/*.ps1 - no Acceptance Tests references' {
+    Context 'docs/*.ps1 - no AC Scenarios references' {
 
         $ps1Files = Get-ChildItem (Join-Path $REPO_ROOT 'docs') -Filter '*.ps1' -File
 
@@ -64,7 +64,7 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
             $fileName = $file.Name
             It "GivenDocPs1File_${fileName}_ItShouldNotContainAcScenariosText" {
                 $content = Get-Content $file.FullName -Raw
-                ($content -match 'Acceptance Tests') | Should Be $false
+                ($content -match 'AC Scenarios') | Should Be $false
             }
         }
     }

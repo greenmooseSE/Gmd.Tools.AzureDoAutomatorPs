@@ -307,7 +307,7 @@ $story = .\UpsertAzDoStory.ps1 `
 - `Id` (optional): Story ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Story description
 - `AcceptanceCriteria` (optional): Acceptance criteria text
-- `AcScenarios` (optional): Acceptance criteria scenarios
+- `AcceptanceTests` (optional): Acceptance criteria scenarios
 - `ExtraInformation` (optional): Extra information text
 - `StoryPoints` (optional): Story points (non-negative integer)
 - `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
@@ -611,7 +611,7 @@ $fullStory = .\GetAzDoUserStory.ps1 `
 
 **Output Fields (without -Full):**
 - Id, State, Title
-- Description, AcceptanceCriteria, ACScenarios
+- Description, AcceptanceCriteria, AcceptanceTests
 - StoryPoints, ExtraInformation, Tags
 - OriginalEstimate, RemainingWork, CompletedWork
 - AssignedTo (`[PSCustomObject]@{ DisplayName; UniqueName }`, null if unassigned)
@@ -1081,7 +1081,7 @@ Epic
     ├── Id, Title, Description, Effort, Tags
     └── Stories (array)
         ├── Id, State, Title, Description
-        ├── AcceptanceCriteria, ACScenarios
+        ├── AcceptanceCriteria, AcceptanceTests
         ├── StoryPoints, ExtraInformation, Tags
         └── Comments (array with latest version of each comment)
 ```
@@ -1134,7 +1134,7 @@ Feature
 ├── Id, Title, Description, Effort, Tags
 └── Stories (array)
     ├── Id, State, Title, Description
-    ├── AcceptanceCriteria, ACScenarios
+    ├── AcceptanceCriteria, AcceptanceTests
     ├── StoryPoints, ExtraInformation, Tags
     └── Tasks (array)
         ├── Id, State, Title, Description, Tags
@@ -1178,7 +1178,7 @@ foreach ($task in $hierarchy.Tasks) {
 ```
 Story
 ├── Id, State, Title, Description
-├── AcceptanceCriteria, ACScenarios
+├── AcceptanceCriteria, AcceptanceTests
 ├── StoryPoints, ExtraInformation, Tags
 └── Tasks (array)
     ├── Id, State, Title, Description, Tags

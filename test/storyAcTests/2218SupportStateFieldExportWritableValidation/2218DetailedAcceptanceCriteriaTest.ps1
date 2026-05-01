@@ -201,7 +201,7 @@ try {
         State = "Closed"  # Assuming this is not in writable states
         Description = "This is a test story"
         AcceptanceCriteria = $null
-        ACScenarios = $null
+        AcceptanceTests = $null
         StoryPoints = 5
         Tags = "test"
         ExtraInformation = $null

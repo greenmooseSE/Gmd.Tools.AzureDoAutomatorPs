@@ -98,7 +98,7 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 
 try {
     $updateFields = @{
-        $script:FIELD_AC_SCENARIOS = $AcceptanceTests
+        $script:FIELD_ACCEPTANCE_TESTS = $AcceptanceTests
     }
 
     $updated = Update-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $WorkItemId -Fields $updateFields -PatToken $PatToken

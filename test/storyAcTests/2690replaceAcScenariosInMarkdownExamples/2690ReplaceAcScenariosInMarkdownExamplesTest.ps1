@@ -2,14 +2,14 @@
 
 <#
 .SYNOPSIS
-AC tests for Story 2690: Replace "Acceptance Tests" references in all markdown example files.
+AC tests for Story 2690: Replace "AC Scenarios" references in all markdown example files.
 Verifies <see cref="example-hierarchy.md"/>, <see cref="example-hierarchy2.md"/>, and
 <see cref="feature-markdown-export-import-plan.md"/> use "Acceptance Tests" instead of
-"Acceptance Tests".
+"AC Scenarios".
 
 .DESCRIPTION
 Tests that all root-level markdown example files use "Acceptance Tests" label/field,
-that no "Acceptance Tests" occurrences remain in those files, and that the example files
+that no "AC Scenarios" occurrences remain in those files, and that the example files
 still parse correctly via ConvertMarkdownToHierarchyJson.ps1.
 
 Run with: Invoke-Pester .\test\storyAcTests\2690replaceAcScenariosInMarkdownExamples\2690ReplaceAcScenariosInMarkdownExamplesTest.ps1
@@ -33,7 +33,7 @@ Describe 'Story 2690 - Replace Acceptance Tests in markdown example files' {
 
         It 'GivenExampleHierarchyMd_ItShouldNotContainAcScenariosLabel' {
             $content = Get-Content (Join-Path $REPO_ROOT 'example-hierarchy.md') -Raw
-            ($content -match 'Acceptance Tests') | Should Be $false
+            ($content -match 'AC Scenarios') | Should Be $false
         }
 
         It 'GivenExampleHierarchyMd_ItShouldContainAcceptanceTestsLabel' {
@@ -46,7 +46,7 @@ Describe 'Story 2690 - Replace Acceptance Tests in markdown example files' {
 
         It 'GivenExampleHierarchy2Md_ItShouldNotContainAcScenariosLabel' {
             $content = Get-Content (Join-Path $REPO_ROOT 'example-hierarchy2.md') -Raw
-            ($content -match 'Acceptance Tests') | Should Be $false
+            ($content -match 'AC Scenarios') | Should Be $false
         }
 
         It 'GivenExampleHierarchy2Md_ItShouldContainAcceptanceTestsHeading' {
@@ -59,7 +59,7 @@ Describe 'Story 2690 - Replace Acceptance Tests in markdown example files' {
 
         It 'GivenExportImportPlanMd_ItShouldNotContainAcScenariosLabel' {
             $content = Get-Content (Join-Path $REPO_ROOT 'feature-markdown-export-import-plan.md') -Raw
-            ($content -match 'Acceptance Tests') | Should Be $false
+            ($content -match 'AC Scenarios') | Should Be $false
         }
 
         It 'GivenExportImportPlanMd_ItShouldContainAcceptanceTestsHeading' {

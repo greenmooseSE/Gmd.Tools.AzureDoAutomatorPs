@@ -126,8 +126,8 @@ try {
         if ($story.acceptanceCriteria) {
             Write-Host "`n  Acceptance Criteria items: $($story.acceptanceCriteria.Split([Environment]::NewLine).Count)"
         }
-        if ($story.acScenarios) {
-            Write-Host "  Acceptance Tests items: $($story.acScenarios.Split([Environment]::NewLine).Count)"
+        if ($story.acceptanceTests) {
+            Write-Host "  Acceptance Tests items: $($story.acceptanceTests.Split([Environment]::NewLine).Count)"
         }
         if ($story.extraInformation) {
             Write-Host "  Extra Information: $($story.extraInformation.Split([Environment]::NewLine).Count)"

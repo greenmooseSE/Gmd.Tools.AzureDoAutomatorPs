@@ -164,7 +164,7 @@ function Test-SpecialCharactersInCustomFields {
         StoryPoints = 3
         Description = "Test story"
         AcceptanceCriteria = $null
-        ACScenarios = $null
+        AcceptanceTests = $null
         ExtraInformation = $null
         CustomFields = @{
             "Custom.TestField" = $testValue
@@ -240,7 +240,7 @@ function Test-NullCustomFieldsDoNotFail {
         StoryPoints = 3
         Description = "Test story"
         AcceptanceCriteria = $null
-        ACScenarios = $null
+        AcceptanceTests = $null
         ExtraInformation = $null
         CustomFields = @{
             "Custom.EmptyField" = $null

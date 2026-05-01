@@ -278,7 +278,7 @@ Task desc **Bold**: task value more
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }
 
-        It "GivenBoldLinesInACScenarios_WhenParsing_ItShouldPreserveBoldAsContent" {
+        It "GivenBoldLinesInAcceptanceTests_WhenParsing_ItShouldPreserveBoldAsContent" {
             [string]$markdown = @"
 ### Story: Bold In Acceptance Tests
 {WorkItemId}: 996
@@ -299,11 +299,11 @@ Server returns 500
                 $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
                     -MarkdownFilePath $markdownPath -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT
                 $story = $result.workItems[0]
-                $story.ContainsKey("acScenarios") | Should Be $true
-                ($story.acScenarios -match [regex]::Escape("**Scenario 1**: happy path")) | Should Be $true
-                ($story.acScenarios -match [regex]::Escape("**Expected**: app loads successfully")) | Should Be $true
-                ($story.acScenarios -match [regex]::Escape("**Scenario 2**: error path")) | Should Be $true
-                ($story.acScenarios -match [regex]::Escape("**Expected**: friendly error message")) | Should Be $true
+                $story.ContainsKey("acceptanceTests") | Should Be $true
+                ($story.acceptanceTests -match [regex]::Escape("**Scenario 1**: happy path")) | Should Be $true
+                ($story.acceptanceTests -match [regex]::Escape("**Expected**: app loads successfully")) | Should Be $true
+                ($story.acceptanceTests -match [regex]::Escape("**Scenario 2**: error path")) | Should Be $true
+                ($story.acceptanceTests -match [regex]::Escape("**Expected**: friendly error message")) | Should Be $true
             }
             finally { Remove-Item -LiteralPath $markdownPath -ErrorAction SilentlyContinue }
         }

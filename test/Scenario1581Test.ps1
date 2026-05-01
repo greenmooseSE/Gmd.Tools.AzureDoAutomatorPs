@@ -139,7 +139,7 @@ try {
     
     # Update by ID only (no title provided in this call)
     $updated = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
-        -Id $storyId -Description "Updated via ID" -ACScenarios "Given: user is logged in, When: they click submit, Then: form submits" -ErrorAction Stop
+        -Id $storyId -Description "Updated via ID" -AcceptanceTests "Given: user is logged in, When: they click submit, Then: form submits" -ErrorAction Stop
     
     if ($updated.id -ne $storyId) {
         throw "Update by ID returned different ID"

@@ -165,7 +165,7 @@ Describe 'Story 2616 - Config-driven field read and write in API operations' {
                     'Microsoft.VSTS.Scheduling.RemainingWork'      = 12.0
                     'Microsoft.VSTS.Scheduling.CompletedWork'      = 4.0
                     'Microsoft.VSTS.Scheduling.StoryPoints'        = 5.0
-                    'Custom.ACScenarios'                           = 'Some scenarios'
+                    'Custom.AcceptanceTests'                           = 'Some scenarios'
                     'Custom.ExtraInformation'                      = $null
                     'Microsoft.VSTS.Common.AcceptanceCriteria'     = $null
                     'System.Description'                           = $null
@@ -180,7 +180,7 @@ Describe 'Story 2616 - Config-driven field read and write in API operations' {
                 Title              = $mockWorkItem.fields.'System.Title'
                 Description        = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $mockWorkItem.fields.'System.Description' } else { $null }
                 AcceptanceCriteria = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.AcceptanceCriteria') { $mockWorkItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' } else { $null }
-                ACScenarios        = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'Custom.ACScenarios') { $mockWorkItem.fields.'Custom.ACScenarios' } else { $null }
+                AcceptanceTests        = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'Custom.AcceptanceTests') { $mockWorkItem.fields.'Custom.AcceptanceTests' } else { $null }
                 StoryPoints        = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $mockWorkItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
                 ExtraInformation   = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $mockWorkItem.fields.'Custom.ExtraInformation' } else { $null }
                 Tags               = if ($mockWorkItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $mockWorkItem.fields.'System.Tags' } else { $null }
@@ -194,7 +194,7 @@ Describe 'Story 2616 - Config-driven field read and write in API operations' {
             $result.OriginalEstimate | Should Be 16.0
             $result.RemainingWork    | Should Be 12.0
             $result.CompletedWork    | Should Be 4.0
-            $result.ACScenarios      | Should Be 'Some scenarios'
+            $result.AcceptanceTests      | Should Be 'Some scenarios'
         }
     }
 

@@ -7,7 +7,7 @@ Fetches an Epic and builds a complete hierarchy showing:
 - Epic with State, Description and Effort
 - All Features under the Epic with State, Description and Effort
 - All Stories under each Feature with full User Story details:
-  Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
+  Id, State, Title, Description, AcceptanceCriteria, AcceptanceTests, 
   StoryPoints, ExtraInformation, Tags
 - All Tasks and Bugs under each Story
 

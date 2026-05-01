@@ -181,7 +181,7 @@ function Get-HeaderHashesForType {
 $script:KnownFields = [System.Collections.Generic.HashSet[string]]::new(
     [string[]]@(
         'type', 'title', 'workItemId', 'state', 'tags', 'storyPoints',
-        'effort', 'description', 'acceptanceCriteria', 'acScenarios',
+        'effort', 'description', 'acceptanceCriteria', 'acceptanceTests',
         'extraInformation', 'children'
     ),
     [System.StringComparer]::OrdinalIgnoreCase
@@ -254,7 +254,7 @@ function Format-ItemAsMarkdown {
     }
 
     # Acceptance Tests
-    $acs = Normalize-Text $Item['acScenarios']
+    $acs = Normalize-Text $Item['acceptanceTests']
     if (-not [string]::IsNullOrWhiteSpace($acs)) {
         [void]$sb.AppendLine('')
         [void]$sb.AppendLine('#### Acceptance Tests')

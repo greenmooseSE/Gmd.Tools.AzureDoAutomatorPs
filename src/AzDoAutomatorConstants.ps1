@@ -56,7 +56,7 @@ $ErrorActionPreference = 'Stop'
 # Description and content fields
 [string]$script:FIELD_DESCRIPTION = 'System.Description'
 [string]$script:FIELD_ACCEPTANCE_CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria'
-[string]$script:FIELD_AC_SCENARIOS = 'Custom.AcceptanceTests'
+[string]$script:FIELD_ACCEPTANCE_TESTS = 'Custom.AcceptanceTests'
 [string]$script:FIELD_EXTRA_INFORMATION = 'Custom.ExtraInformation'
 
 # Bug-specific fields
@@ -148,7 +148,7 @@ $ErrorActionPreference = 'Stop'
 [regex]$script:REGEX_MARKDOWN_BUG = '^\#\#\#\#\s+Bug:\s*(.+)$'       # #### Bug: Title
 [regex]$script:REGEX_MARKDOWN_SECTION_HEADER = '^\#\#\#\#\s+(.+)$'  # #### Section Header (AC, ACS, EI, Repro Steps, etc.)
 [regex]$script:REGEX_MARKDOWN_AC = '^\s*-\s*AC:\s*(.+)$'     # - AC: Acceptance Criteria
-[regex]$script:REGEX_MARKDOWN_AC_SCENARIOS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Criteria Scenarios
+[regex]$script:REGEX_MARKDOWN_ACCEPTANCE_TESTS = '^\s*-\s*ACS:\s*(.+)$'     # - ACS: Acceptance Tests shorthand
 [regex]$script:REGEX_MARKDOWN_EXTRA_INFO = '^\s*-\s*EI:\s*(.+)$'     # - EI: Extra Information
 [regex]$script:REGEX_MARKDOWN_SP = '^\s*-\s*SP:\s*(\d+)$'    # - SP: 5
 [regex]$script:REGEX_MARKDOWN_ORIGINAL_ESTIMATE = '^\*\*Original Estimate\*\*:\s*(\d+(?:\.\d+)?)$'    # **Original Estimate**: 8

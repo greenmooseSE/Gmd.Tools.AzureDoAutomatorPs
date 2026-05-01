@@ -6,7 +6,7 @@ Retrieve Azure DevOps Feature hierarchy with Stories and Tasks
 Fetches a Feature and builds a complete hierarchy showing:
 - Feature with State, Description and Effort
 - All Stories under the Feature with full Story details:
-  Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
+  Id, State, Title, Description, AcceptanceCriteria, AcceptanceTests, 
   StoryPoints, ExtraInformation, Tags
 - All Tasks under each Story
 

@@ -10,7 +10,7 @@ With -Full switch, returns the complete work item JSON including all fields and 
 
 Without -Full, returns a structured object with key story properties:
 - Id, State, Title
-- Description, AcceptanceCriteria, ACScenarios, StoryPoints, ExtraInformation
+- Description, AcceptanceCriteria, AcceptanceTests, StoryPoints, ExtraInformation
 - Tags
 
 .PARAMETER Organization
@@ -155,7 +155,7 @@ try {
         AssignedTo = $assignedTo
         Description = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Description') { $workItem.fields.'System.Description' } else { $null }
         AcceptanceCriteria = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.AcceptanceCriteria') { $workItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' } else { $null }
-        ACScenarios = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.AcceptanceTests') { $workItem.fields.'Custom.AcceptanceTests' } else { $null }
+        AcceptanceTests = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.AcceptanceTests') { $workItem.fields.'Custom.AcceptanceTests' } else { $null }
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }
