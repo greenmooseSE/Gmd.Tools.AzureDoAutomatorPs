@@ -11,8 +11,20 @@
 - **WorkItemId**: Should only reflect identifier from AzureDO for existing stories, should NEVER be generated. For new stories this should be left empty.
 
 ## Description
-- Should contain 3-line persona layout (`**As a** ... **I want** ... **So that** ...`)
-- May contain headers with content e.g. `### Problem` and `## Solution`.
+- **MUST** begin with a 3-line persona layout exactly matching this format (on three separate lines):
+  ```
+  **As a** <role/persona>  
+  **I want** <goal/desire>  
+  **so that** <benefit/value>.  
+  ```
+  Example:
+  ```
+  **As a** developer using the API  
+  **I want** paginated results  
+  **so that** I can handle large datasets efficiently.  
+  ```
+- The persona block **must appear as the very first content** in the description, before any technical details, headers, or parameter lists.
+- May contain additional headers with content below the persona block, e.g. `### Problem` and `### Solution`.
 
 
 ## Acceptance Criteria
