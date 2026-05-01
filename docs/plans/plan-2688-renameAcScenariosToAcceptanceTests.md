@@ -157,7 +157,7 @@ Scenario: Prompt templates use Acceptance Tests terminology
 
 ### Story: Update plan markdown files to use Acceptance Tests
 {WorkItemId}: 2693
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 3
