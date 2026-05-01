@@ -9,10 +9,11 @@ Create a feature plan markdown file for the feature described in the **Feature S
 
 **Required process:**
 1. Fetch the latest context from Azure DevOps — read the parent epic (and feature, if provided) using the scripts in `src/`. Do NOT rely on memory or previous context from earlier conversations.
-2. Use `src/GenerateAzDoMarkdownHierarchyTemplate.ps1` to generate a markdown starting template.
-3. Refer to `example-hierarchy.md` for reference formatting.
-4. Apply all rules from the sections below when designing stories and writing the plan.
-5. Save the plan as a new markdown file in `docs/plans/` (create the folder if it does not exist).
+2. Assess scope: if the plan would result in **only one story** (small or trivial scope), apply the **Small-scope plan rule** from the Plan Creation Rules section — use `src/FindAzDoItemByTitle.ps1` to check whether a `Maintenance {epic title}` feature already exists in Azure DevOps before continuing.
+3. Use `src/GenerateAzDoMarkdownHierarchyTemplate.ps1` to generate a markdown starting template.
+4. Refer to `example-hierarchy.md` for reference formatting.
+5. Apply all rules from the sections below when designing stories and writing the plan.
+6. Save the plan as described in the Output Requirements below.
 
 ## Azure DevOps Configuration
 
@@ -41,10 +42,11 @@ Create a feature plan markdown file for the feature described in the **Feature S
 
 ## Output Requirements
 
-- Create the plan as a new markdown file named `docs/plans/plan-tbd-feat{FeatureTitle}.md` (camelCase title, no spaces).
+- **Single-story scope**: If the feature results in only one story, follow the **Small-scope plan rule** in the Plan Creation Rules — use `src/FindAzDoItemByTitle.ps1` to look up the existing maintenance feature in Azure DevOps, then write the plan targeting that feature (or create a new `plan-tbd-featMaintenance{EpicTitle}.md` if none exists). Do NOT create a new dedicated feature plan file.
+- Otherwise, create the plan as a new markdown file named `docs/plans/plan-tbd-feat{FeatureTitle}.md` (camelCase title, no spaces).
   The `tbd` placeholder is replaced with the feature's work item ID once the plan is persisted via `NewAzDoHierarchyFromMarkdown.ps1`.
   Example: `plan-tbd-featUserAuthOAuth.md` → renamed to `plan-1234-featUserAuthOAuth.md` after creation.
-- The plan must contain exactly **1 feature** with all required stories.
+- The plan must contain exactly **1 feature** with all required stories (unless following the small-scope rule above).
 - Follow `example-hierarchy.md` for structure and formatting.
 - Improve and refine the feature description — format it consistently and professionally for use as the feature description in Azure DevOps.
 - Mark each story with realistic story points following the estimation guidelines in the Story Rules section.

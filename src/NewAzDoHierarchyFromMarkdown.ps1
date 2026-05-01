@@ -867,23 +867,45 @@ function Update-MarkdownWithWorkItemIds {
     [string]$content = Get-Content -LiteralPath $MarkdownFilePath -Raw
     [string[]]$lines = $content -split '\r?\n'
     [System.Collections.Generic.List[string]]$newLines = [System.Collections.Generic.List[string]]::new()
+    # Flags to skip empty placeholder lines after a real value has been inserted above them
+    [bool]$skipNextEmptyWorkItemId = $false
+    [bool]$skipNextEmptyState      = $false
 
     for ($i = 0; $i -lt $lines.Count; $i++) {
         [string]$line = $lines[$i]
+
+        # Reset skip flags at each new work item section boundary
+        if ($line -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') {
+            $skipNextEmptyWorkItemId = $false
+            $skipNextEmptyState      = $false
+        }
+
+        # Drop empty {WorkItemId}: / {State}: placeholder lines when the real value was already written
+        if ($skipNextEmptyWorkItemId -and $line -match '^\{WorkItemId\}:\s*$') {
+            $skipNextEmptyWorkItemId = $false
+            continue
+        }
+        if ($skipNextEmptyState -and $line -match '^\{State\}:\s*$') {
+            $skipNextEmptyState = $false
+            continue
+        }
+
         $newLines.Add($line)
 
         if ($line -match '^(#{1,5})\s+(Epic|Feature|Story|Task|Bug):\s+(.+)$') {
             [string]$titleFromHeader = $Matches[3].Trim()
 
-            # Scan forward through the item's section (until next header) to detect existing markers
+            # Scan forward through the item's section (until next header) to detect existing markers.
+            # Only treat {WorkItemId} / {State} as already present when they carry a non-empty value —
+            # empty placeholder lines (e.g. "{WorkItemId}:  ") must not block the writeback.
             [bool]$alreadyHasId    = $false
             [bool]$alreadyHasState = $false
             for ($j = $i + 1; $j -lt $lines.Count; $j++) {
                 if ($lines[$j] -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') { break }
-                if ($lines[$j] -match '^\{WorkItemId\}:' -or $lines[$j] -match '^\*\*WorkItemId\*\*:') {
+                if (($lines[$j] -match '^\{WorkItemId\}:\s*\S') -or ($lines[$j] -match '^\*\*WorkItemId\*\*:\s*\S')) {
                     $alreadyHasId = $true
                 }
-                if ($lines[$j] -match '^\{State\}:' -or $lines[$j] -match '^\*\*State\*\*:') {
+                if (($lines[$j] -match '^\{State\}:\s*\S') -or ($lines[$j] -match '^\*\*State\*\*:\s*\S')) {
                     $alreadyHasState = $true
                 }
                 if ($alreadyHasId -and $alreadyHasState) { break }
@@ -906,6 +928,8 @@ function Update-MarkdownWithWorkItemIds {
 
             if ($null -ne $foundId) {
                 $newLines.Add("{WorkItemId}: $foundId")
+                # Any empty {WorkItemId}: placeholder that follows in this section should be removed
+                $skipNextEmptyWorkItemId = $true
 
                 # Also insert State when a state map is provided and State is not already in the section
                 if (-not $alreadyHasState -and $null -ne $TitleToStateMap) {
@@ -919,6 +943,8 @@ function Update-MarkdownWithWorkItemIds {
                     }
                     if (-not [string]::IsNullOrWhiteSpace($foundState)) {
                         $newLines.Add("{State}: $foundState")
+                        # Any empty {State}: placeholder that follows in this section should be removed
+                        $skipNextEmptyState = $true
                     }
                 }
             }

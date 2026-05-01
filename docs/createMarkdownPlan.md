@@ -64,6 +64,19 @@ Does NOT apply to:
 * Every epic plan should include a long-lived **`## Feature: Maintenance <epic title>`** feature for recurring small bugs and housekeeping stories that do not belong to a dedicated feature. This feature is never closed.
 * Use a common tag for all work items named with the epic prefix, e.g. `epicAddUserDashboard` (even though the actual epic is named e.g. `Gmd.CsCommon`).
 
+# Small-scope plan rule
+
+* When the planned feature would result in **only one story** (i.e. the scope is small or trivial), do NOT create a new dedicated feature. Instead, place the story under the epic's `## Feature: Maintenance {epic title}` feature.
+* **Before writing the plan**, use `src/FindAzDoItemByTitle.ps1` to search Azure DevOps for an existing Feature with title `Maintenance {epic title}` under the epic (use `-Type Feature -ParentId {epicId}`).
+* If the maintenance feature is found in Azure DevOps:
+  - Reuse the found feature's work item ID as `{WorkItemId}` in the plan so the new story is appended to the correct existing feature.
+  - The plan output should include only the epic header (with its existing `{WorkItemId}`) and the maintenance feature block (with its found `{WorkItemId}`) containing the new story.
+  - Save the plan to `docs/plans/plan-{featureId}-featMaintenance{EpicTitle}.md`.
+* If no maintenance feature exists in Azure DevOps:
+  - Leave `{WorkItemId}` empty for the maintenance feature so it gets created.
+  - Create a new file named `docs/plans/plan-tbd-featMaintenance{EpicTitle}.md`.
+  - The file should contain the epic header (with the epic's `{WorkItemId}`) and a new `## Feature: Maintenance {epic title}` block with the story inside.
+
 # Work item types
 Each work item type must have a prefix and a predefined header level. These are defined as below;
 - Epic: "# Epic: {title}"
