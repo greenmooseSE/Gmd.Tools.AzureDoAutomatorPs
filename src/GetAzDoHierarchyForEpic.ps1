@@ -225,6 +225,7 @@ try {
                 Description = if ($feature.fields.PSObject.Properties.Name -contains 'System.Description') { $feature.fields.'System.Description' } else { $null }
                 Effort = if ($feature.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $feature.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
                 Tags = if ($feature.fields.PSObject.Properties.Name -contains 'System.Tags') { $feature.fields.'System.Tags' } else { $null }
+                ChangedDate = if ($feature.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $feature.fields.'System.ChangedDate' } else { $null }
                 Stories = $storiesArray
             }
 
@@ -243,6 +244,7 @@ try {
         Description = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $epicWorkItem.fields.'System.Description' } else { $null }
         Effort = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $epicWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
         Tags = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $epicWorkItem.fields.'System.Tags' } else { $null }
+        ChangedDate = if ($epicWorkItem.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $epicWorkItem.fields.'System.ChangedDate' } else { $null }
         Features = $featuresArray
     }
 

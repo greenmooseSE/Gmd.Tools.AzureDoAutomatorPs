@@ -215,6 +215,7 @@ try {
                                 Title = $task.fields.'System.Title'
                                 Description = if ($task.fields.PSObject.Properties.Name -contains 'System.Description') { $task.fields.'System.Description' } else { $null }
                                 Tags = if ($task.fields.PSObject.Properties.Name -contains 'System.Tags') { $task.fields.'System.Tags' } else { $null }
+                                ChangedDate = if ($task.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $task.fields.'System.ChangedDate' } else { $null }
                             }
                             $tasksArray += [PSCustomObject]$taskObject
                         }
@@ -247,6 +248,7 @@ try {
         Description = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $featureWorkItem.fields.'System.Description' } else { $null }
         Effort = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $featureWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
         Tags = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $featureWorkItem.fields.'System.Tags' } else { $null }
+        ChangedDate = if ($featureWorkItem.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $featureWorkItem.fields.'System.ChangedDate' } else { $null }
         Stories = $storiesArray
     }
 

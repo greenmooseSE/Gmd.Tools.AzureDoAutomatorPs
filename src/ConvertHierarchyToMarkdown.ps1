@@ -295,6 +295,10 @@ function Convert-StoryToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
+    [string]$storyChangedDate = if ($Story.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Story.ChangedDate)) { $Story.ChangedDate } else { $null }
+    if (-not [string]::IsNullOrWhiteSpace($storyChangedDate)) {
+        $markdown += "{LastChangedDate}: $storyChangedDate  `n"
+    }
     
     if ($Tags) {
         $markdown += "{tags}: $(Format-Tags $Tags)  `n"
@@ -359,8 +363,13 @@ function Convert-StoryToMarkdown {
                 $markdown += "`n"
             }
             
+            # Add metadata
             $markdown += "#### Task: $taskTitle  `n`n"
             $markdown += "{WorkItemId}: $taskId  `n"
+            [string]$taskChangedDate = if ($task.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($task.ChangedDate)) { $task.ChangedDate } else { $null }
+            if (-not [string]::IsNullOrWhiteSpace($taskChangedDate)) {
+                $markdown += "{LastChangedDate}: $taskChangedDate  `n"
+            }
             $markdown += "{State}: $taskState$(if (-not $isTaskStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($taskDescription) {
@@ -395,6 +404,10 @@ function Convert-StoryToMarkdown {
             
             $markdown += "#### Bug: $bugTitle  `n`n"
             $markdown += "{WorkItemId}: $bugId  `n"
+            [string]$bugChangedDate = if ($bug.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($bug.ChangedDate)) { $bug.ChangedDate } else { $null }
+            if (-not [string]::IsNullOrWhiteSpace($bugChangedDate)) {
+                $markdown += "{LastChangedDate}: $bugChangedDate  `n"
+            }
             $markdown += "{State}: $bugState$(if (-not $isBugStateWritable) { ' ⚠️ (read-only)' })  `n"
             
             if ($bugDescription) {
@@ -445,6 +458,10 @@ function Convert-FeatureToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
+    [string]$featureChangedDate = if ($Feature.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Feature.ChangedDate)) { $Feature.ChangedDate } else { $null }
+    if (-not [string]::IsNullOrWhiteSpace($featureChangedDate)) {
+        $markdown += "{LastChangedDate}: $featureChangedDate  `n"
+    }
     
     if ($Tags) {
         $markdown += "{tags}: $(Format-Tags $Tags)  `n"
@@ -515,6 +532,10 @@ function Convert-EpicToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
+    [string]$epicChangedDate = if ($Epic.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Epic.ChangedDate)) { $Epic.ChangedDate } else { $null }
+    if (-not [string]::IsNullOrWhiteSpace($epicChangedDate)) {
+        $markdown += "{LastChangedDate}: $epicChangedDate  `n"
+    }
     
     if ($Tags) {
         $markdown += "{tags}: $(Format-Tags $Tags)  `n"

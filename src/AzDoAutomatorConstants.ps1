@@ -83,6 +83,9 @@ $ErrorActionPreference = 'Stop'
 [string]$script:FIELD_REMAINING_WORK = 'Microsoft.VSTS.Scheduling.RemainingWork'
 [string]$script:FIELD_COMPLETED_WORK = 'Microsoft.VSTS.Scheduling.CompletedWork'
 
+# Read-only system timestamp field (used as local staleness marker in markdown)
+[string]$script:FIELD_SYSTEM_CHANGED_DATE = 'System.ChangedDate'
+
 # Parent/Link field
 [string]$script:FIELD_PARENT = 'System.Parent'
 
