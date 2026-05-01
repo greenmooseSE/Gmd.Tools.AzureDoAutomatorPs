@@ -232,19 +232,19 @@ commands:
         required: true
         mapTo: AcceptanceCriteria
 
-  - id: set-ac-scenarios
-    script: ./SetAzDoAcScenarios.ps1
-    description: "Set the acceptance criteria scenarios (BDD scenarios) for a work item. Uses organization/project from environment variables."
+  - id: set-acceptance-tests
+    script: ./SetAzDoAcceptanceTests.ps1
+    description: "Set the acceptance tests (BDD/Gherkin scenarios) for a work item. Uses organization/project from environment variables."
     passStyle: named
     params:
       - name: WorkItemId
         type: int
         required: true
         mapTo: WorkItemId
-      - name: AcScenarios
+      - name: AcceptanceTests
         type: string
         required: true
-        mapTo: AcScenarios
+        mapTo: AcceptanceTests
 
   - id: set-effort
     script: ./SetAzDoEffort.ps1
