@@ -1,5 +1,6 @@
 ## Feature: Stale Markdown Guard for Hierarchy Updates
 {WorkItemId}: 2722  
+{LastChangedDate}: 2026-05-01T20:02:18.483Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Effort}: 3  
 {State}: New  
@@ -32,6 +33,7 @@ starts empty in new plan files and is populated automatically alongside `{WorkIt
 
 ### Story: Add staleness detection to NewAzDoHierarchyFromMarkdown.ps1 (001)
 {WorkItemId}: 2723  
+{LastChangedDate}: 2026-05-01T20:02:19.083Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Story Points}: 2  
 {State}: New  
@@ -146,6 +148,7 @@ The `{LastChangedDate}` value is always ISO 8601 UTC.
 
 ### Story: Support {LastChangedDate} in markdown parser and hierarchy export (002)
 {WorkItemId}: 2724  
+{LastChangedDate}: 2026-05-01T20:02:19.650Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Story Points}: 1  
 {State}: New  

@@ -73,6 +73,7 @@ function hReadInclude {
 $multiStoryContent             = hReadInclude 'multiStoryInstructions.md'
 $implementRulesContent         = hReadInclude 'implementStoryRules.md'
 $implementRulesThisProjectContent = hReadInclude 'implementStoryRules_ThisProject.md'
+$generalStoryRulesContent      = hReadInclude 'createStoryRules_General.md'
 $projectStoryRulesContent      = hReadInclude 'createStoryRules_ThisProject.md'
 $archRulesContent              = hReadInclude 'architecturalRules_General.md'
 
@@ -239,6 +240,12 @@ $multiStoryContent
 $implementRulesContent
 
 $implementRulesThisProjectContent
+
+---
+
+## General Story Rules
+
+$generalStoryRulesContent
 
 ---
 

@@ -1159,11 +1159,17 @@ try {
         } else { '' }
         if ([string]::IsNullOrWhiteSpace($liveDate)) { return }
         if ([datetime]$liveDate -gt [datetime]$Item.lastChangedDate) {
+            # Format live date as ISO 8601 UTC for consistent display in logs (same format as stored date)
+            [string]$formattedLiveDate = if ($liveDate -is [datetime]) {
+                $liveDate.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
+            } else {
+                ([datetime]$liveDate).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
+            }
             $StaleItems.Add(@{
                 Id         = $itemId
                 Title      = $ItemTitle
                 StoredDate = [string]$Item.lastChangedDate
-                LiveDate   = $liveDate
+                LiveDate   = $formattedLiveDate
             })
         }
     }
@@ -1192,16 +1198,16 @@ try {
         if ($DryRun) {
             $null = & ssLogIt.ps1 -Level Warn -Message "Staleness check: ::FgYellow::$($staleItems.Count)::FgDefault:: stale item(s) detected (dry-run, not aborting):"
             foreach ($stale in $staleItems) {
-                $null = & ssLogIt.ps1 -Level Warn -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault:: - stored: $($stale.StoredDate) | live: $($stale.LiveDate)"
+                $null = & ssLogIt.ps1 -Level Warn -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault::`nstored: ::FgGreen::$($stale.StoredDate)::FgDefault::`nlive:   ::FgRed::$($stale.LiveDate)::FgDefault::"
             }
         } elseif ($Force) {
             foreach ($stale in $staleItems) {
-                $null = & ssLogIt.ps1 -Level Warn -Message "::FgYellow::Stale item (proceeding with -Force): [$($stale.Id)] $($stale.Title) - stored: $($stale.StoredDate) | live: $($stale.LiveDate)::FgDefault::"
+                $null = & ssLogIt.ps1 -Level Warn -Message "::FgYellow::Stale item (proceeding with -Force):::FgDefault::`n  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault::`nstored: ::FgGreen::$($stale.StoredDate)::FgDefault::`nlive:   ::FgRed::$($stale.LiveDate)::FgDefault::"
             }
         } else {
             $null = & ssLogIt.ps1 -Level Error -Message "Staleness check failed: ::FgYellow::$($staleItems.Count)::FgDefault:: work item(s) modified in AzDo since last sync. Re-sync with ::FgCyan::SyncMarkdownFromAzDo.ps1::FgDefault:: or use -Force to override."
             foreach ($stale in $staleItems) {
-                $null = & ssLogIt.ps1 -Level Error -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault:: — stored: ::FgGreen::$($stale.StoredDate)::FgDefault:: | live: ::FgRed::$($stale.LiveDate)::FgDefault::"
+                $null = & ssLogIt.ps1 -Level Error -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault::`nstored: ::FgGreen::$($stale.StoredDate)::FgDefault::`nlive:   ::FgRed::$($stale.LiveDate)::FgDefault::"
             }
             throw "Staleness check failed: $($staleItems.Count) work item(s) have been modified in Azure DevOps since the markdown was last synced."
         }
@@ -2201,6 +2207,15 @@ try {
             $stateWritebackMap[$item.fields.'System.Title'] = $item.fields.'System.State'
             [string]$changedDate = $item.fields.'System.ChangedDate'
             if (-not [string]::IsNullOrWhiteSpace($changedDate)) {
+                # ConvertFrom-Json deserialises date strings to [DateTime]; format explicitly as
+                # ISO 8601 UTC so the written value is parseable on the next staleness check.
+                # Always use InvariantCulture to prevent locale-specific colon replacements (e.g. ː).
+                $changedDateObj = $item.fields.'System.ChangedDate'
+                $changedDate = if ($changedDateObj -is [datetime]) {
+                    $changedDateObj.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
+                } else {
+                    [string]$changedDate
+                }
                 $changedDateWritebackMap[$item.fields.'System.Title'] = $changedDate
             }
         }

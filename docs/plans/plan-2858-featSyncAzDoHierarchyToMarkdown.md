@@ -1,6 +1,6 @@
 # Epic: Gmd.Tools.AzureDoAutomatorPs
 {WorkItemId}: 1577  
-{LastChangedDate}: 04/28/2026 19:19:15  
+{LastChangedDate}: 2026-04-28T19:19:15.407Z  
 {tags}: autogen; automation; azdo; azDoAutomator; crudOperations; mcpServer  
 {Effort}: 79  
 {State}: New  
@@ -18,7 +18,7 @@ tools for AI assistants and automation frameworks.
      During reimport, any state changes will be ignored. Do NOT modify the state field. -->
 
 {WorkItemId}: 2858  
-{LastChangedDate}: 05/01/2026 16:16:54  
+{LastChangedDate}: 2026-05-01T20:21:42.620Z  
 {tags}: azDoAutomator; epicAzDoAutomator; syncMarkdown  
 {Effort}: 5  
 {State}: Released ⚠️ (read-only)  
@@ -26,7 +26,7 @@ tools for AI assistants and automation frameworks.
 Provide two companion scripts to streamline round-trip plan management between  
 Azure DevOps and local plan markdown files:  
 
-- **`ExportAzDoToMarkdown.ps1`** — Exports any Epic, Feature, or Story hierarchy  
+- **`ExportAzDoToMarkdown.ps1`** — Exports any Epic, Feature, or Story hierarchy   
   from Azure DevOps to a new plan file on disk, following the standard naming  
   convention (`plan-{id}-{type}{CamelTitle}.md`). Wraps the existing  
   `GetAzDoHierarchyFor{Type}.ps1` + `ConvertHierarchyToMarkdown.ps1` pipeline  
@@ -62,7 +62,7 @@ This feature is delivered in two end-to-end stories:
      During reimport, any state changes will be ignored. Do NOT modify the state field. -->
 
 {WorkItemId}: 2860  
-{LastChangedDate}: 05/01/2026 19:52:27  
+{LastChangedDate}: 2026-05-01T19:52:27.320Z  
 {tags}: azDoAutomator; epicAzDoAutomator; syncMarkdown  
 {Story Points}: 2  
 {State}: Released ⚠️ (read-only)  
@@ -197,7 +197,7 @@ Cover the scenarios described in the Acceptance Tests section below.
      During reimport, any state changes will be ignored. Do NOT modify the state field. -->
 
 {WorkItemId}: 2859  
-{LastChangedDate}: 05/01/2026 16:14:26  
+{LastChangedDate}: 2026-05-01T16:14:26.610Z  
 {tags}: azDoAutomator; epicAzDoAutomator; syncMarkdown  
 {Story Points}: 0.75  
 {State}: Released ⚠️ (read-only)  

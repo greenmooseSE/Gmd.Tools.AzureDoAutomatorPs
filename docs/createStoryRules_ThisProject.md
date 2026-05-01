@@ -11,6 +11,7 @@
   - Output written to the pipeline matches a specific object shape
   - A specific error/exception is thrown for invalid input
 - **Always add a README AC item** when the story adds or modifies scripts, parameters, output shapes, config formats, or MCP tool parameters: `README.md is updated to reflect this story's changes`
+- For data format requirements, follow the general data format and encoding rules in `createStoryRules_General.md`. For PowerShell specifically: always specify `ISO 8601 UTC` for dates — `ConvertFrom-Json` auto-converts date strings to `[DateTime]` objects which stringify with the local culture when not explicitly formatted.
 
 ## Story details (PowerShell)
 ### Script interface

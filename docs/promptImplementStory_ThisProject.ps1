@@ -79,6 +79,7 @@ function hReadInclude {
 # ── Load rule files ────────────────────────────────────────────────────────────
 $implementRulesContent            = hReadInclude 'implementStoryRules.md'
 $implementRulesThisProjectContent = hReadInclude 'implementStoryRules_ThisProject.md'
+$generalStoryRulesContent         = hReadInclude 'createStoryRules_General.md'
 $projectStoryRulesContent         = hReadInclude 'createStoryRules_ThisProject.md'
 $archRulesContent                 = hReadInclude 'architecturalRules_General.md'
 
@@ -228,7 +229,11 @@ $implementRulesContent
 $implementRulesThisProjectContent
 
 ---
+## General Story Rules
 
+$generalStoryRulesContent
+
+---
 ## Project-Specific Story Rules (AzureDoAutomatorPs)
 
 $projectStoryRulesContent

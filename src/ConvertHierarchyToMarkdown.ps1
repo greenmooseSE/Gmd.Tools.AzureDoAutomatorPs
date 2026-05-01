@@ -85,6 +85,29 @@ $script:_htmFieldCfgCache = @{}
 
 <#
 .SYNOPSIS
+Formats a date value as ISO 8601 UTC string (e.g. 2026-05-01T20:02:18.000Z).
+ConvertFrom-Json deserialises AzDo date strings to [DateTime] objects; without
+explicit formatting they serialise back via the local culture, breaking the
+{LastChangedDate} round-trip. Always use this helper when emitting dates to markdown.
+#>
+function Format-Iso8601Date {
+    param([object]$Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [datetime]) {
+        return $Value.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    [string]$s = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($s)) { return $null }
+    # If it's already a recognised date string, normalise to UTC ISO8601.
+    [datetime]$parsed = [datetime]::MinValue
+    if ([datetime]::TryParse($s, [ref]$parsed)) {
+        return $parsed.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    return $s
+}
+
+<#
+.SYNOPSIS
 Returns ordered array of fieldDef objects for the given work item type, or empty array when unavailable.
 #>
 function Get-FieldConfigForType {
@@ -295,7 +318,7 @@ function Convert-StoryToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
-    [string]$storyChangedDate = if ($Story.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Story.ChangedDate)) { $Story.ChangedDate } else { $null }
+    [string]$storyChangedDate = Format-Iso8601Date $(if ($Story.PSObject.Properties.Name -contains 'ChangedDate') { $Story.ChangedDate } else { $null })
     if (-not [string]::IsNullOrWhiteSpace($storyChangedDate)) {
         $markdown += "{LastChangedDate}: $storyChangedDate  `n"
     }
@@ -366,7 +389,7 @@ function Convert-StoryToMarkdown {
             # Add metadata
             $markdown += "#### Task: $taskTitle  `n`n"
             $markdown += "{WorkItemId}: $taskId  `n"
-            [string]$taskChangedDate = if ($task.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($task.ChangedDate)) { $task.ChangedDate } else { $null }
+            [string]$taskChangedDate = Format-Iso8601Date $(if ($task.PSObject.Properties.Name -contains 'ChangedDate') { $task.ChangedDate } else { $null })
             if (-not [string]::IsNullOrWhiteSpace($taskChangedDate)) {
                 $markdown += "{LastChangedDate}: $taskChangedDate  `n"
             }
@@ -404,7 +427,7 @@ function Convert-StoryToMarkdown {
             
             $markdown += "#### Bug: $bugTitle  `n`n"
             $markdown += "{WorkItemId}: $bugId  `n"
-            [string]$bugChangedDate = if ($bug.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($bug.ChangedDate)) { $bug.ChangedDate } else { $null }
+            [string]$bugChangedDate = Format-Iso8601Date $(if ($bug.PSObject.Properties.Name -contains 'ChangedDate') { $bug.ChangedDate } else { $null })
             if (-not [string]::IsNullOrWhiteSpace($bugChangedDate)) {
                 $markdown += "{LastChangedDate}: $bugChangedDate  `n"
             }
@@ -458,7 +481,7 @@ function Convert-FeatureToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
-    [string]$featureChangedDate = if ($Feature.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Feature.ChangedDate)) { $Feature.ChangedDate } else { $null }
+    [string]$featureChangedDate = Format-Iso8601Date $(if ($Feature.PSObject.Properties.Name -contains 'ChangedDate') { $Feature.ChangedDate } else { $null })
     if (-not [string]::IsNullOrWhiteSpace($featureChangedDate)) {
         $markdown += "{LastChangedDate}: $featureChangedDate  `n"
     }
@@ -532,7 +555,7 @@ function Convert-EpicToMarkdown {
     
     # Add metadata
     $markdown += "{WorkItemId}: $Id  `n"
-    [string]$epicChangedDate = if ($Epic.PSObject.Properties.Name -contains 'ChangedDate' -and -not [string]::IsNullOrWhiteSpace($Epic.ChangedDate)) { $Epic.ChangedDate } else { $null }
+    [string]$epicChangedDate = Format-Iso8601Date $(if ($Epic.PSObject.Properties.Name -contains 'ChangedDate') { $Epic.ChangedDate } else { $null })
     if (-not [string]::IsNullOrWhiteSpace($epicChangedDate)) {
         $markdown += "{LastChangedDate}: $epicChangedDate  `n"
     }

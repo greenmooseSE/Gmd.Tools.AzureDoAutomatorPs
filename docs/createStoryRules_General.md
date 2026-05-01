@@ -41,6 +41,31 @@
 - Focus on what the user/feature MUST do or behave like when this story is complete.
 - Each AC item should be testable with an automated test (unit, integration, or snapshot).
 
+### Data format and encoding rules
+
+Whenever a story involves reading, writing, storing, or comparing a data value, the Acceptance Criteria
+**must** explicitly state the expected format or encoding for that value. Leaving the format implicit
+causes silent bugs (e.g. a date written back as a locale string instead of ISO 8601 because the spec
+only said "write the date back" without naming the format).
+
+| Data type | Required AC wording |
+|---|---|
+| Date/time values | State the format explicitly, e.g. `ISO 8601 UTC (2026-05-01T20:02:18.000Z)`. Never rely on language/framework defaults — many runtimes stringify dates in the local culture. |
+| File encoding | Specify `UTF-8 without BOM` (or `UTF-8 with BOM` when required). |
+| Line endings | Specify `CRLF` or `LF` when the value will be written to a file. |
+| Numeric formats | State decimal separator and precision where relevant (e.g. `decimal, 1 d.p., period separator`). |
+| IDs and keys | State whether leading zeros are preserved, whether the value is `int` or `string`. |
+| String trimming | State whether leading/trailing whitespace must be stripped before comparison or storage. |
+| Case sensitivity | State whether comparisons or lookups are case-sensitive or case-insensitive. |
+
+**Good AC wording examples for dates:**
+- `Value is written as ISO 8601 UTC, e.g. 2026-05-01T20:02:18.000Z`
+- `Date comparison uses parsed [datetime] so both locale and ISO strings are accepted`
+
+**Bad (too vague — leads to bugs):**
+- `The date is written back to the file`
+- `The timestamp is stored after the operation`
+
 ## Acceptance Tests
 - Write Gherkin/BDD scenarios in bullet list format `- [ ] **Scenario 1: Scenario title**  \nGiven ...  \nWhen ...  \nThen ...`.
 - The scenarios should be explicit enough so they can be written as automated (integration) tests.
