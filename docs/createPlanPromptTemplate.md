@@ -41,7 +41,9 @@ Create a feature plan markdown file for the feature described in the **Feature S
 
 ## Output Requirements
 
-- Create the plan as a new markdown file (e.g. `docs/plans/plan-{number}-{featureTitle}.md`).
+- Create the plan as a new markdown file named `docs/plans/plan-tbd-feat{FeatureTitle}.md` (camelCase title, no spaces).
+  The `tbd` placeholder is replaced with the feature's work item ID once the plan is persisted via `NewAzDoHierarchyFromMarkdown.ps1`.
+  Example: `plan-tbd-featUserAuthOAuth.md` → renamed to `plan-1234-featUserAuthOAuth.md` after creation.
 - The plan must contain exactly **1 feature** with all required stories.
 - Follow `example-hierarchy.md` for structure and formatting.
 - Improve and refine the feature description — format it consistently and professionally for use as the feature description in Azure DevOps.

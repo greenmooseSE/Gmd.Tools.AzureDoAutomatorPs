@@ -100,6 +100,7 @@ try {
         -Organization $Organization `
         -Project $Project `
         -MarkdownFilePath $tempMarkdownFile `
+        -OutputMode PSObject `
         -ErrorAction Stop
     
     if ($null -eq $result.CreatedItems -or $result.CreatedItems.Count -eq 0) {

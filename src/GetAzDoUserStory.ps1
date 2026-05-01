@@ -133,7 +133,7 @@ try {
     # Collect all custom fields (fields starting with "Custom.") except those already exposed as top-level properties
     $customFields = @{}
     foreach ($fieldName in $workItem.fields.PSObject.Properties.Name) {
-        if ($fieldName -match '^Custom\.' -and $fieldName -notin @('Custom.ACScenarios', 'Custom.ExtraInformation')) {
+        if ($fieldName -match '^Custom\.' -and $fieldName -notin @('Custom.AcceptanceTests', 'Custom.ExtraInformation')) {
             $customFields[$fieldName] = $workItem.fields.$fieldName
         }
     }
@@ -155,7 +155,7 @@ try {
         AssignedTo = $assignedTo
         Description = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Description') { $workItem.fields.'System.Description' } else { $null }
         AcceptanceCriteria = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Common.AcceptanceCriteria') { $workItem.fields.'Microsoft.VSTS.Common.AcceptanceCriteria' } else { $null }
-        ACScenarios = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ACScenarios') { $workItem.fields.'Custom.ACScenarios' } else { $null }
+        ACScenarios = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.AcceptanceTests') { $workItem.fields.'Custom.AcceptanceTests' } else { $null }
         StoryPoints = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.StoryPoints') { $workItem.fields.'Microsoft.VSTS.Scheduling.StoryPoints' } else { $null }
         ExtraInformation = if ($workItem.fields.PSObject.Properties.Name -contains 'Custom.ExtraInformation') { $workItem.fields.'Custom.ExtraInformation' } else { $null }
         Tags = if ($workItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $workItem.fields.'System.Tags' } else { $null }

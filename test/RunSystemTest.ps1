@@ -390,7 +390,7 @@ try {
 
         # Run hierarchy creation
         $hierarchyResult = & "$SRC_DIR/NewAzDoHierarchyFromMarkdown.ps1" -Organization $Organization -Project $Project `
-            -MarkdownFilePath $tempMarkdownPath -EpicId $epic.id -PatToken $PatToken
+            -MarkdownFilePath $tempMarkdownPath -EpicId $epic.id -PatToken $PatToken -OutputMode PSObject
 
         if ($null -eq $hierarchyResult -or $hierarchyResult.CreatedItems.Count -lt 3) {
             throw "Hierarchy creation did not produce expected results"

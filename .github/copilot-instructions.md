@@ -136,7 +136,7 @@ instead of `public void Foo() { /* ... */ }`.
 - When interpolating a variable immediately followed by a colon inside a double-quoted string, wrap the variable in a subexpression so it is unambiguous: use `$($var):`. Only apply this when the colon directly follows the variable (no space). Example: bad: "Processing batch $batchesCount: payload..."; good: "Processing batch $($batchesCount):  payload...".
 
 #### PowerShell Logging
-- Use `ssLogIt.ps1` exclusively (never Write-Host/Write-Output). Info level for main results, Debug for details. Use color tokens (::FgRed::, ::FgYellow::, ::FgGreen::, ::FgDefault::) to highlight key info. In catch blocks use `-Exception $_`. For grouped output use `-PushStackLevel`/`-PopStackLevel` instead of indenting. To test color output, set `$Global:LogSkipColorDecode = $true` before and `$false` after invoking ssLogIt.ps1.
+- Use `ssLogIt.ps1` exclusively (never Write-Host/Write-Output). Info level for main results, Debug for details. Use color tokens (::FgRed::, ::FgYellow::, ::FgGreen::, ::FgDefault::) to highlight key info. In catch blocks use `-Exception $_`. For grouped output use `-PushStackLevel`/`-PopStackLevel` instead of indenting. To test color output, set `$Global:LogSkipColorDecode = $true` before and `$false` after invoking ssLogIt.ps1. For plain-text table/column output (no timestamp or script-name prefix), add `-NoExtra` — it behaves like Write-Host but with color token support.
 - Output errors and warnings in a user-friendly way
 - For logging in .ps1 scripts, use `ssLogIt.ps1` for all output messages to ensure consistent formatting (only use if ssLogIt.ps1 is already being invoked in the script).
 - In catch blocks, invoke ssLogIt.ps1 with -Exception $_ to log full exception details.
