@@ -59,6 +59,14 @@ by title (ignoring "(001)" suffixes) and updates them instead of creating new on
 Switch: When combined with -DryRun, logs which fields are causing the update for each item
 that would be modified.
 
+.PARAMETER Force
+Switch: If specified and one or more work items are detected as stale (modified in AzDo since the
+markdown was last synced), the script logs a warning per stale item and proceeds instead of aborting.
+By default (without -Force) the script throws a terminating error when staleness is detected.
+Staleness is determined by comparing the stored {LastChangedDate} in the markdown against the live
+System.ChangedDate from the AzDo API. Items without a {LastChangedDate} in the markdown skip the
+staleness check (backwards-compatible with existing plan files).
+
 .PARAMETER OutputMode
 Controls how the operation summary is reported. Default is PlainText which logs a colored
 columnar summary table to the console using ssLogIt.ps1 without returning a value.
@@ -103,6 +111,8 @@ param(
     [switch]$DiffDetails,
 
     [switch]$UpdateExisting,
+
+    [switch]$Force,
 
     [ValidateSet('PSObject', 'PlainText')]
     [string]$OutputMode = 'PlainText'
@@ -833,6 +843,7 @@ function Convert-HierarchyFeature {
     $feature = @{
         title              = $Item['title']
         workItemId         = $Item['workItemId']
+        lastChangedDate    = $Item['lastChangedDate']
         state              = $Item['state']
         assignedTo         = $Item['assignedTo']
         description        = Encode-NonHtmlAngleBrackets $Item['description']
@@ -866,6 +877,7 @@ function Convert-HierarchyStory {
         type                 = if ($Item['type']) { $Item['type'] } else { $script:WORKITEM_TYPE_STORY }
         title                = $Item['title']
         workItemId           = $Item['workItemId']
+        lastChangedDate      = $Item['lastChangedDate']
         state                = $Item['state']
         assignedTo           = $Item['assignedTo']
         description          = Encode-NonHtmlAngleBrackets $Item['description']
@@ -892,6 +904,7 @@ function Convert-HierarchyStory {
                 $story.tasks += @(@{
                     title            = $child['title']
                     workItemId       = $child['workItemId']
+                    lastChangedDate  = $child['lastChangedDate']
                     description      = Encode-NonHtmlAngleBrackets $child['description']
                     priority         = $child['priority']
                     originalEstimate = $child['originalEstimate']
@@ -903,9 +916,10 @@ function Convert-HierarchyStory {
             elseif ($child['type'] -eq 'Bug') {
                 [string[]]$bugTags = if ($child['tags']) { [string[]]($child['tags'] -split '\s*[,;]\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
                 $story.bugs += @(@{
-                    title       = $child['title']
-                    workItemId  = $child['workItemId']
-                    description = Encode-NonHtmlAngleBrackets $child['description']
+                    title           = $child['title']
+                    workItemId      = $child['workItemId']
+                    lastChangedDate = $child['lastChangedDate']
+                    description     = Encode-NonHtmlAngleBrackets $child['description']
                     storyPoints = $child['storyPoints']
                     tags        = $bugTags
                 })
@@ -924,9 +938,10 @@ function Convert-WorkItemsToLegacyFormat {
         if ($item['type'] -eq 'Epic') {
             [string[]]$epicTags = if ($item['tags']) { [string[]]($item['tags'] -split '\s*[,;]\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { [string[]]::new(0) }
             $epic = @{
-                title       = $item['title']
-                workItemId  = $item['workItemId']
-                description = Encode-NonHtmlAngleBrackets $item['description']
+                title           = $item['title']
+                workItemId      = $item['workItemId']
+                lastChangedDate = $item['lastChangedDate']
+                description     = Encode-NonHtmlAngleBrackets $item['description']
                 effort      = $item['effort']
                 tags        = $epicTags
                 features    = [array]@()
@@ -954,7 +969,8 @@ function Update-MarkdownWithWorkItemIds {
     param(
         [string]$MarkdownFilePath,
         [hashtable]$TitleToIdMap,
-        [hashtable]$TitleToStateMap
+        [hashtable]$TitleToStateMap,
+        [hashtable]$TitleToChangedDateMap
     )
     [string]$content = Get-Content -LiteralPath $MarkdownFilePath -Raw
     [string[]]$lines = $content -split '\r?\n'
@@ -962,6 +978,9 @@ function Update-MarkdownWithWorkItemIds {
     # Flags to skip empty placeholder lines after a real value has been inserted above them
     [bool]$skipNextEmptyWorkItemId = $false
     [bool]$skipNextEmptyState      = $false
+    [bool]$skipNextEmptyLastChangedDate = $false
+    # Track current item title for {LastChangedDate} write-back lookups
+    [string]$currentItemTitle = ''
 
     for ($i = 0; $i -lt $lines.Count; $i++) {
         [string]$line = $lines[$i]
@@ -970,9 +989,13 @@ function Update-MarkdownWithWorkItemIds {
         if ($line -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') {
             $skipNextEmptyWorkItemId = $false
             $skipNextEmptyState      = $false
+            $skipNextEmptyLastChangedDate = $false
+            if ($line -match '^#{1,5}\s+(?:Epic|Feature|Story|Task|Bug):\s+(.+)$') {
+                $currentItemTitle = ($Matches[1].Trim() -replace '\s*\(\d+\)\s*$', '').Trim()
+            }
         }
 
-        # Drop empty {WorkItemId}: / {State}: placeholder lines when the real value was already written
+        # Drop empty {WorkItemId}: / {State}: / {LastChangedDate}: placeholder lines when the real value was already written
         if ($skipNextEmptyWorkItemId -and $line -match '^\{WorkItemId\}:\s*$') {
             $skipNextEmptyWorkItemId = $false
             continue
@@ -981,8 +1004,45 @@ function Update-MarkdownWithWorkItemIds {
             $skipNextEmptyState = $false
             continue
         }
+        if ($skipNextEmptyLastChangedDate -and $line -match '^\{LastChangedDate\}:\s*$') {
+            $skipNextEmptyLastChangedDate = $false
+            continue
+        }
+
+        # Replace existing {LastChangedDate}: line with the new value from the write-back map
+        if ($line -match '^\{LastChangedDate\}:' -and -not [string]::IsNullOrWhiteSpace($currentItemTitle) `
+            -and $null -ne $TitleToChangedDateMap) {
+            [string]$replacedDate = $null
+            foreach ($key in $TitleToChangedDateMap.Keys) {
+                if ([string]$key -eq $currentItemTitle) { $replacedDate = $TitleToChangedDateMap[$key]; break }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($replacedDate)) {
+                $newLines.Add("{LastChangedDate}: $replacedDate")
+                continue
+            }
+        }
 
         $newLines.Add($line)
+
+        # For existing items (already have {WorkItemId}: xxx), insert {LastChangedDate} if the
+        # section has no {LastChangedDate}: line at all (handles legacy files on first write-back).
+        if ($line -match '^\{WorkItemId\}:\s*\S' -and -not [string]::IsNullOrWhiteSpace($currentItemTitle) `
+            -and $null -ne $TitleToChangedDateMap) {
+            [string]$existingItemDate = $null
+            foreach ($key in $TitleToChangedDateMap.Keys) {
+                if ([string]$key -eq $currentItemTitle) { $existingItemDate = $TitleToChangedDateMap[$key]; break }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($existingItemDate)) {
+                [bool]$sectionHasLastChangedDate = $false
+                for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+                    if ($lines[$j] -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') { break }
+                    if ($lines[$j] -match '^\{LastChangedDate\}:') { $sectionHasLastChangedDate = $true; break }
+                }
+                if (-not $sectionHasLastChangedDate) {
+                    $newLines.Add("{LastChangedDate}: $existingItemDate")
+                }
+            }
+        }
 
         if ($line -match '^(#{1,5})\s+(Epic|Feature|Story|Task|Bug):\s+(.+)$') {
             [string]$titleFromHeader = $Matches[3].Trim()
@@ -990,8 +1050,9 @@ function Update-MarkdownWithWorkItemIds {
             # Scan forward through the item's section (until next header) to detect existing markers.
             # Only treat {WorkItemId} / {State} as already present when they carry a non-empty value —
             # empty placeholder lines (e.g. "{WorkItemId}:  ") must not block the writeback.
-            [bool]$alreadyHasId    = $false
-            [bool]$alreadyHasState = $false
+            [bool]$alreadyHasId               = $false
+            [bool]$alreadyHasState            = $false
+            [bool]$alreadyHasLastChangedDate  = $false
             for ($j = $i + 1; $j -lt $lines.Count; $j++) {
                 if ($lines[$j] -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') { break }
                 if (($lines[$j] -match '^\{WorkItemId\}:\s*\S') -or ($lines[$j] -match '^\*\*WorkItemId\*\*:\s*\S')) {
@@ -1000,7 +1061,10 @@ function Update-MarkdownWithWorkItemIds {
                 if (($lines[$j] -match '^\{State\}:\s*\S') -or ($lines[$j] -match '^\*\*State\*\*:\s*\S')) {
                     $alreadyHasState = $true
                 }
-                if ($alreadyHasId -and $alreadyHasState) { break }
+                if ($lines[$j] -match '^\{LastChangedDate\}:\s*\S') {
+                    $alreadyHasLastChangedDate = $true
+                }
+                if ($alreadyHasId -and $alreadyHasState -and $alreadyHasLastChangedDate) { break }
             }
 
             if ($alreadyHasId) { continue }
@@ -1022,6 +1086,22 @@ function Update-MarkdownWithWorkItemIds {
                 $newLines.Add("{WorkItemId}: $foundId")
                 # Any empty {WorkItemId}: placeholder that follows in this section should be removed
                 $skipNextEmptyWorkItemId = $true
+
+                # Insert {LastChangedDate} for newly-created items when not already present
+                if (-not $alreadyHasLastChangedDate -and $null -ne $TitleToChangedDateMap) {
+                    [string]$newItemDate = $null
+                    foreach ($key in $TitleToChangedDateMap.Keys) {
+                        [string]$keyStr = [string]$key
+                        if ($keyStr -eq $titleFromHeader -or $keyStr -eq $normalizedTitle) {
+                            $newItemDate = $TitleToChangedDateMap[$key]
+                            break
+                        }
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($newItemDate)) {
+                        $newLines.Add("{LastChangedDate}: $newItemDate")
+                        $skipNextEmptyLastChangedDate = $true
+                    }
+                }
 
                 # Also insert State when a state map is provided and State is not already in the section
                 if (-not $alreadyHasState -and $null -ne $TitleToStateMap) {
@@ -1059,6 +1139,70 @@ try {
     [object[]]$features = $converted.TopLevelFeatures
 
     $null = & ssLogIt.ps1 -Level Debug -Message "Markdown conversion successful"
+
+    # Staleness check: for items with both {WorkItemId} and {LastChangedDate}, verify the live AzDo
+    # System.ChangedDate has not advanced beyond the stored local marker. Items without {LastChangedDate}
+    # skip the check (backwards compatibility with existing plan files without the field).
+    function Test-ItemStaleness {
+        param(
+            [object]$Item,
+            [string]$ItemTitle,
+            [System.Collections.Generic.List[hashtable]]$StaleItems
+        )
+        [int]$itemId = if ($null -ne $Item.workItemId -and [int]$Item.workItemId -gt 0) { [int]$Item.workItemId } else { 0 }
+        if ($itemId -le 0 -or [string]::IsNullOrWhiteSpace($Item.lastChangedDate)) {
+            return
+        }
+        $liveItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $itemId -PatToken $PatToken
+        [string]$liveDate = if ($liveItem.PSObject.Properties['fields'] -and -not [string]::IsNullOrWhiteSpace($liveItem.fields.'System.ChangedDate')) {
+            $liveItem.fields.'System.ChangedDate'
+        } else { '' }
+        if ([string]::IsNullOrWhiteSpace($liveDate)) { return }
+        if ([datetime]$liveDate -gt [datetime]$Item.lastChangedDate) {
+            $StaleItems.Add(@{
+                Id         = $itemId
+                Title      = $ItemTitle
+                StoredDate = [string]$Item.lastChangedDate
+                LiveDate   = $liveDate
+            })
+        }
+    }
+
+    [System.Collections.Generic.List[hashtable]]$staleItems = [System.Collections.Generic.List[hashtable]]::new()
+    foreach ($epic in $epics) {
+        Test-ItemStaleness -Item $epic -ItemTitle $epic.title -StaleItems $staleItems
+        foreach ($feature in $epic.features) {
+            Test-ItemStaleness -Item $feature -ItemTitle $feature.title -StaleItems $staleItems
+            foreach ($story in $feature.stories) {
+                Test-ItemStaleness -Item $story -ItemTitle $story.title -StaleItems $staleItems
+                foreach ($task in $story.tasks) { Test-ItemStaleness -Item $task -ItemTitle $task.title -StaleItems $staleItems }
+                foreach ($bug in $story.bugs) { Test-ItemStaleness -Item $bug -ItemTitle $bug.title -StaleItems $staleItems }
+            }
+        }
+    }
+    foreach ($feature in $features) {
+        Test-ItemStaleness -Item $feature -ItemTitle $feature.title -StaleItems $staleItems
+        foreach ($story in $feature.stories) {
+            Test-ItemStaleness -Item $story -ItemTitle $story.title -StaleItems $staleItems
+            foreach ($task in $story.tasks) { Test-ItemStaleness -Item $task -ItemTitle $task.title -StaleItems $staleItems }
+            foreach ($bug in $story.bugs) { Test-ItemStaleness -Item $bug -ItemTitle $bug.title -StaleItems $staleItems }
+        }
+    }
+    if ($staleItems.Count -gt 0) {
+        if ($DryRun) {
+            $null = & ssLogIt.ps1 -Level Warn -Message "Staleness check: $($staleItems.Count) stale item(s) detected (dry-run, not aborting):"
+            foreach ($stale in $staleItems) {
+                $null = & ssLogIt.ps1 -Level Warn -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault:: - stored: $($stale.StoredDate) | live: $($stale.LiveDate)"
+            }
+        } elseif ($Force) {
+            foreach ($stale in $staleItems) {
+                $null = & ssLogIt.ps1 -Level Warn -Message "::FgYellow::Stale item (proceeding with -Force): [$($stale.Id)] $($stale.Title) - stored: $($stale.StoredDate) | live: $($stale.LiveDate)::FgDefault::"
+            }
+        } else {
+            [string]$staleDetails = ($staleItems | ForEach-Object { "  ID=$($_.Id) '$($_.Title)' stored=$($_.StoredDate) live=$($_.LiveDate)" }) -join "`n"
+            throw "Staleness check failed: $($staleItems.Count) work item(s) have been modified in Azure DevOps since the markdown was last synced. Re-sync your markdown file or use -Force to override.`n$staleDetails"
+        }
+    }
 
     if ($DryRun) {
         # Analyze operations in dry-run mode (which items will be created vs. updated vs. unchanged)
@@ -2041,21 +2185,27 @@ try {
     $summary.TagsApplied = $taggedCount
     $summary.TagsSkipped = $tagSkippedCount
 
-    # Write back work item IDs to the markdown file so subsequent runs update existing items
+    # Write back work item IDs and last-changed dates to the markdown file so subsequent runs
+    # can detect staleness and update existing items instead of creating duplicates.
     [int]$newItemCount = $summary.Created.Epics + $summary.Created.Features + $summary.Created.Stories + $summary.Created.Tasks
-    if (-not [string]::IsNullOrWhiteSpace($MarkdownFile) -and $newItemCount -gt 0) {
-        $null = & ssLogIt.ps1 -Level Info -Message "Writing work item IDs back to markdown file: ::FgGreen::$MarkdownFile::FgDefault::"
-        [hashtable]$idWritebackMap = @{}
-        [hashtable]$stateWritebackMap = @{}
-        foreach ($itemId in $createdItems.Keys) {
-            $item = $createdItems[$itemId]
-            if ($item.PSObject.Properties['fields']) {
-                $idWritebackMap[$item.fields.'System.Title'] = $itemId
-                $stateWritebackMap[$item.fields.'System.Title'] = $item.fields.'System.State'
+    [hashtable]$idWritebackMap = @{}
+    [hashtable]$stateWritebackMap = @{}
+    [hashtable]$changedDateWritebackMap = @{}
+    foreach ($itemId in $createdItems.Keys) {
+        $item = $createdItems[$itemId]
+        if ($item.PSObject.Properties['fields']) {
+            $idWritebackMap[$item.fields.'System.Title'] = $itemId
+            $stateWritebackMap[$item.fields.'System.Title'] = $item.fields.'System.State'
+            [string]$changedDate = $item.fields.'System.ChangedDate'
+            if (-not [string]::IsNullOrWhiteSpace($changedDate)) {
+                $changedDateWritebackMap[$item.fields.'System.Title'] = $changedDate
             }
         }
-        Update-MarkdownWithWorkItemIds -MarkdownFilePath $MarkdownFile -TitleToIdMap $idWritebackMap -TitleToStateMap $stateWritebackMap
-        $null = & ssLogIt.ps1 -Level Info -Message "Markdown updated with work item IDs and states"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($MarkdownFile) -and ($newItemCount -gt 0 -or $changedDateWritebackMap.Count -gt 0)) {
+        $null = & ssLogIt.ps1 -Level Info -Message "Writing work item IDs and changed dates back to markdown file: ::FgGreen::$MarkdownFile::FgDefault::"
+        Update-MarkdownWithWorkItemIds -MarkdownFilePath $MarkdownFile -TitleToIdMap $idWritebackMap -TitleToStateMap $stateWritebackMap -TitleToChangedDateMap $changedDateWritebackMap
+        $null = & ssLogIt.ps1 -Level Info -Message "Markdown updated with work item IDs, states and last-changed dates"
     }
 
     # Log a clear summary of what actually happened

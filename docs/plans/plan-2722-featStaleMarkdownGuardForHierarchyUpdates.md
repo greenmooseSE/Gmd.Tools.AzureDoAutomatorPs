@@ -78,15 +78,15 @@ The `{LastChangedDate}` value is always ISO 8601 UTC.
 {Acceptance Criteria}  
 | ✅ | What is Verified | Test(s) | Notes |  
 |---|-----------------|---------|-------|  
-| ☐ | Script writes `{LastChangedDate}` into markdown after creating a new work item | | Value matches `System.ChangedDate` from create response |  
-| ☐ | Script writes `{LastChangedDate}` into markdown after updating an existing work item | | Value matches `System.ChangedDate` from update response |  
-| ☐ | Script aborts with descriptive error when a work item is stale and `-Force` is not set | | Error lists all stale items with IDs, titles, dates |  
-| ☐ | Script proceeds with warning when a work item is stale and `-Force` IS set | | Warning logged per stale item via ssLogIt.ps1 |  
-| ☐ | Items without `{WorkItemId}` (new items) skip staleness check | | No API call made for new items |  
-| ☐ | Items with `{WorkItemId}` but missing `{LastChangedDate}` skip staleness check | | Backwards compatibility |  
-| ☐ | `{LastChangedDate}` is placed directly after `{WorkItemId}` line in write-back | | Consistent ordering |  
-| ☐ | DryRun mode still performs staleness check but does not abort | | Reports stale items in dry-run output |  
-| ☐ | README.md is updated to reflect this story's changes | | New `-Force` parameter documented |
+| ✅ | Script writes `{LastChangedDate}` into markdown after creating a new work item | StalenessDetectionTest.ps1 | Value matches `System.ChangedDate` from create response |  
+| ✅ | Script writes `{LastChangedDate}` into markdown after updating an existing work item | StalenessDetectionTest.ps1 | Value matches `System.ChangedDate` from update response |  
+| ✅ | Script aborts with descriptive error when a work item is stale and `-Force` is not set | | Error lists all stale items with IDs, titles, dates |  
+| ✅ | Script proceeds with warning when a work item is stale and `-Force` IS set | | Warning logged per stale item via ssLogIt.ps1 |  
+| ✅ | Items without `{WorkItemId}` (new items) skip staleness check | | No API call made for new items |  
+| ✅ | Items with `{WorkItemId}` but missing `{LastChangedDate}` skip staleness check | | Backwards compatibility |  
+| ✅ | `{LastChangedDate}` is placed directly after `{WorkItemId}` line in write-back | StalenessDetectionTest.ps1 | Consistent ordering |  
+| ✅ | DryRun mode still performs staleness check but does not abort | | Reports stale items in dry-run output |  
+| ✅ | README.md is updated to reflect this story's changes | | New `-Force` parameter documented |
 
 {Acceptance Tests}  
 1. **Scenario**: Work item is stale and Force is not specified  
