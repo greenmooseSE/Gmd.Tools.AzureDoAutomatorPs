@@ -56,21 +56,9 @@ Then the field value is stored
             ($story.acScenarios -match 'Given a story exists') | Should Be $true
         }
 
-        It 'GivenLegacyAcScenariosCustomField_WhenParsed_ItShouldStillPopulateAcScenarios' {
-            # Test the legacy path where customFields['Acceptance Tests'] exists
-            # We test this by verifying the Cleanup-Item logic is present in source
-            $content = Get-Content (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') -Raw
-            # New label mapping must be present
-            ($content -match "'Acceptance Tests'") | Should Be $true
-            # Legacy label must still be handled (with deprecation)
-            ($content -match "'Acceptance Tests'") | Should Be $true
-            # Deprecation warning must be present
-            ($content -match 'Deprecated field label') | Should Be $true
-        }
-
         It 'GivenAcceptanceTestsLabel_ItShouldBeInMappedFieldsList' {
             $content = Get-Content (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') -Raw
-            ($content -match "'Acceptance Tests', 'Acceptance Tests'") | Should Be $true
+            ($content -match "'Acceptance Tests'") | Should Be $true
         }
     }
 
@@ -83,8 +71,8 @@ Then the field value is stored
 
         It 'GivenCoreOutputLabels_ItShouldNotContainAcScenariosLabel' {
             $content = Get-Content (Join-Path $SRC_DIR 'ConvertHierarchyToMarkdown.ps1') -Raw
-            # Check the CoreOutputLabels array specifically does not list 'Acceptance Tests'
-            ($content -match "CoreOutputLabels.*Acceptance Tests") | Should Be $false
+            # Check the CoreOutputLabels array does not list the old 'AC Scenarios' label
+            ($content -match "CoreOutputLabels.*'AC Scenarios'") | Should Be $false
         }
 
         It 'GivenStoryWithACScenarios_WhenConverted_ItShouldOutputAcceptanceTestsCurlyBrace' {
@@ -103,7 +91,7 @@ Then the field value is stored
 
         It 'GivenSortMarkdownHierarchy_ItShouldNotOutputAcScenariosHeading' {
             $content = Get-Content (Join-Path $SRC_DIR 'tools\SortMarkdownHierarchy.ps1') -Raw
-            ($content -match '#### Acceptance Tests') | Should Be $false
+            ($content -match '#### AC Scenarios') | Should Be $false
         }
     }
 
@@ -137,25 +125,5 @@ Then acScenarios is populated
             ($story.acScenarios -match 'Given a round-trip test') | Should Be $true
         }
 
-        It 'GivenMarkdownWithLegacyAcScenariosField_WhenParsedWithoutOrgProject_ItShouldStillPopulateAcScenariosWithWarning' {
-            # Legacy path: without org/project, uses customFields
-            $md = @"
-### Story: Legacy story
-{WorkItemId}: 8888
-#### Acceptance Tests
-Given legacy field
-When parsed without config
-Then acScenarios is still populated with warning
-"@
-            # Without org/project the parser falls back to customFields mapping
-            $result = & (Join-Path $SRC_DIR 'ConvertMarkdownToHierarchyJson.ps1') `
-                -MarkdownContent $md `
-                -ErrorAction Stop
-
-            $story = $result.workItems[0]
-            # Legacy #### header style populates customFields; after cleanup it maps to acScenarios
-            # The deprecation warning is emitted but the value is still mapped
-            $story | Should Not BeNullOrEmpty
-        }
     }
 }
