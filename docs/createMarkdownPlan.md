@@ -58,9 +58,11 @@ Does NOT apply to:
 
 
 # Epic rules
-* Only one epic is only allowed per "project"/library, e.g. 1 epic named Gmd.CsCommon.
-* When creating a plan for a "epic" with many features, have one single "meta feature" (prefixed `## Feature: Meta - `) which contains the info you normally would write into the epic.
-* Use a common tag for all work items to named with epic prefix, e.g. `epicAddUserDashboard` (even though actual epic is named e.g. `Gmd.CsCommon`).
+* Only one epic is allowed per "project"/library, e.g. 1 epic named `Gmd.CsCommon`.
+* An epic is a **permanent, long-lived container** that is never closed. It represents the product or library's ongoing evolution. Individual features are planned, delivered, and closed over time, while the epic remains open.
+* The epic description itself should contain **high-level, enduring content only**: vision, goals, architecture overview, technology choices, and general constraints. Do NOT put feature-specific details in the epic description.
+* Every epic plan should include a long-lived **`## Feature: Maintenance <epic title>`** feature for recurring small bugs and housekeeping stories that do not belong to a dedicated feature. This feature is never closed.
+* Use a common tag for all work items named with the epic prefix, e.g. `epicAddUserDashboard` (even though the actual epic is named e.g. `Gmd.CsCommon`).
 
 # Work item types
 Each work item type must have a prefix and a predefined header level. These are defined as below;
