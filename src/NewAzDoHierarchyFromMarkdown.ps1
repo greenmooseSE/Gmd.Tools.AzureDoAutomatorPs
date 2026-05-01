@@ -55,6 +55,10 @@ Switch: If specified, shows planned operations without creating work items
 Switch: If specified and an item has no WorkItemId in the markdown, matches existing work items
 by title (ignoring "(001)" suffixes) and updates them instead of creating new ones.
 
+.PARAMETER DiffDetails
+Switch: When combined with -DryRun, logs which fields are causing the update for each item
+that would be modified.
+
 .PARAMETER OutputMode
 Controls how the operation summary is reported. Default is PlainText which logs a colored
 columnar summary table to the console using ssLogIt.ps1 without returning a value.
@@ -95,6 +99,8 @@ param(
     [int]$EpicId,
 
     [switch]$DryRun,
+
+    [switch]$DiffDetails,
 
     [switch]$UpdateExisting,
 
@@ -244,33 +250,35 @@ function Normalize-TitleForMatching {
 # Returns 'Create' (no existing item), 'NoChange' (all fields identical), or 'Update' (at least one field differs).
 # MarkdownFields is a hashtable mapping AzDo field reference names to the markdown values (may be $null/missing).
 # ExistingItem is the AzDo work item object as returned by Get-AzDoWorkItemById (has .fields property).
+# Strips HTML tags and decodes basic HTML entities for plain-text field value comparison.
+# Used by both Get-WorkItemChangeState and Get-ChangedFieldNames.
+function Normalize-HtmlValue {
+    param([string]$Value)
+    # Strip HTML tags and decode basic entities for comparison.
+    # AzDo returns rich-text fields as HTML; strip all tags for plain-text comparison.
+    # Angle-bracket identifiers (e.g. <StmtsDir>) are stored by AzDo as &lt;StmtsDir&gt;,
+    # so they survive the strip and are restored by the &lt; decode below.
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+    $stripped = $Value -replace '<[^>]+>', ''
+    $stripped = $stripped -replace '&nbsp;', ' '
+    $stripped = $stripped -replace '&lt;', '<'
+    $stripped = $stripped -replace '&gt;', '>'
+    $stripped = $stripped -replace '&amp;', '&'
+    $stripped = $stripped -replace '&quot;', '"'
+    $stripped = $stripped.Trim()
+    # Normalize numeric strings: parse as double then re-stringify to avoid "2" vs "2.0" mismatches
+    $parsed = $null
+    if ([double]::TryParse($stripped, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) {
+        return $parsed.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    return $stripped
+}
+
 function Get-WorkItemChangeState {
     param(
         [hashtable]$MarkdownFields,
         [object]$ExistingItem
     )
-
-    function Normalize-HtmlValue {
-        param([string]$Value)
-        # Strip HTML tags and decode basic entities for comparison.
-        # AzDo returns rich-text fields as HTML; strip all tags for plain-text comparison.
-        # Angle-bracket identifiers (e.g. <StmtsDir>) are stored by AzDo as &lt;StmtsDir&gt;,
-        # so they survive the strip and are restored by the &lt; decode below.
-        if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
-        $stripped = $Value -replace '<[^>]+>', ''
-        $stripped = $stripped -replace '&nbsp;', ' '
-        $stripped = $stripped -replace '&lt;', '<'
-        $stripped = $stripped -replace '&gt;', '>'
-        $stripped = $stripped -replace '&amp;', '&'
-        $stripped = $stripped -replace '&quot;', '"'
-        $stripped = $stripped.Trim()
-        # Normalize numeric strings: parse as double then re-stringify to avoid "2" vs "2.0" mismatches
-        $parsed = $null
-        if ([double]::TryParse($stripped, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) {
-            return $parsed.ToString([System.Globalization.CultureInfo]::InvariantCulture)
-        }
-        return $stripped
-    }
 
     if ($null -eq $ExistingItem) {
         return 'Create'
@@ -306,6 +314,84 @@ function Get-WorkItemChangeState {
     }
 
     return 'NoChange'
+}
+
+# Maps an AzDo field reference name to a short human-readable display name.
+function Get-FieldDisplayName {
+    param([string]$RefName)
+    [hashtable]$known = @{
+        'System.Title'                             = 'Title'
+        'System.State'                             = 'State'
+        'System.AssignedTo'                        = 'AssignedTo'
+        'System.Description'                       = 'Description'
+        'Microsoft.VSTS.Common.AcceptanceCriteria' = 'AcceptanceCriteria'
+        'Custom.AcceptanceTests'                   = 'AcceptanceTests'
+        'Custom.ExtraInformation'                  = 'ExtraInformation'
+        'Microsoft.VSTS.Common.Priority'           = 'Priority'
+        'Microsoft.VSTS.Scheduling.StoryPoints'    = 'StoryPoints'
+        'Microsoft.VSTS.Scheduling.Effort'         = 'Effort'
+        'Microsoft.VSTS.Scheduling.OriginalEstimate' = 'OriginalEstimate'
+        'Microsoft.VSTS.Scheduling.RemainingWork'  = 'RemainingWork'
+        'Microsoft.VSTS.Scheduling.CompletedWork'  = 'CompletedWork'
+        'Custom.FixedIn'                           = 'FixedIn'
+        'Custom.DeployedToDev'                     = 'DeployedToDev'
+        'Custom.DeployedToStaging'                 = 'DeployedToStaging'
+        'Custom.DeployedToProduction'              = 'DeployedToProduction'
+    }
+    if ($known.ContainsKey($RefName)) { return $known[$RefName] }
+    # Fallback: strip namespace prefix (everything up to and including the last dot)
+    return $RefName -replace '^.*\.', ''
+}
+
+# Returns sorted list of human-readable field display names that differ between a markdown
+# representation and an existing AzDo work item. Includes 'Tags' when tags differ.
+function Get-ChangedFieldNames {
+    param(
+        [hashtable]$MarkdownFields,
+        [object]$ExistingItem,
+        [string[]]$MarkdownTags
+    )
+    [System.Collections.Generic.List[string]]$changed = [System.Collections.Generic.List[string]]::new()
+    if ($null -eq $ExistingItem) { return [string[]]@() }
+
+    $existingFields = @{}
+    $ExistingItem.fields.PSObject.Properties | ForEach-Object { $existingFields[$_.Name] = $_.Value }
+
+    foreach ($fieldName in $MarkdownFields.Keys) {
+        $markdownValue = $MarkdownFields[$fieldName]
+        $azDoValue = $existingFields[$fieldName]
+
+        if ($fieldName -eq 'System.AssignedTo' -and $azDoValue -is [System.Management.Automation.PSCustomObject]) {
+            $azDoValue = if ($azDoValue.PSObject.Properties.Name -contains 'uniqueName') { $azDoValue.uniqueName } else { '' }
+        }
+
+        [string]$normalizedMarkdown = if ($null -eq $markdownValue) { '' } else { [string]$markdownValue }
+        [string]$normalizedAzDo    = if ($null -eq $azDoValue)      { '' } else { [string]$azDoValue }
+
+        if ((Normalize-HtmlValue -Value $normalizedMarkdown) -ne (Normalize-HtmlValue -Value $normalizedAzDo)) {
+            $changed.Add((Get-FieldDisplayName -RefName $fieldName))
+        }
+    }
+
+    if (Test-TagsChanged -MarkdownTags $MarkdownTags -ExistingItem $ExistingItem) {
+        $changed.Add('Tags')
+    }
+
+    return [string[]]($changed | Sort-Object)
+}
+
+# Writes a list of items that will be updated along with which fields changed.
+function Write-DiffDetails {
+    param(
+        [System.Collections.Generic.List[object]]$DiffItems
+    )
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message ''
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message 'Fields causing updates:'
+    foreach ($item in $DiffItems) {
+        [string]$idPart  = if ($null -ne $item.Id) { " (#$($item.Id))" } else { '' }
+        [string]$fields  = if ($item.ChangedFields.Count -gt 0) { $item.ChangedFields -join ', ' } else { 'Tags' }
+        $null = & ssLogIt.ps1 -Level Info -NoExtra -Message "  ::FgYellow::[$($item.Type)]::FgDefault:: $($item.Title)$idPart  →  $fields"
+    }
 }
 
 # Resolves the AzDo work item ID for a given item, using workItemId from markdown when available,
@@ -495,7 +581,8 @@ function Analyze-DryRunOperations {
         [string]$Organization,
         [string]$Project,
         [string]$PatToken,
-        [bool]$UpdateExisting
+        [bool]$UpdateExisting,
+        [bool]$DiffDetails
     )
 
     $analysis = @{
@@ -514,6 +601,7 @@ function Analyze-DryRunOperations {
         TasksCreate      = 0
         TasksUpdate      = 0
         TasksNoChange    = 0
+        DiffItems        = [System.Collections.Generic.List[object]]::new()
     }
 
     # Determines the change state for a single item using shared Get-WorkItemChangeState logic.
@@ -533,7 +621,7 @@ function Analyze-DryRunOperations {
         # title-based search entirely — it is expensive and would always return Create anyway.
         $hasWorkItemId = ($null -ne $Item.workItemId -and [int]$Item.workItemId -gt 0)
         if (-not $hasWorkItemId -and -not $UpdateExisting) {
-            return @{ State = 'Create'; Id = $null }
+            return @{ State = 'Create'; Id = $null; ChangedFields = @() }
         }
 
         $resolveArgs = @{
@@ -549,7 +637,7 @@ function Analyze-DryRunOperations {
 
         $existingId = Resolve-ExistingWorkItemId @resolveArgs
         if ($null -eq $existingId) {
-            return @{ State = 'Create'; Id = $null }
+            return @{ State = 'Create'; Id = $null; ChangedFields = @() }
         }
 
         $existing = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $existingId -PatToken $PatToken
@@ -558,7 +646,11 @@ function Analyze-DryRunOperations {
         if ($state -eq 'NoChange' -and (Test-TagsChanged -MarkdownTags $Item.tags -ExistingItem $existing)) {
             $state = 'Update'
         }
-        return @{ State = $state; Id = $existingId }
+        [string[]]$changedFields = @()
+        if ($state -eq 'Update' -and $DiffDetails) {
+            $changedFields = Get-ChangedFieldNames -MarkdownFields $MarkdownFields -ExistingItem $existing -MarkdownTags $Item.tags
+        }
+        return @{ State = $state; Id = $existingId; ChangedFields = $changedFields }
     }
 
     # Analyze epics
@@ -568,7 +660,7 @@ function Analyze-DryRunOperations {
 
         switch ($epicResult.State) {
             'Create'   { $analysis.EpicsCreate++ }
-            'Update'   { $analysis.EpicsUpdate++ }
+            'Update'   { $analysis.EpicsUpdate++; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $epic.title; Type = 'Epic'; Id = $epicResult.Id; ChangedFields = $epicResult.ChangedFields }) } }
             'NoChange' { $analysis.EpicsNoChange++ }
         }
         $existingEpicId = $epicResult.Id
@@ -587,7 +679,7 @@ function Analyze-DryRunOperations {
 
             switch ($featureResult.State) {
                 'Create'   { $analysis.FeaturesCreate++ }
-                'Update'   { $analysis.FeaturesUpdate++ }
+                'Update'   { $analysis.FeaturesUpdate++; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $feature.title; Type = 'Feature'; Id = $featureResult.Id; ChangedFields = $featureResult.ChangedFields }) } }
                 'NoChange' { $analysis.FeaturesNoChange++ }
             }
             $existingFeatureId = $featureResult.Id
@@ -607,7 +699,7 @@ function Analyze-DryRunOperations {
                 $isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
                 switch ($storyResult.State) {
                     'Create'   { if ($isBug) { $analysis.BugsCreate++ } else { $analysis.StoriesCreate++ } }
-                    'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ } }
+                    'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ }; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $story.title; Type = if ($isBug) { 'Bug' } else { 'Story' }; Id = $storyResult.Id; ChangedFields = $storyResult.ChangedFields }) } }
                     'NoChange' { if ($isBug) { $analysis.BugsNoChange++ } else { $analysis.StoriesNoChange++ } }
                 }
 
@@ -629,7 +721,7 @@ function Analyze-DryRunOperations {
 
                     switch ($taskResult.State) {
                         'Create'   { $analysis.TasksCreate++ }
-                        'Update'   { $analysis.TasksUpdate++ }
+                        'Update'   { $analysis.TasksUpdate++; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $task.title; Type = 'Task'; Id = $taskResult.Id; ChangedFields = $taskResult.ChangedFields }) } }
                         'NoChange' { $analysis.TasksNoChange++ }
                     }
                 }
@@ -644,7 +736,7 @@ function Analyze-DryRunOperations {
 
         switch ($featureResult.State) {
             'Create'   { $analysis.FeaturesCreate++ }
-            'Update'   { $analysis.FeaturesUpdate++ }
+            'Update'   { $analysis.FeaturesUpdate++; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $feature.title; Type = 'Feature'; Id = $featureResult.Id; ChangedFields = $featureResult.ChangedFields }) } }
             'NoChange' { $analysis.FeaturesNoChange++ }
         }
         $existingFeatureId = $featureResult.Id
@@ -664,7 +756,7 @@ function Analyze-DryRunOperations {
             $isBug = ($story.type -eq $script:WORKITEM_TYPE_BUG)
             switch ($storyResult.State) {
                 'Create'   { if ($isBug) { $analysis.BugsCreate++ } else { $analysis.StoriesCreate++ } }
-                'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ } }
+                'Update'   { if ($isBug) { $analysis.BugsUpdate++ } else { $analysis.StoriesUpdate++ }; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $story.title; Type = if ($isBug) { 'Bug' } else { 'Story' }; Id = $storyResult.Id; ChangedFields = $storyResult.ChangedFields }) } }
                 'NoChange' { if ($isBug) { $analysis.BugsNoChange++ } else { $analysis.StoriesNoChange++ } }
             }
 
@@ -686,7 +778,7 @@ function Analyze-DryRunOperations {
 
                 switch ($taskResult.State) {
                     'Create'   { $analysis.TasksCreate++ }
-                    'Update'   { $analysis.TasksUpdate++ }
+                    'Update'   { $analysis.TasksUpdate++; if ($DiffDetails) { $analysis.DiffItems.Add(@{ Title = $task.title; Type = 'Task'; Id = $taskResult.Id; ChangedFields = $taskResult.ChangedFields }) } }
                     'NoChange' { $analysis.TasksNoChange++ }
                 }
             }
@@ -944,7 +1036,7 @@ try {
 
     if ($DryRun) {
         # Analyze operations in dry-run mode (which items will be created vs. updated vs. unchanged)
-        $analysis = Analyze-DryRunOperations -Epics $epics -Features $features -Organization $Organization -Project $Project -PatToken $PatToken -UpdateExisting $UpdateExisting.IsPresent
+        $analysis = Analyze-DryRunOperations -Epics $epics -Features $features -Organization $Organization -Project $Project -PatToken $PatToken -UpdateExisting $UpdateExisting.IsPresent -DiffDetails $DiffDetails.IsPresent
 
         # Build complete dry-run output with detailed breakdown
         [hashtable]$dryRunOutput = @{
@@ -963,6 +1055,9 @@ try {
                 -Updated  @{ Epics = $analysis.EpicsUpdate;    Features = $analysis.FeaturesUpdate; Stories = $analysis.StoriesUpdate; Bugs = $analysis.BugsUpdate; Tasks = $analysis.TasksUpdate } `
                 -NoChange @{ Epics = $analysis.EpicsNoChange;  Features = $analysis.FeaturesNoChange; Stories = $analysis.StoriesNoChange; Bugs = $analysis.BugsNoChange; Tasks = $analysis.TasksNoChange } `
                 -IsDryRun $true
+            if ($DiffDetails -and $analysis.DiffItems.Count -gt 0) {
+                Write-DiffDetails -DiffItems $analysis.DiffItems
+            }
         } else {
             $null = & ssLogIt.ps1 -Level Info -Message "DRY RUN: Detailed breakdown of planned operations:"
             $null = & ssLogIt.ps1 -Level Info -Message "  Epics:    $($analysis.EpicsCreate) to create, $($analysis.EpicsUpdate) to update, $($analysis.EpicsNoChange) no change"

@@ -78,7 +78,7 @@ are instructed to use ONLY these scripts and never modify plan files or run git 
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 3
+{Story Points}: 3
 {Priority}: 1
 
 #### {Description}
@@ -131,7 +131,7 @@ Scenario: Start story fails when not on feature branch
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 1
 
 #### {Description}
@@ -186,7 +186,7 @@ Scenario: Invalid ACIndex fails
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 1
 
 #### {Description}
@@ -242,7 +242,7 @@ Scenario: Fails when test file does not exist
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 3
+{Story Points}: 3
 {Priority}: 1
 
 #### {Description}
@@ -300,7 +300,7 @@ Scenario: Tests fail when coverage decreases
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 3
+{Story Points}: 3
 {Priority}: 1
 
 #### {Description}
@@ -355,7 +355,7 @@ Scenario: Complete story fails with unmarked ACs
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 2
 
 #### {Description}
@@ -404,7 +404,7 @@ Scenario: Modified plan fails in strict mode
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, markdownParsing, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 1
 
 #### {Description}
@@ -456,7 +456,7 @@ Scenario: Update state field in plan
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 1
 
 #### {Description}
@@ -509,7 +509,7 @@ Scenario: DryRun shows planned changes
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, docs, epicAzDoAutomator
-{Effort}: 2
+{Story Points}: 2
 {Priority}: 1
 
 #### {Description}
@@ -563,7 +563,7 @@ Scenario: README documents all agentWorkflow scripts
 {State}: New
 
 {tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
-{Effort}: 1
+{Story Points}: 1
 {Priority}: 2
 
 #### {Description}
