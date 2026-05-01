@@ -162,6 +162,7 @@ try {
         OriginalEstimate = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.OriginalEstimate') { $workItem.fields.'Microsoft.VSTS.Scheduling.OriginalEstimate' } else { $null }
         RemainingWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.RemainingWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.RemainingWork' } else { $null }
         CompletedWork = if ($workItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.CompletedWork') { $workItem.fields.'Microsoft.VSTS.Scheduling.CompletedWork' } else { $null }
+        ChangedDate = if ($workItem.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $workItem.fields.'System.ChangedDate' } else { $null }
         CustomFields = $customFields
     }
 

@@ -93,6 +93,8 @@ $template = @"
 # {DeployedToDev}: (true/false, Features/Stories)
 # {DeployedToStaging}: (true/false, Features/Stories)
 # {DeployedToProduction}: (true/false, Features/Stories)
+# {LastChangedDate}: (ISO 8601 UTC; LOCAL METADATA — written back by NewAzDoHierarchyFromMarkdown.ps1
+#                     after create/update; used by the staleness guard. Do NOT edit manually.)
 # {Description}
 # Multi-line description with proper header levels
 

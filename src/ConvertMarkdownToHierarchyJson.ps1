@@ -41,6 +41,7 @@ Supported markdown format:
 
 Metadata fields (all optional):
 - {WorkItemId}: N (for identifying existing work items, can be omitted for new items)
+- {LastChangedDate}: ISO 8601 UTC (local metadata written by NewAzDoHierarchyFromMarkdown.ps1; used for staleness detection, never sent to AzDo)
 - {State}: Active, Under Development, etc. (optional)
 - {tags}: comma-separated list (optional)
 - {Story Points}: story points (for stories, optional)
@@ -327,6 +328,7 @@ function Parse-MarkdownToWorkItems {
                 title              = $itemInfo.title
                 lineNumber         = $lineNum + 1
                 workItemId         = $null
+                lastChangedDate    = $null
                 state              = $null
                 assignedTo         = $null
                 tags               = $null
@@ -376,6 +378,14 @@ function Parse-MarkdownToWorkItems {
         $marker = Get-CurlyFieldMarker -Line $line
 
         if ($null -ne $marker) {
+            # ── Local metadata field: {LastChangedDate} is not an AzDo field, handle before config lookup ─
+            if ($marker.label -eq 'LastChangedDate') {
+                if (-not [string]::IsNullOrWhiteSpace($marker.inlineValue)) {
+                    $currentItem.lastChangedDate = $marker.inlineValue
+                }
+                continue
+            }
+
             # Resolve label → field definition via appSettings.json config
             $cfgField = if ($currentItemFieldConfig.Count -gt 0) {
                 $currentItemFieldConfig[$marker.label.ToLower()]
@@ -404,7 +414,8 @@ function Parse-MarkdownToWorkItems {
                         }
                     }
                     'System.State' {
-                        $currentItem.state = $marker.inlineValue
+                        # Strip the read-only annotation " ⚠️ (read-only)" appended by ConvertHierarchyToMarkdown.ps1
+                        $currentItem.state = if ($null -ne $marker.inlineValue) { ($marker.inlineValue -replace '\s*⚠️.*$', '').Trim() } else { $marker.inlineValue }
                     }
                     'System.AssignedTo' {
                         $currentItem.assignedTo = $marker.inlineValue
@@ -552,6 +563,7 @@ function Cleanup-Item {
         type = $Item.type
         title = $Item.title
         workItemId = $Item.workItemId
+        lastChangedDate = $Item.lastChangedDate
         state = $Item.state
         assignedTo = $Item.assignedTo
         tags = $Item.tags

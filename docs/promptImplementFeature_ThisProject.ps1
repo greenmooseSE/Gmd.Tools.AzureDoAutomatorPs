@@ -73,7 +73,6 @@ function hReadInclude {
 $multiStoryContent             = hReadInclude 'multiStoryInstructions.md'
 $implementRulesContent         = hReadInclude 'implementStoryRules.md'
 $implementRulesThisProjectContent = hReadInclude 'implementStoryRules_ThisProject.md'
-$projectStoryRulesContent      = hReadInclude 'createStoryRules_ThisProject.md'
 $archRulesContent              = hReadInclude 'architecturalRules_General.md'
 
 # ── Resolve FeatureTitle from plan file if not supplied ────────────────────────
@@ -239,12 +238,6 @@ $multiStoryContent
 $implementRulesContent
 
 $implementRulesThisProjectContent
-
----
-
-## Project-Specific Story Rules (AzureDoAutomatorPs)
-
-$projectStoryRulesContent
 
 ---
 

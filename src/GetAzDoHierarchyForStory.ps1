@@ -184,6 +184,7 @@ try {
                         Title = $task.fields.'System.Title'
                         Description = if ($task.fields.PSObject.Properties.Name -contains 'System.Description') { $task.fields.'System.Description' } else { $null }
                         Tags = if ($task.fields.PSObject.Properties.Name -contains 'System.Tags') { $task.fields.'System.Tags' } else { $null }
+                        ChangedDate = if ($task.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $task.fields.'System.ChangedDate' } else { $null }
                     }
                     $tasksArray += [PSCustomObject]$taskObject
                 }
@@ -221,6 +222,7 @@ try {
                         FoundInBuild = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.FoundInBuild') { $bug.fields.'Microsoft.VSTS.Build.FoundInBuild' } else { $null }
                         IntegratedInBuild = if ($bug.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Build.IntegratedInBuild') { $bug.fields.'Microsoft.VSTS.Build.IntegratedInBuild' } else { $null }
                         Tags = if ($bug.fields.PSObject.Properties.Name -contains 'System.Tags') { $bug.fields.'System.Tags' } else { $null }
+                        ChangedDate = if ($bug.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $bug.fields.'System.ChangedDate' } else { $null }
                     }
                     $bugsArray += [PSCustomObject]$bugObject
                 }

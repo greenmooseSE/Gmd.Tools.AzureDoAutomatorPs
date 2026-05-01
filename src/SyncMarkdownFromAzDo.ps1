@@ -214,6 +214,66 @@ function Get-AzDoChildren {
 }
 
 # ============================================================================
+# Helper: build a pruned copy of an AzDo hierarchy PSObject,
+# keeping only items whose IDs appear in $PlanIds.
+# ============================================================================
+function Build-PrunedHierarchy {
+    param(
+        [PSObject]$Item,
+        [System.Collections.Generic.HashSet[int]]$PlanIds
+    )
+
+    $pruned = [PSCustomObject]@{}
+    foreach ($prop in $Item.PSObject.Properties) {
+        if ($prop.Name -notin @('Features', 'Stories', 'Tasks', 'Bugs')) {
+            $pruned | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value
+        }
+    }
+
+    if ($Item.PSObject.Properties.Name -contains 'Features') {
+        $prunedFeatures = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($feature in @($Item.Features)) {
+            if ($null -ne $feature.Id -and $PlanIds.Contains([int]$feature.Id)) {
+                $prunedFeatures.Add((Build-PrunedHierarchy -Item $feature -PlanIds $PlanIds))
+            }
+        }
+        $pruned | Add-Member -NotePropertyName 'Features' -NotePropertyValue $prunedFeatures.ToArray()
+    }
+
+    if ($Item.PSObject.Properties.Name -contains 'Stories') {
+        $prunedStories = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($story in @($Item.Stories)) {
+            if ($null -ne $story.Id -and $PlanIds.Contains([int]$story.Id)) {
+                $prunedStories.Add((Build-PrunedHierarchy -Item $story -PlanIds $PlanIds))
+            }
+        }
+        $pruned | Add-Member -NotePropertyName 'Stories' -NotePropertyValue $prunedStories.ToArray()
+    }
+
+    if ($Item.PSObject.Properties.Name -contains 'Tasks') {
+        $prunedTasks = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($task in @($Item.Tasks)) {
+            if ($null -ne $task.Id -and $PlanIds.Contains([int]$task.Id)) {
+                $prunedTasks.Add($task)
+            }
+        }
+        $pruned | Add-Member -NotePropertyName 'Tasks' -NotePropertyValue $prunedTasks.ToArray()
+    }
+
+    if ($Item.PSObject.Properties.Name -contains 'Bugs') {
+        $prunedBugs = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($bug in @($Item.Bugs)) {
+            if ($null -ne $bug.Id -and $PlanIds.Contains([int]$bug.Id)) {
+                $prunedBugs.Add($bug)
+            }
+        }
+        $pruned | Add-Member -NotePropertyName 'Bugs' -NotePropertyValue $prunedBugs.ToArray()
+    }
+
+    return $pruned
+}
+
+# ============================================================================
 # Step 1: Parse the existing plan
 # ============================================================================
 $null = & ssLogIt.ps1 -Level Debug -Message "Parsing existing plan file"
@@ -297,9 +357,47 @@ $null = & ssLogIt.ps1 -Level Debug -Message "Top-level work item type: $topType"
 [object]$hierarchy = $null
 switch ($topType) {
     $script:WORKITEM_TYPE_EPIC {
-        $null = & ssLogIt.ps1 -Level Debug -Message "Fetching Epic hierarchy for ID: $topLevelId"
-        $hierarchy = & "$PSScriptRoot/GetAzDoHierarchyForEpic.ps1" `
-            -Organization $Organization -Project $Project -EpicId $topLevelId -PatToken $Pat
+        # Optimisation: fetch only the Feature hierarchies listed in the plan rather
+        # than the full Epic, which would pull every feature and story under the epic.
+        $topLevelChildren = @()
+        $topLevelPlanItem = $planWorkItems[0]
+        if ($topLevelPlanItem -is [System.Collections.Hashtable]) {
+            if ($topLevelPlanItem.ContainsKey('children')) { $topLevelChildren = @($topLevelPlanItem['children']) }
+        } else {
+            $cp = $topLevelPlanItem.PSObject.Properties['children']
+            if ($null -ne $cp) { $topLevelChildren = @($cp.Value) }
+        }
+        $planFeatureIds = @(
+            $topLevelChildren |
+            Where-Object { ($_ -is [System.Collections.Hashtable] -and $_.ContainsKey('workItemId') -and $null -ne $_['workItemId'] -and $_['workItemId'] -gt 0) } |
+            ForEach-Object { [int]$_['workItemId'] }
+        )
+
+        if ($planFeatureIds.Count -gt 0) {
+            $null = & ssLogIt.ps1 -Level Debug -Message "Building scoped Epic hierarchy — fetching $($planFeatureIds.Count) Feature(s) from plan: $($planFeatureIds -join ', ')"
+            $featureHierarchies = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($fid in $planFeatureIds) {
+                $null = & ssLogIt.ps1 -Level Debug -Message "Fetching Feature hierarchy for ID: $fid"
+                $fh = & "$PSScriptRoot/GetAzDoHierarchyForFeature.ps1" `
+                    -Organization $Organization -Project $Project -FeatureId $fid -PatToken $Pat
+                if ($null -ne $fh) { $featureHierarchies.Add($fh) }
+            }
+            $hierarchy = [PSCustomObject]@{
+                Id          = $topWorkItem.id
+                State       = $topWorkItem.fields.'System.State'
+                Title       = $topWorkItem.fields.'System.Title'
+                Description = if ($topWorkItem.fields.PSObject.Properties.Name -contains 'System.Description') { $topWorkItem.fields.'System.Description' } else { $null }
+                Effort      = if ($topWorkItem.fields.PSObject.Properties.Name -contains 'Microsoft.VSTS.Scheduling.Effort') { $topWorkItem.fields.'Microsoft.VSTS.Scheduling.Effort' } else { $null }
+                Tags        = if ($topWorkItem.fields.PSObject.Properties.Name -contains 'System.Tags') { $topWorkItem.fields.'System.Tags' } else { $null }
+                ChangedDate = if ($topWorkItem.fields.PSObject.Properties.Name -contains 'System.ChangedDate') { $topWorkItem.fields.'System.ChangedDate' } else { $null }
+                Features    = $featureHierarchies.ToArray()
+            }
+        } else {
+            # No Feature IDs in plan — fall back to fetching the full Epic hierarchy
+            $null = & ssLogIt.ps1 -Level Debug -Message "No Feature IDs found in plan; fetching full Epic hierarchy for ID: $topLevelId"
+            $hierarchy = & "$PSScriptRoot/GetAzDoHierarchyForEpic.ps1" `
+                -Organization $Organization -Project $Project -EpicId $topLevelId -PatToken $Pat
+        }
     }
     $script:WORKITEM_TYPE_FEATURE {
         $null = & ssLogIt.ps1 -Level Debug -Message "Fetching Feature hierarchy for ID: $topLevelId"
@@ -326,11 +424,15 @@ $azDoFlatMap = Build-AzDoFlatMap -HierarchyItem $hierarchy
 # ============================================================================
 # Step 4: Validate plan items against fetched hierarchy; log warnings
 # ============================================================================
+# Collect IDs to include in the pruned output hierarchy
+$planIdSet = [System.Collections.Generic.HashSet[int]]::new()
+
 foreach ($entry in $allPlanEntries) {
     $planItem = $entry.Item
 
     if ($null -ne $planItem.workItemId -and $planItem.workItemId -gt 0) {
         [int]$planItemId = [int]$planItem.workItemId
+        [void]$planIdSet.Add($planItemId)
         if (-not $azDoFlatMap.ContainsKey($planItemId)) {
             $null = & ssLogIt.ps1 -Level Warn -Message "Work item $planItemId ('$($planItem.title)') was not found in the fetched hierarchy and will be skipped."
         }
@@ -363,6 +465,8 @@ foreach ($entry in $allPlanEntries) {
 
             if ($null -ne $matchedAzDoItem) {
                 $null = & ssLogIt.ps1 -Level Info -Message "Title match found for '$planTitle': work item ID ::FgGreen::$($matchedAzDoItem.Id)::FgDefault:: within parent '$parentTitle'."
+                # Include the matched item in the pruned output
+                [void]$planIdSet.Add([int]$matchedAzDoItem.Id)
             } else {
                 $null = & ssLogIt.ps1 -Level Warn -Message "No title match found for '$planTitle' within parent '$parentTitle'."
             }
@@ -373,12 +477,17 @@ foreach ($entry in $allPlanEntries) {
 }
 
 # ============================================================================
-# Step 5: Regenerate markdown from the fetched AzDo hierarchy and overwrite
+# Step 5: Regenerate markdown from the pruned AzDo hierarchy and overwrite
 # ============================================================================
-$null = & ssLogIt.ps1 -Level Debug -Message "Regenerating markdown from updated AzDo hierarchy"
+$null = & ssLogIt.ps1 -Level Debug -Message "Regenerating markdown from updated AzDo hierarchy (pruned to plan scope)"
+
+# Prune the AzDo hierarchy to only the items present in the plan, so that
+# sibling items in the same epic/feature are not included in the output.
+$prunedHierarchy = Build-PrunedHierarchy -Item $hierarchy -PlanIds $planIdSet
+
 [string]$repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 [string]$updatedMarkdown = & "$PSScriptRoot/ConvertHierarchyToMarkdown.ps1" `
-    -Hierarchy $hierarchy `
+    -Hierarchy $prunedHierarchy `
     -Organization $Organization `
     -Project $Project `
     -RepositoryRoot $repoRoot

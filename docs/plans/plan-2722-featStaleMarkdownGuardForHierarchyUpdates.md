@@ -1,5 +1,6 @@
 ## Feature: Stale Markdown Guard for Hierarchy Updates
 {WorkItemId}: 2722  
+{LastChangedDate}: 2026-05-01T20:02:18.483Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Effort}: 3  
 {State}: New  
@@ -32,6 +33,7 @@ starts empty in new plan files and is populated automatically alongside `{WorkIt
 
 ### Story: Add staleness detection to NewAzDoHierarchyFromMarkdown.ps1 (001)
 {WorkItemId}: 2723  
+{LastChangedDate}: 2026-05-01T20:02:19.083Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Story Points}: 2  
 {State}: New  
@@ -78,15 +80,15 @@ The `{LastChangedDate}` value is always ISO 8601 UTC.
 {Acceptance Criteria}  
 | ✅ | What is Verified | Test(s) | Notes |  
 |---|-----------------|---------|-------|  
-| ☐ | Script writes `{LastChangedDate}` into markdown after creating a new work item | | Value matches `System.ChangedDate` from create response |  
-| ☐ | Script writes `{LastChangedDate}` into markdown after updating an existing work item | | Value matches `System.ChangedDate` from update response |  
-| ☐ | Script aborts with descriptive error when a work item is stale and `-Force` is not set | | Error lists all stale items with IDs, titles, dates |  
-| ☐ | Script proceeds with warning when a work item is stale and `-Force` IS set | | Warning logged per stale item via ssLogIt.ps1 |  
-| ☐ | Items without `{WorkItemId}` (new items) skip staleness check | | No API call made for new items |  
-| ☐ | Items with `{WorkItemId}` but missing `{LastChangedDate}` skip staleness check | | Backwards compatibility |  
-| ☐ | `{LastChangedDate}` is placed directly after `{WorkItemId}` line in write-back | | Consistent ordering |  
-| ☐ | DryRun mode still performs staleness check but does not abort | | Reports stale items in dry-run output |  
-| ☐ | README.md is updated to reflect this story's changes | | New `-Force` parameter documented |
+| ✅ | Script writes `{LastChangedDate}` into markdown after creating a new work item | StalenessDetectionTest.ps1 | Value matches `System.ChangedDate` from create response |  
+| ✅ | Script writes `{LastChangedDate}` into markdown after updating an existing work item | StalenessDetectionTest.ps1 | Value matches `System.ChangedDate` from update response |  
+| ✅ | Script aborts with descriptive error when a work item is stale and `-Force` is not set | | Error lists all stale items with IDs, titles, dates |  
+| ✅ | Script proceeds with warning when a work item is stale and `-Force` IS set | | Warning logged per stale item via ssLogIt.ps1 |  
+| ✅ | Items without `{WorkItemId}` (new items) skip staleness check | | No API call made for new items |  
+| ✅ | Items with `{WorkItemId}` but missing `{LastChangedDate}` skip staleness check | | Backwards compatibility |  
+| ✅ | `{LastChangedDate}` is placed directly after `{WorkItemId}` line in write-back | StalenessDetectionTest.ps1 | Consistent ordering |  
+| ✅ | DryRun mode still performs staleness check but does not abort | | Reports stale items in dry-run output |  
+| ✅ | README.md is updated to reflect this story's changes | | New `-Force` parameter documented |
 
 {Acceptance Tests}  
 1. **Scenario**: Work item is stale and Force is not specified  
@@ -146,6 +148,7 @@ The `{LastChangedDate}` value is always ISO 8601 UTC.
 
 ### Story: Support {LastChangedDate} in markdown parser and hierarchy export (002)
 {WorkItemId}: 2724  
+{LastChangedDate}: 2026-05-01T20:02:19.650Z  
 {tags}: azDoAutomator; epicAzDoAutomator; staleguard  
 {Story Points}: 1  
 {State}: New  
@@ -169,12 +172,12 @@ requiring a separate sync step
 {Acceptance Criteria}  
 | ✅ | What is Verified | Test(s) | Notes |  
 |---|-----------------|---------|-------|  
-| ☐ | `ConvertHierarchyToMarkdown.ps1` emits `{LastChangedDate}` after `{WorkItemId}` for each item | | Value sourced from `System.ChangedDate` |  
-| ☐ | `ConvertMarkdownToHierarchyJson.ps1` parses `{LastChangedDate}` and includes it in output JSON | | Field preserved as string, not written to AzDo |  
-| ☐ | Round-trip: export → re-import preserves `{LastChangedDate}` values | | No data loss |  
-| ☐ | `GenerateAzDoMarkdownHierarchyTemplate.ps1` documents `{LastChangedDate}` in template | | Explains purpose and format |  
-| ☐ | Items without `System.ChangedDate` in source data omit the field (no empty line) | | Graceful handling |  
-| ☐ | README.md is updated to reflect this story's changes | | New field documented |
+| ✅ | `ConvertHierarchyToMarkdown.ps1` emits `{LastChangedDate}` after `{WorkItemId}` for each item | LastChangedDateOutputTest.ps1 | Value sourced from `System.ChangedDate` |  
+| ✅ | `ConvertMarkdownToHierarchyJson.ps1` parses `{LastChangedDate}` and includes it in output JSON | LastChangedDateParseTest.ps1 | Field preserved as string, not written to AzDo |  
+| ✅ | Round-trip: export → re-import preserves `{LastChangedDate}` values | LastChangedDateParseTest.ps1 | No data loss |  
+| ✅ | `GenerateAzDoMarkdownHierarchyTemplate.ps1` documents `{LastChangedDate}` in template | | Explains purpose and format |  
+| ✅ | Items without `System.ChangedDate` in source data omit the field (no empty line) | LastChangedDateOutputTest.ps1 | Graceful handling |  
+| ✅ | README.md is updated to reflect this story's changes | | New field documented |
 
 {Acceptance Tests}  
 1. **Scenario**: Export hierarchy emits LastChangedDate  
