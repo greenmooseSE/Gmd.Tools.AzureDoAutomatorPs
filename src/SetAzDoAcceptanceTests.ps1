@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-Set the acceptance criteria scenarios of an Azure DevOps work item
+Set the acceptance tests (BDD scenarios) of an Azure DevOps work item
 
 .DESCRIPTION
-Updates the acceptance criteria scenarios field of an existing work item (typically used for Stories).
+Updates the Custom.AcceptanceTests field of an existing work item (typically used for Stories).
 
 .PARAMETER Organization
 The Azure DevOps organization name (required)
@@ -14,8 +14,8 @@ The Azure DevOps project name (required)
 .PARAMETER WorkItemId
 The work item ID to update (required)
 
-.PARAMETER AcScenarios
-The new acceptance criteria scenarios text (required)
+.PARAMETER AcceptanceTests
+The new acceptance tests text (Gherkin/BDD scenarios) (required)
 
 .PARAMETER PatToken
 Optional PAT token for authentication. If not provided, retrieves from GMD_AZDO_MACHINE_WORKITEMSRW
@@ -25,12 +25,12 @@ environment variable (expected to be encrypted).
 PSObject representing the updated work item
 
 .EXAMPLE
-    $updated = .\Set-AzDoAcScenarios.ps1 -Organization "myorg" -Project "myproject" -WorkItemId 123 -AcScenarios "Given user logs in, When they click logout button, Then session ends"
+    $updated = .\SetAzDoAcceptanceTests.ps1 -Organization "myorg" -Project "myproject" -WorkItemId 123 -AcceptanceTests "Given user logs in, When they click logout button, Then session ends"
 
 .NOTES
 - Requires Azure DevOps REST API access
 - Requires PAT token with work items read/write scope
-- Field name: Custom.AcceptanceScenarios (may need adjustment per organization)
+- Field name: Custom.AcceptanceTests
 #>
 
 #Requires -Version 7.0
@@ -46,7 +46,7 @@ param(
     [int]$WorkItemId,
 
     [Parameter(Mandatory = $true)]
-    [string]$AcScenarios,
+    [string]$AcceptanceTests,
 
     [string]$PatToken
 )
@@ -85,11 +85,11 @@ if (-not (Test-AzDoWorkItemIdValid $WorkItemId)) {
     Write-Error "Parameter 'WorkItemId' must be a positive integer."
 }
 
-if ([string]::IsNullOrWhiteSpace($AcScenarios)) {
-    Write-Error "Parameter 'AcScenarios' cannot be empty."
+if ([string]::IsNullOrWhiteSpace($AcceptanceTests)) {
+    Write-Error "Parameter 'AcceptanceTests' cannot be empty."
 }
 
-$null = & ssLogIt.ps1 -Level Info -Message "Updating acceptance criteria scenarios for work item (ID: $WorkItemId)"
+$null = & ssLogIt.ps1 -Level Info -Message "Updating acceptance tests for work item (ID: $WorkItemId)"
 
 # Get PAT token if not provided
 if ([string]::IsNullOrWhiteSpace($PatToken)) {
@@ -98,17 +98,17 @@ if ([string]::IsNullOrWhiteSpace($PatToken)) {
 
 try {
     $updateFields = @{
-        $script:FIELD_AC_SCENARIOS = $AcScenarios
+        $script:FIELD_ACCEPTANCE_TESTS = $AcceptanceTests
     }
 
     $updated = Update-AzDoWorkItem -Organization $Organization -Project $Project -WorkItemId $WorkItemId -Fields $updateFields -PatToken $PatToken
 
-    $null = & ssLogIt.ps1 -Level Info -Message "Successfully updated acceptance criteria scenarios for work item (ID: $($updated.id))"
+    $null = & ssLogIt.ps1 -Level Info -Message "Successfully updated acceptance tests for work item (ID: $($updated.id))"
 
     return $updated
 }
 catch {
-    $null = & ssLogIt.ps1 -Level Error -Message "Failed to update acceptance criteria scenarios: $_" -Exception $_
+    $null = & ssLogIt.ps1 -Level Error -Message "Failed to update acceptance tests: $_" -Exception $_
     Write-Error $_
     throw
 }

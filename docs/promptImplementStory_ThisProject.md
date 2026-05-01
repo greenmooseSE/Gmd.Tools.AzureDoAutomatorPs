@@ -5,8 +5,8 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 ## Required Process
 1. **Read and apply implementStoryRules.md** — understand branching strategy, work item cleanup, TDD cycle, testing, and documentation requirements
 2. **Setup** — create feature branch (if on develop), verify environment, understand parent feature/epic context
-3. **Implement** — follow TDD cycle, check off Acceptance Criteria as completed, write automated tests for AC Scenarios
-4. **Verify** — ensure all tests pass, validate AC items are testable and verified, check off AC Scenarios with test method names
+3. **Implement** — follow TDD cycle, check off Acceptance Criteria as completed, write automated tests for Acceptance Tests
+4. **Verify** — ensure all tests pass, validate AC items are testable and verified, check off Acceptance Tests with test method names
 5. **Document** — update README.md if applicable, add summary comment to the story with test table
 6. **Validate** — provide a checklist showing ✓/✗ for compliance with each rule from the file
 
@@ -37,7 +37,7 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 - Check off the item (`✅`) in the story with test name suffix (e.g., `GivenInputIsInvalid_ItShouldThrowException`), and any notes if adding value
 - If an AC item cannot be implemented, update with strike-through and comment explaining why
 
-## AC Scenarios Verification
+## Acceptance Tests Verification
 - For each Gherkin/BDD scenario, write an automated Pester integration test
 - Check off the scenario (`✅`) with test name suffix
 - Format: `- ✅ Scenario: [title] 🧪 [TestName]`
@@ -47,13 +47,13 @@ Implement the story following ALL rules in C:\Dev\own\GDrive\Privat\Dev\gh\Gmd.T
 - Check if README.md needs updates based on implementation
 - Add ONE comment in the story (at AzureDO) with:
   - Brief summary of what was implemented
-  - Table of test files/`It` blocks that verify the AC Scenarios
+  - Table of test files/`It` blocks that verify the Acceptance Tests
 - Update existing comment instead of adding new ones
-- Validate and check items (✅) in both fields "Acceptance Criteria" and "AC Scenarios"
+- Validate and check items (✅) in both fields "Acceptance Criteria" and "Acceptance Tests"
 
 ## Validation Checklist
 - [ ] All AC items are checked off in AzureDO story field (or marked as not implemented with explanation)
-- [ ] All AC Scenarios are checked off in AzureDO story field with test name suffix
+- [ ] All Acceptance Tests are checked off in AzureDO story field with test name suffix
 - [ ] All automated Pester tests pass
 - [ ] No PSScriptAnalyzer warnings in implemented scripts
 - [ ] No test work items left behind (verified cleanup)

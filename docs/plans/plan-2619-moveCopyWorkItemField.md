@@ -134,7 +134,7 @@ modes: by WorkItemId (processes the specified item and all its hierarchical desc
 
 - [ ] **Scenario 7: Source field not available on work item type is skipped**  
   Given an Epic work item  
-  When SourceField is "AC Scenarios" (which does not exist on Epic type)  
+  When SourceField is "Acceptance Tests" (which does not exist on Epic type)  
   Then the Epic is skipped  
   And Detail contains "Source field not available on Epic"  
 

@@ -32,8 +32,8 @@ Optional description for the Story
 .PARAMETER AcceptanceCriteria
 Optional acceptance criteria for the Story
 
-.PARAMETER AcScenarios
-Optional acceptance criteria scenarios for the Story
+.PARAMETER AcceptanceTests
+Optional acceptance tests scenarios for the Story
 
 .PARAMETER ExtraInformation
 Optional extra information for the Story
@@ -112,7 +112,7 @@ param(
 
     [string]$AcceptanceCriteria,
 
-    [string]$AcScenarios,
+    [string]$AcceptanceTests,
 
     [string]$ExtraInformation,
 
@@ -257,8 +257,8 @@ try {
                 $updateFields[$script:FIELD_ACCEPTANCE_CRITERIA] = $AcceptanceCriteria
             }
 
-            if ($PSBoundParameters.ContainsKey('AcScenarios')) {
-                $updateFields[$script:FIELD_AC_SCENARIOS] = $AcScenarios
+            if ($PSBoundParameters.ContainsKey('AcceptanceTests')) {
+                $updateFields[$script:FIELD_ACCEPTANCE_TESTS] = $AcceptanceTests
             }
 
             if ($PSBoundParameters.ContainsKey('ExtraInformation')) {
@@ -302,7 +302,7 @@ try {
             }
 
             if ($updateFields.Count -eq 0) {
-                Write-Error "At least one field must be provided for update (Title, Description, AcceptanceCriteria, AcScenarios, ExtraInformation, StoryPoints, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, DeployedToProduction, State, AssignedTo, or -Fields)."
+                Write-Error "At least one field must be provided for update (Title, Description, AcceptanceCriteria, AcceptanceTests, ExtraInformation, StoryPoints, Priority, OriginalEstimate, FixedIn, DeployedToDev, DeployedToStaging, DeployedToProduction, State, AssignedTo, or -Fields)."
             }
 
             $fieldList = @($updateFields.Keys) -join ", "
@@ -353,8 +353,8 @@ try {
                 $updateFields[$script:FIELD_ACCEPTANCE_CRITERIA] = $AcceptanceCriteria
             }
 
-            if ($PSBoundParameters.ContainsKey('AcScenarios')) {
-                $updateFields[$script:FIELD_AC_SCENARIOS] = $AcScenarios
+            if ($PSBoundParameters.ContainsKey('AcceptanceTests')) {
+                $updateFields[$script:FIELD_ACCEPTANCE_TESTS] = $AcceptanceTests
             }
 
             if ($PSBoundParameters.ContainsKey('ExtraInformation')) {
@@ -436,8 +436,8 @@ try {
                 $createFields[$script:FIELD_ACCEPTANCE_CRITERIA] = $AcceptanceCriteria
             }
 
-            if ($PSBoundParameters.ContainsKey('AcScenarios')) {
-                $createFields[$script:FIELD_AC_SCENARIOS] = $AcScenarios
+            if ($PSBoundParameters.ContainsKey('AcceptanceTests')) {
+                $createFields[$script:FIELD_ACCEPTANCE_TESTS] = $AcceptanceTests
             }
 
             if ($PSBoundParameters.ContainsKey('ExtraInformation')) {

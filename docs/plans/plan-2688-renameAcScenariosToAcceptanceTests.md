@@ -22,7 +22,7 @@ references to the canonical label "Acceptance Tests".
 
 - [ ] **Test 2: Markdown examples parse correctly with new field name**  
   1. Run: `.\src\ConvertMarkdownToHierarchyJson.ps1` against `example-hierarchy.md`.  
-  2. Verify "Acceptance Tests" field is populated in output JSON.  
+  2. Verify "acceptanceTests" field is populated in output JSON.  
   3. Verify no "AC Scenarios" key exists in output JSON.  
 
 - [ ] **Test 3: Existing Pester tests pass after rename**  
@@ -31,7 +31,7 @@ references to the canonical label "Acceptance Tests".
 
 ### Story: Rename SetAzDoAcScenarios.ps1 to SetAzDoAcceptanceTests.ps1
 {WorkItemId}: 2689
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 2
@@ -60,7 +60,7 @@ Scenario: Renamed script sets Acceptance Tests field
 
 ### Story: Replace "AC Scenarios" references in all markdown example files
 {WorkItemId}: 2690
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 2
@@ -87,7 +87,7 @@ Scenario: Parser recognizes Acceptance Tests field from example files
 
 ### Story: Replace "AC Scenarios" in parser and export scripts
 {WorkItemId}: 2691
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 2
 {Priority}: 1
@@ -124,7 +124,7 @@ Scenario: Legacy AC Scenarios field emits deprecation warning
 
 ### Story: Update documentation and prompt templates
 {WorkItemId}: 2692
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, docs, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 2
@@ -157,7 +157,7 @@ Scenario: Prompt templates use Acceptance Tests terminology
 
 ### Story: Update plan markdown files to use Acceptance Tests
 {WorkItemId}: 2693
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 3

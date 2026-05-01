@@ -307,7 +307,7 @@ $story = .\UpsertAzDoStory.ps1 `
 - `Id` (optional): Story ID for direct update (cannot be used with `-FailIfExist`)
 - `Description` (optional): Story description
 - `AcceptanceCriteria` (optional): Acceptance criteria text
-- `AcScenarios` (optional): Acceptance criteria scenarios
+- `AcceptanceTests` (optional): Acceptance criteria scenarios
 - `ExtraInformation` (optional): Extra information text
 - `StoryPoints` (optional): Story points (non-negative integer)
 - `Priority` (optional): Priority level 1-4 (1=highest, 4=lowest)
@@ -611,7 +611,7 @@ $fullStory = .\GetAzDoUserStory.ps1 `
 
 **Output Fields (without -Full):**
 - Id, State, Title
-- Description, AcceptanceCriteria, ACScenarios
+- Description, AcceptanceCriteria, AcceptanceTests
 - StoryPoints, ExtraInformation, Tags
 - OriginalEstimate, RemainingWork, CompletedWork
 - AssignedTo (`[PSCustomObject]@{ DisplayName; UniqueName }`, null if unassigned)
@@ -1081,7 +1081,7 @@ Epic
     ├── Id, Title, Description, Effort, Tags
     └── Stories (array)
         ├── Id, State, Title, Description
-        ├── AcceptanceCriteria, ACScenarios
+        ├── AcceptanceCriteria, AcceptanceTests
         ├── StoryPoints, ExtraInformation, Tags
         └── Comments (array with latest version of each comment)
 ```
@@ -1134,7 +1134,7 @@ Feature
 ├── Id, Title, Description, Effort, Tags
 └── Stories (array)
     ├── Id, State, Title, Description
-    ├── AcceptanceCriteria, ACScenarios
+    ├── AcceptanceCriteria, AcceptanceTests
     ├── StoryPoints, ExtraInformation, Tags
     └── Tasks (array)
         ├── Id, State, Title, Description, Tags
@@ -1178,7 +1178,7 @@ foreach ($task in $hierarchy.Tasks) {
 ```
 Story
 ├── Id, State, Title, Description
-├── AcceptanceCriteria, ACScenarios
+├── AcceptanceCriteria, AcceptanceTests
 ├── StoryPoints, ExtraInformation, Tags
 └── Tasks (array)
     ├── Id, State, Title, Description, Tags
@@ -1243,7 +1243,7 @@ Story description here...
 {Acceptance Criteria}
 ...
 
-{AC Scenarios}
+{Acceptance Tests}
 ...
 
 #### Task: Task Title
@@ -1285,7 +1285,7 @@ Feature description
 |---|-----------------|---------|-------|
 | ☐ | Feature works for happy path |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: Happy path
    Given setup state
    When action occurs
@@ -1323,7 +1323,7 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - `$env:GMD_AZDO_MACHINE_WORKITEMSRW`: Personal Access Token (optional, uses encryption if set)
 
 **Features:**
-- Fields mapped to correct Azure DevOps fields: Description (`{Description}`), AcceptanceCriteria (`{Acceptance Criteria}`), AC Scenarios (`{AC Scenarios}`), Extra Information (`{Extra Information}`)
+- Fields mapped to correct Azure DevOps fields: Description (`{Description}`), AcceptanceCriteria (`{Acceptance Criteria}`), Acceptance Tests (`{Acceptance Tests}`), Extra Information (`{Extra Information}`)
 - Bold-formatted lines in descriptions (e.g. `**As a**`) are kept in Description, not treated as metadata
 - WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
 - Supports optional Epic parent via `-EpicId`
@@ -1460,7 +1460,7 @@ Example output:
 
 ## Example Hierarchy
 
-The repository includes an example hierarchy file that matches the parser format used by `NewAzDoHierarchyFromMarkdown.ps1` and demonstrates how to structure Epics, Features, Stories, Acceptance Criteria, AC Scenarios, tags and story points.
+The repository includes an example hierarchy file that matches the parser format used by `NewAzDoHierarchyFromMarkdown.ps1` and demonstrates how to structure Epics, Features, Stories, Acceptance Criteria, Acceptance Tests, tags and story points.
 
 See the full example in [example-hierarchy.md](example-hierarchy.md).
 
@@ -2620,7 +2620,7 @@ using a timestamp seed so each run produces unique item names.
 #### Features
 
 - **No Azure DevOps connection required**: Generates markdown locally
-- **All writable fields populated**: tags, Effort, SP, Priority, OriginalEstimate, Description, Acceptance Criteria, AC Scenarios, Extra Information
+- **All writable fields populated**: tags, Effort, SP, Priority, OriginalEstimate, Description, Acceptance Criteria, Acceptance Tests, Extra Information
 - **Configurable counts**: Control the number of Features, Stories, Bugs, and Tasks per level
 - **Optional no-task items**: `CreateSomeStoriesAndBugsWithoutTasks` creates at least one Story and one Bug per Feature with no Tasks (tests edge-case handling)
 - **testWi tag**: All generated items include the `testWi` tag for identification
@@ -2736,10 +2736,10 @@ All scripts follow strict error handling practices:
 │   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)
 │   ├── NewAzDoCommentReactionTest.ps1       (NewAzDoCommentReaction tests)
 │   ├── storyAcTests/
-│   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments AC scenario tests)
-│   │   ├── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment AC scenario tests)
+│   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments Acceptance Test tests)
+│   │   ├── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment Acceptance Test tests)
 │   │   ├── 2616ConfigDrivenApiReadWrite/
-│   │   │   └── 2616ConfigDrivenApiReadWriteTest.ps1  (ValidateUpsertFields AC scenario tests)
+│   │   │   └── 2616ConfigDrivenApiReadWriteTest.ps1  (ValidateUpsertFields Acceptance Test tests)
 │   │   ├── 2617McpConfigTemplateAllFields/
 │   │   │   └── 2617McpConfigTemplateAllFieldsTest.ps1 (Template generator / MCP config tests)
 │   │   └── 2618AssignedToByEmail/
@@ -3265,7 +3265,7 @@ Story description with headers at level 4 or higher
 {Acceptance Criteria}
 - [ ] Criterion 1
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: First scenario  
   Given...  
   When...  
@@ -3300,7 +3300,7 @@ This is the third line
 
 **Acceptance Criteria Scenarios (ACS)** - Gherkin-style BDD scenarios:
 ```markdown
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User logs in  
   Given user is on login page  
   When user enters valid credentials  

@@ -158,7 +158,7 @@ A story
                 StoryPoints        = $null
                 Description        = $null
                 AcceptanceCriteria = $null
-                ACScenarios        = $null
+                AcceptanceTests        = $null
                 ExtraInformation   = $null
                 AssignedTo         = $null
                 OriginalEstimate   = $null

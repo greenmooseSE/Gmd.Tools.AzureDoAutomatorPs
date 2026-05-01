@@ -5,7 +5,7 @@ Retrieve Azure DevOps User Story hierarchy with Tasks
 .DESCRIPTION
 Fetches a User Story and builds a complete hierarchy showing:
 - Story with full story details:
-  Id, State, Title, Description, AcceptanceCriteria, ACScenarios, 
+  Id, State, Title, Description, AcceptanceCriteria, AcceptanceTests, 
   StoryPoints, ExtraInformation, Tags
 - All Tasks under the Story
 

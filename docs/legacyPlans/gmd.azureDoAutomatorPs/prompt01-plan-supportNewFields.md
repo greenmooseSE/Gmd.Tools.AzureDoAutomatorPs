@@ -130,14 +130,14 @@ Each work item type must have a prefix and a predefined header level. These are 
 - Focus on what the user/feature MUST do or behave like when this story is complete.
 - Each AC item should be testable with an automated test (unit, integration, or snapshot).
 
-## AC Scenarios
+## Acceptance Tests
 - Write Gherkin/BDD scenarios in bullet list format `- [ ] **Scenario 1: Scenario title**  \nGiven ...  \nWhen ...  \nThen ...`.
 - The scenarios should be explicit enough so they can be written as automated (integration) tests.
 
-## Relationship Between AC Criteria and AC Scenarios
+## Relationship Between AC Criteria and Acceptance Tests
 - **AC Criteria** test individual conditions, properties, or validations in isolation (e.g., "Invalid email input should reject").
-- **AC Scenarios** test complete user workflows using Given-When-Then (Gherkin/BDD format).
-- Typically, one AC Scenario exercises multiple AC Criteria; they should complement—not duplicate—each other.
+- **Acceptance Tests** test complete user workflows using Given-When-Then (Gherkin/BDD format).
+- Typically, one Acceptance Test exercises multiple AC Criteria; they should complement—not duplicate—each other.
 - Example: If AC says "System validates email format", the Scenario might be "Given invalid email | When user submits | Then system shows error".
 
 ## Extra Information
@@ -189,7 +189,7 @@ Possible values: 0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 8, 13, 20, 40, 10
 
 ### Pester tests
 - Reference the Pester test file name and path in the AC.
-- Use `Describe`/`Context`/`It` naming that reflects the AC scenario being verified.
+- Use `Describe`/`Context`/`It` naming that reflects the Acceptance Test being verified.
 - Prefer integration-level Pester tests that call the script with real (or mocked) AzDo responses over unit-testing internal helpers in isolation.
 ## Architectural Rules
 

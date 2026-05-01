@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-AC Scenario verification tests for story 1585: UpdateAzDoComment functionality
-Tests map directly to AC Scenarios and verify updating comment content on work items.
+ACCEPTANCE TEST verification tests for story 1585: UpdateAzDoComment functionality
+Tests map directly to Acceptance Tests and verify updating comment content on work items.
 #>
 
 Set-StrictMode -Version 3.0
@@ -74,17 +74,17 @@ function Print-Summary {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 1585: UpdateAzDoComment" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 1585: UpdateAzDoComment" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # ============================================================================
-# AC SCENARIO 1: Update comment successfully
+# ACCEPTANCE TEST 1: Update comment successfully
 # Given comment exists with original content
 # When calling UpdateAzDoComment with new content
 # Then comment is updated in Azure DevOps
 # And updated comment object is returned
 # ============================================================================
-Write-Host "`n[AC SCENARIO 1] Update comment successfully" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 1] Update comment successfully" -ForegroundColor Yellow
 
 try {
     # Create a test Epic
@@ -147,11 +147,11 @@ try {
         throw "Retrieved comment does not have updated content"
     }
     
-    Record-Test -Scenario "AC SCENARIO 1: Update comment successfully" -Passed $true -Details "Comment updated and verified via retrieval"
+    Record-Test -Scenario "ACCEPTANCE TEST 1: Update comment successfully" -Passed $true -Details "Comment updated and verified via retrieval"
     Write-Host "  ✓ PASSED: Comment updated successfully" -ForegroundColor Green
 }
 catch {
-    Record-Test -Scenario "AC SCENARIO 1: Update comment successfully" -Passed $false -Details $_.Exception.Message
+    Record-Test -Scenario "ACCEPTANCE TEST 1: Update comment successfully" -Passed $false -Details $_.Exception.Message
     Write-Host "  ✗ FAILED: $($_.Exception.Message)" -ForegroundColor Red
 }
 

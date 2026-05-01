@@ -6,7 +6,7 @@ Tests for story AB#2222: Detect and Validate Changes Between Original and Modifi
 Tests the DetectHierarchyChanges.ps1 script to ensure it correctly identifies field-level changes,
 hierarchy reorganization, and prevents dangerous modifications.
 
-Tests AC scenarios:
+Tests Acceptance Tests:
 1. Single field change is detected
 2. Parent-child reorganization is detected
 3. Dangerous modification prevents application
@@ -76,7 +76,7 @@ Write-Host "Organization: $Organization"
 Write-Host "Project: $Project`n"
 
 # ============================================================================
-# AC Scenario 1: Single field change is detected
+# ACCEPTANCE TEST 1: Single field change is detected
 # ============================================================================
 
 Invoke-Test "GivenStoryTitleChanged_WhenDiffCalculated_ThenChangeIsDetected" {
@@ -185,7 +185,7 @@ Invoke-Test "GivenUnchangedItems_WhenDiffCalculated_ThenNoOperationsGenerated" {
 }
 
 # ============================================================================
-# AC Scenario 2: Parent-child reorganization is detected
+# ACCEPTANCE TEST 2: Parent-child reorganization is detected
 # ============================================================================
 
 Invoke-Test "GivenStoryMovedToNewParent_WhenDiffCalculated_ThenMoveDetected" {
@@ -236,7 +236,7 @@ Invoke-Test "GivenStoryMovedToNewParent_WhenDiffCalculated_ThenMoveDetected" {
 }
 
 # ============================================================================
-# AC Scenario 4: New work items are detected for creation
+# ACCEPTANCE TEST 4: New work items are detected for creation
 # ============================================================================
 
 Invoke-Test "GivenNewStoryWithoutWorkItemId_WhenDiffCalculated_ThenMarkedForCreation" {

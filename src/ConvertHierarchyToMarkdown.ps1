@@ -106,7 +106,7 @@ function Get-FieldConfigForType {
 .SYNOPSIS
 Labels that are already output as core metadata fields and must be skipped during config-driven output.
 #>
-[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path', 'Acceptance Criteria', 'AC Scenarios', 'Extra Information')
+[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path', 'Acceptance Criteria', 'Acceptance Tests', 'Extra Information')
 
 <#
 .SYNOPSIS
@@ -259,7 +259,7 @@ function Convert-StoryToMarkdown {
     $State = $Story.State
     $Description = $Story.Description
     $AcceptanceCriteria = $Story.AcceptanceCriteria
-    $ACScenarios = $Story.ACScenarios
+    $AcceptanceTests = $Story.AcceptanceTests
     $StoryPoints = $Story.StoryPoints
     $Tags = $Story.Tags
     $ExtraInformation = $Story.ExtraInformation
@@ -314,10 +314,10 @@ function Convert-StoryToMarkdown {
         $markdown += "`n"
     }
     
-    # Add AC scenarios
-    if ($ACScenarios) {
+    # Add Acceptance Tests
+    if ($AcceptanceTests) {
         $markdown += "`n{Acceptance Tests}  `n"
-        $markdown += (Add-MarkdownLineBreaks $ACScenarios)
+        $markdown += (Add-MarkdownLineBreaks $AcceptanceTests)
         $markdown += "`n"
     }
     

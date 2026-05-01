@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-Verification tests for all AC Scenarios in story 1581: UpsertAzDoStory functionality
-Tests map directly to AC Scenarios and verify each behavioral requirement.
+Verification tests for all Acceptance Tests in story 1581: UpsertAzDoStory functionality
+Tests map directly to Acceptance Tests and verify each behavioral requirement.
 #>
 
 Set-StrictMode -Version 3.0
@@ -30,7 +30,7 @@ function Record-Test {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 1581: UpsertAzDoStory" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 1581: UpsertAzDoStory" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # ============================================================================
@@ -139,7 +139,7 @@ try {
     
     # Update by ID only (no title provided in this call)
     $updated = & "$SRC_DIR/UpsertAzDoStory.ps1" -Organization $Organization -Project $Project `
-        -Id $storyId -Description "Updated via ID" -ACScenarios "Given: user is logged in, When: they click submit, Then: form submits" -ErrorAction Stop
+        -Id $storyId -Description "Updated via ID" -AcceptanceTests "Given: user is logged in, When: they click submit, Then: form submits" -ErrorAction Stop
     
     if ($updated.id -ne $storyId) {
         throw "Update by ID returned different ID"

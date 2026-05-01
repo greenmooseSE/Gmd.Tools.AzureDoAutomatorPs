@@ -6,7 +6,7 @@ Tests for story AB#2223: Apply Validated Changes Back to Azure DevOps
 Tests the ApplyValidatedChanges.ps1 script to ensure it correctly applies validated changes
 with transaction-like safety and comprehensive error handling.
 
-Tests AC scenarios:
+Tests Acceptance Tests:
 1. Single field update is applied successfully
 2. Multiple changes are applied in dependency order
 3. Change application fails gracefully
@@ -76,7 +76,7 @@ Write-Host "Organization: $Organization"
 Write-Host "Project: $Project`n"
 
 # ============================================================================
-# AC Scenario 1: Single field update is applied successfully
+# ACCEPTANCE TEST 1: Single field update is applied successfully
 # ============================================================================
 
 Invoke-Test "GivenSingleFieldUpdate_WhenApplied_ThenSucceeds" {
@@ -115,7 +115,7 @@ Invoke-Test "GivenSingleFieldUpdate_WhenApplied_ThenSucceeds" {
 }
 
 # ============================================================================
-# AC Scenario 2: Multiple changes are applied in dependency order
+# ACCEPTANCE TEST 2: Multiple changes are applied in dependency order
 # ============================================================================
 
 Invoke-Test "GivenMultipleOperationsInDependencyOrder_WhenApplied_ThenAllApplied" {
@@ -178,7 +178,7 @@ Invoke-Test "GivenMultipleOperationsInDependencyOrder_WhenApplied_ThenAllApplied
 }
 
 # ============================================================================
-# AC Scenario 3: No operations applied if validation failed
+# ACCEPTANCE TEST 3: No operations applied if validation failed
 # ============================================================================
 
 Invoke-Test "GivenInvalidDiff_WhenApplied_ThenRejectWithError" {

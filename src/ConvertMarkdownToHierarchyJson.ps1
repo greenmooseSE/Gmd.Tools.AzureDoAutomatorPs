@@ -575,8 +575,8 @@ function Cleanup-Item {
         if ($Item.customFields.ContainsKey('Acceptance Criteria')) {
             $cleaned.acceptanceCriteria = $Item.customFields['Acceptance Criteria']
         }
-        if ($Item.customFields.ContainsKey('AC Scenarios')) {
-            $cleaned.acScenarios = $Item.customFields['AC Scenarios']
+        if ($Item.customFields.ContainsKey('Acceptance Tests')) {
+            $cleaned.acceptanceTests = $Item.customFields['Acceptance Tests']
         }
         if ($Item.customFields.ContainsKey('Extra Information')) {
             $cleaned.extraInformation = $Item.customFields['Extra Information']
@@ -588,7 +588,7 @@ function Cleanup-Item {
         }
         
         # Include any other custom fields that weren't specifically mapped
-        [string[]]$mappedFields = @('Acceptance Criteria', 'AC Scenarios', 'Extra Information', 'Custom.ExtraInformation')
+        [string[]]$mappedFields = @('Acceptance Criteria', 'Acceptance Tests', 'Extra Information', 'Custom.ExtraInformation')
         foreach ($fieldName in $Item.customFields.Keys) {
             if ($fieldName -notin $mappedFields) {
                 $cleaned[$fieldName] = $Item.customFields[$fieldName]
@@ -603,8 +603,8 @@ function Cleanup-Item {
         if (($Item.configFields.ContainsKey('Custom.AcceptanceCriteria') -or $Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) -and -not $cleaned.ContainsKey('acceptanceCriteria')) {
             $cleaned.acceptanceCriteria = if ($Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) { $Item.configFields['Microsoft.VSTS.Common.AcceptanceCriteria'] } else { $Item.configFields['Custom.AcceptanceCriteria'] }
         }
-        if ($Item.configFields.ContainsKey('Custom.AcceptanceTests') -and -not $cleaned.ContainsKey('acScenarios')) {
-            $cleaned.acScenarios = $Item.configFields['Custom.AcceptanceTests']
+        if ($Item.configFields.ContainsKey('Custom.AcceptanceTests') -and -not $cleaned.ContainsKey('acceptanceTests')) {
+            $cleaned.acceptanceTests = $Item.configFields['Custom.AcceptanceTests']
         }
         if ($Item.configFields.ContainsKey('Custom.ExtraInformation') -and -not $cleaned.ContainsKey('extraInformation')) {
             $cleaned.extraInformation = $Item.configFields['Custom.ExtraInformation']

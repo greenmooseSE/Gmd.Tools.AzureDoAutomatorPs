@@ -20,5 +20,5 @@
 
 ### Pester tests
 - Reference the Pester test file name and path in the AC.
-- Use `Describe`/`Context`/`It` naming that reflects the AC scenario being verified.
+- Use `Describe`/`Context`/`It` naming that reflects the Acceptance Test being verified.
 - Prefer integration-level Pester tests that call the script with real (or mocked) AzDo responses over unit-testing internal helpers in isolation.

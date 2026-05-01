@@ -280,7 +280,7 @@ Describe 'Story 2620 - MoveAzDoWorkItemField.ps1 WorkItemId scope' {
     Context 'Scenario 7: Source field not available on work item type' {
 
         BeforeAll {
-            # Use a field that does not exist on Task type (e.g. AC Scenarios)
+            # Use a field that does not exist on Task type (e.g. Acceptance Tests)
             # We create a task and try to move a Story-only field from it
             $script:s7Feature = hCreateWorkItem -Type 'Feature' -Title '2620 S7 Feature'
             $script:s7Story   = hCreateWorkItem -Type 'User Story' -Title '2620 S7 Story' `

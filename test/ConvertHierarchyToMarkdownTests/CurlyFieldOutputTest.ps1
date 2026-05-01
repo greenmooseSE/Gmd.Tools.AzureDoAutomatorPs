@@ -33,7 +33,7 @@ function New-TestStory {
         [object]$StoryPoints = $null,
         [object]$Description = $null,
         [object]$AcceptanceCriteria = $null,
-        [object]$ACScenarios = $null,
+        [object]$AcceptanceTests = $null,
         [object]$ExtraInformation = $null,
         [object]$AssignedTo = $null,
         [object]$OriginalEstimate = $null,
@@ -48,7 +48,7 @@ function New-TestStory {
         StoryPoints        = $StoryPoints
         Description        = $Description
         AcceptanceCriteria = $AcceptanceCriteria
-        ACScenarios        = $ACScenarios
+        AcceptanceTests        = $AcceptanceTests
         ExtraInformation   = $ExtraInformation
         AssignedTo         = $AssignedTo
         OriginalEstimate   = $OriginalEstimate
@@ -153,7 +153,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
                 -Tags 'foo' -StoryPoints 3 `
                 -Description 'Description here.' `
                 -AcceptanceCriteria 'AC here.' `
-                -ACScenarios 'Scenarios here.' `
+                -AcceptanceTests 'Scenarios here.' `
                 -ExtraInformation 'Extra info.'
             $output = & (Join-Path $SRC_DIR 'ConvertHierarchyToMarkdown.ps1') `
                 -Hierarchy $story -Organization 'falco-it' -Project 'GMD' -RepositoryRoot $REPO_ROOT 2>&1 |
@@ -165,7 +165,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
             $output | Should Not Match '\*\*State\*\*:'
             $output | Should Not Match '\*\*WorkItemId\*\*:'
             $output | Should Not Match '#### Acceptance Criteria'
-            $output | Should Not Match '#### AC Scenarios'
+            $output | Should Not Match '#### Acceptance Tests'
             $output | Should Not Match '#### Extra Information'
         }
     }
@@ -203,7 +203,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
             $content | Should Not Match '\*\*tags\*\*:'
             $content | Should Not Match '\*\*Story Points\*\*:'
             $content | Should Not Match '#### Acceptance Criteria'
-            $content | Should Not Match '#### AC Scenarios'
+            $content | Should Not Match '#### Acceptance Tests'
             $content | Should Not Match '#### Extra Information'
         }
 

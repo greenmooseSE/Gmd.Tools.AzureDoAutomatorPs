@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-AC Scenario verification tests for story 2218: Support State Field in Export with Writable State Validation
+ACCEPTANCE TEST verification tests for story 2218: Support State Field in Export with Writable State Validation
 Tests export of work item state field and validation against writable states configuration
 
 .DESCRIPTION
@@ -64,16 +64,16 @@ function Print-Summary {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 2218: State Field Export" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 2218: State Field Export" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # Get PAT token
 $pat = $env:GMD_AZDO_MACHINE_WORKITEMSRW | & 'C:\Dev\own\GDrive\Work\Dev\bbTooling\PowerShell\ssEncryptDecrypt.ps1' -Decrypt
 
 # ============================================================================
-# AC SCENARIO 1: Export includes editable state
+# ACCEPTANCE TEST 1: Export includes editable state
 # ============================================================================
-Write-Host "`n[AC SCENARIO 1] Export includes editable state (State in writableStates)" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 1] Export includes editable state (State in writableStates)" -ForegroundColor Yellow
 Write-Host "  Given a Story with state 'New' which is in writableStates list" -ForegroundColor DarkGray
 Write-Host "  When export is generated" -ForegroundColor DarkGray
 Write-Host "  Then exported markdown includes **State**: New" -ForegroundColor DarkGray
@@ -130,9 +130,9 @@ try {
 }
 
 # ============================================================================
-# AC SCENARIO 2: Export warns about non-editable state
+# ACCEPTANCE TEST 2: Export warns about non-editable state
 # ============================================================================
-Write-Host "`n[AC SCENARIO 2] Export warns about non-editable state (State NOT in writableStates)" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 2] Export warns about non-editable state (State NOT in writableStates)" -ForegroundColor Yellow
 Write-Host "  Given a Story with state 'Closed' which is NOT in writableStates list" -ForegroundColor DarkGray
 Write-Host "  When export is generated" -ForegroundColor DarkGray
 Write-Host "  Then exported markdown includes **State**: Closed" -ForegroundColor DarkGray
@@ -187,9 +187,9 @@ try {
 }
 
 # ============================================================================
-# AC SCENARIO 3: Export works with incomplete configuration
+# ACCEPTANCE TEST 3: Export works with incomplete configuration
 # ============================================================================
-Write-Host "`n[AC SCENARIO 3] Export works with incomplete configuration (default fallback)" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 3] Export works with incomplete configuration (default fallback)" -ForegroundColor Yellow
 Write-Host "  Given state configuration is missing or incomplete" -ForegroundColor DarkGray
 Write-Host "  When export is generated with default configuration" -ForegroundColor DarkGray
 Write-Host "  Then export succeeds" -ForegroundColor DarkGray

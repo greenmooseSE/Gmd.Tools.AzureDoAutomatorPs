@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    Generates a complete AI agent prompt for creating a feature plan for a C# Web API project.
+    Generates a complete AI agent prompt for creating a feature plan for any project type.
 
 .DESCRIPTION
-    Produces a dynamically composed prompt for AI agents to create a markdown feature plan,
-    merging the plan creation rules, general story rules, WebApi-specific story rules,
-    general architectural rules, and WebApi-specific architectural rules from their source
-    markdown files.
+    Produces a dynamically composed prompt for AI agents to create a markdown feature plan
+    for one or more features under an existing epic. Unlike the project-specific variants,
+    this script contains no technology-specific rules and can be reused across any project
+    type (Web API, UI, PowerShell, infrastructure, etc.).
 
     The generated prompt references `.github/copilot-instructions.md` so the AI agent does not
     overlook it, but does not include its content in the merged output.
@@ -33,6 +33,11 @@
 .PARAMETER ScriptsLocation
     Relative path to the scripts folder within the workspace. Defaults to 'src/'.
 
+.PARAMETER MultipleFeatures
+    When specified, the prompt instructs the agent that the plan may contain multiple
+    `## Feature:` blocks (one per area of work). The output filename convention and the
+    "1 feature" constraint are overridden accordingly.
+
 .PARAMETER OutputToClipboard
     When specified, copies the generated prompt to the clipboard in addition to stdout.
 
@@ -40,10 +45,13 @@
     When specified, writes the generated prompt to this file path in addition to stdout.
 
 .EXAMPLE
-    .\docs\promptCreatePlanFeatureMarkdown_WebApiCs.ps1 -EpicId 1305 -Organization falco-it -AzDoProject GMD -OutputToClipboard
+    .\docs\promptCreatePlanFeatureMarkdown_General.ps1 -EpicId 1305 -Organization falco-it -AzDoProject GMD -OutputToClipboard
 
 .EXAMPLE
-    .\docs\promptCreatePlanFeatureMarkdown_WebApiCs.ps1 -EpicId 1305 -FeatureId 1590 -Organization myOrg -AzDoProject MyProject -OutputFile "tmp\plan-prompt.md"
+    .\docs\promptCreatePlanFeatureMarkdown_General.ps1 -EpicId 1305 -Organization myOrg -AzDoProject MyProject -MultipleFeatures -OutputFile "tmp\plan-prompt.md"
+
+.EXAMPLE
+    .\docs\promptCreatePlanFeatureMarkdown_General.ps1 -EpicId 1305 -FeatureId 1590 -Organization falco-it -AzDoProject GMD
 #>
 [CmdletBinding()]
 param(
@@ -61,6 +69,8 @@ param(
     [string]$PatTokenExpression = '($env:AZDO_PAT_TOKEN | ssEncryptDecrypt.ps1 -Decrypt)',
 
     [string]$ScriptsLocation = 'src/',
+
+    [switch]$MultipleFeatures,
 
     [switch]$OutputToClipboard,
 
@@ -82,12 +92,10 @@ function hReadInclude {
 }
 
 # ── Load template and rule files ───────────────────────────────────────────────
-$template          = hReadInclude 'createPlanPromptTemplate.md'
-$planRules         = hReadInclude 'createMarkdownPlan.md'
-$storyRules        = hReadInclude 'createStoryRules_General.md'
-$storyRulesWebApi  = hReadInclude 'createStoryRules_WebApi.md'
-$archRules         = hReadInclude 'architecturalRules_General.md'
-$archRulesWebApi   = hReadInclude 'architecturalRules_WebApi.md'
+$template  = hReadInclude 'createPlanPromptTemplate.md'
+$planRules = hReadInclude 'createMarkdownPlan.md'
+$storyRules = hReadInclude 'createStoryRules_General.md'
+$archRules = hReadInclude 'architecturalRules_General.md'
 
 # ── Build AzDo config block ────────────────────────────────────────────────────
 $configLines = @(
@@ -106,18 +114,29 @@ $azdoConfig = $configLines -join "`n"
 $featureContext = if ($FeatureId -gt 0) { " / AB#$FeatureId" } else { '' }
 $contextTitle   = " — AB#$EpicId$featureContext"
 
-$combinedArchRules = $archRules.Trim() + "`n`n" + $archRulesWebApi.Trim()
-$extraSection      = "## Project-Specific Story Rules (C# / WebApi)`n`n$($storyRulesWebApi.Trim())"
+# ── Build extra output requirements for multi-feature plans ───────────────────
+$extraOutputRequirements = ''
+if ($MultipleFeatures) {
+    $extraOutputRequirements = @'
+
+> **Multi-feature plan override**: This plan may contain **one or more `## Feature:` blocks**.
+> - Override the "exactly 1 feature" constraint above — include as many features as needed to cover the full scope.
+> - Each feature should represent a distinct area of work (e.g. backend API, UI, infrastructure).
+> - Describe each feature under **Feature Specifications** with its own sub-section before writing the plan.
+> - Name the file to reflect the epic scope: `docs/plans/plan-tbd-epic{EpicTitle}.md`.
+> - When the plan contains multiple features, apply the `(001)`, `(002)`, … order suffix to each feature title per the Title rules.
+'@
+}
 
 # ── Apply substitutions ────────────────────────────────────────────────────────
 $prompt = $template.Replace('{{CONTEXT_TITLE}}', $contextTitle)
 $prompt = $prompt.Replace('{{AZDO_CONFIG}}', $azdoConfig)
 $prompt = $prompt.Replace('{{PLAN_CREATION_RULES}}', $planRules.Trim())
 $prompt = $prompt.Replace('{{STORY_RULES}}', $storyRules.Trim())
-$prompt = $prompt.Replace('{{EXTRA_STORY_RULES_SECTION}}', $extraSection)
-$prompt = $prompt.Replace('{{EXTRA_OUTPUT_REQUIREMENTS}}', '')
-$prompt = $prompt.Replace('{{ARCH_RULES}}', $combinedArchRules)
-$prompt = $prompt.Replace('{{GENERATED_BY}}', 'promptCreatePlanFeatureMarkdown_WebApiCs.ps1')
+$prompt = $prompt.Replace('{{EXTRA_STORY_RULES_SECTION}}', '')
+$prompt = $prompt.Replace('{{EXTRA_OUTPUT_REQUIREMENTS}}', $extraOutputRequirements)
+$prompt = $prompt.Replace('{{ARCH_RULES}}', $archRules.Trim())
+$prompt = $prompt.Replace('{{GENERATED_BY}}', 'promptCreatePlanFeatureMarkdown_General.ps1')
 $prompt = $prompt.Replace('{{TIMESTAMP}}', (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 
 # ── Output ─────────────────────────────────────────────────────────────────────

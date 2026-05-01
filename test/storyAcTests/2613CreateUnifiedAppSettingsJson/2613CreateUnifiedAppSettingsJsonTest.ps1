@@ -69,11 +69,11 @@ Describe 'Story 2613 - appSettings.json field and state definitions' {
             }
         }
 
-        It 'User Story field list contains ACScenarios, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork' {
+        It 'User Story field list contains AcceptanceTests, AcceptanceCriteria, StoryAcceptanceTests, OriginalEstimate, RemainingWork, CompletedWork' {
             $s = Get-Content $APP_SETTINGS_PATH -Raw | ConvertFrom-Json
             $storyFields = $s.organizations.'falco-it'.projects.GMD.fields.'User Story'
             $requiredRefs = @(
-                'Custom.ACScenarios', 'Custom.AcceptanceCriteria', 'Custom.StoryAcceptanceTests',
+                'Custom.AcceptanceTests', 'Custom.AcceptanceCriteria', 'Custom.StoryAcceptanceTests',
                 'Microsoft.VSTS.Scheduling.OriginalEstimate',
                 'Microsoft.VSTS.Scheduling.RemainingWork',
                 'Microsoft.VSTS.Scheduling.CompletedWork'
@@ -225,7 +225,7 @@ Describe 'Story 2613 - appSettings.json field and state definitions' {
             $fields | Should Not BeNullOrEmpty
             ($fields | Where-Object { $_.referenceName -eq 'System.Id' })                                   | Should Not BeNullOrEmpty
             ($fields | Where-Object { $_.referenceName -eq 'System.Title' })                                | Should Not BeNullOrEmpty
-            ($fields | Where-Object { $_.referenceName -eq 'Custom.ACScenarios' })                          | Should Not BeNullOrEmpty
+            ($fields | Where-Object { $_.referenceName -eq 'Custom.AcceptanceTests' })                          | Should Not BeNullOrEmpty
             ($fields | Where-Object { $_.referenceName -eq 'Microsoft.VSTS.Scheduling.StoryPoints' })       | Should Not BeNullOrEmpty
             ($fields | Where-Object { $_.referenceName -eq 'Microsoft.VSTS.Scheduling.OriginalEstimate' })  | Should Not BeNullOrEmpty
         }

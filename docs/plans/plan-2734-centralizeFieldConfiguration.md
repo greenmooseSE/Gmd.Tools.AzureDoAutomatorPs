@@ -61,7 +61,7 @@ under `organizations.{org}.projects.{project}.fields.{type}[]`:
 | `exampleContent` | string/null | Example value used when generating markdown templates. |  
 | `markdownInstruction` | string/null | Brief instruction for template generation (e.g. "1-4, 1=highest"). |  
 | `outputOrder` | integer/null | Controls ordering when serializing fields to markdown. Lower = earlier. |  
-| `isMultiline` | boolean | True if field content spans multiple lines (e.g. Description, AC Scenarios). Default false. |  
+| `isMultiline` | boolean | True if field content spans multiple lines (e.g. Description, Acceptance Tests). Default false. |  
 
 Only writable, markdown-relevant fields need the full set of new properties;  
 read-only or system-only fields can leave them null/omitted.  
@@ -93,7 +93,7 @@ read-only or system-only fields can leave them null/omitted.
 3. **Scenario**: Output order reflects established field sequence  
    Given fields have `outputOrder` values assigned  
    When fields are sorted by `outputOrder`  
-   Then the sequence is: WorkItemId, State, Assigned To, tags, Story Points, Effort, Priority, OriginalEstimate, custom fields, Description, Acceptance Criteria, AC Scenarios, Extra Information  
+   Then the sequence is: WorkItemId, State, Assigned To, tags, Story Points, Effort, Priority, OriginalEstimate, custom fields, Description, Acceptance Criteria, Acceptance Tests, Extra Information  
 
 ### Story: Refactor GenerateAzDoMarkdownHierarchyTemplate to use appSettings.json field metadata (002)
 {WorkItemId}: 2737
@@ -397,7 +397,7 @@ fields across all 5 work item types. Examples:
 | Priority | 3 | 1-4, 1=highest |  
 | Description (Story) | **As a** developer\n**I want** to do X\n**So that** Y | Multi-line; use As a/I want/So that for stories |  
 | Acceptance Criteria | \| ✅ \| What is Verified \| Test(s) \| Notes \|\n\|---\|...\| | Markdown table format |  
-| AC Scenarios | 1. **Scenario**: Title\n   Given ...\n   When ...\n   Then ... | Numbered BDD/Gherkin format |  
+| Acceptance Tests | 1. **Scenario**: Title\n   Given ...\n   When ...\n   Then ... | Numbered BDD/Gherkin format |  
 | OriginalEstimate | 8 | Hours; Tasks/Features/Stories |  
 | FixedIn | v2.1.0 | Version/build where completed |  
 | DeployedToDev | false | true/false |  

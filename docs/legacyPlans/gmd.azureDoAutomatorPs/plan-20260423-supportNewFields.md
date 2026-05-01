@@ -262,7 +262,7 @@ Activity, OriginalEstimate, RemainingWork, CompletedWork, StartDate, FinishDate
 #### Extra Information
 - The field label in markdown must match the `label` property in appSettings.json  
   (case-insensitive comparison).  
-- For html-type fields (Description, Extra Information, AC Scenarios, etc.), the parser  
+- For html-type fields (Description, Extra Information, Acceptance Tests, etc.), the parser  
   should continue reading multiline content until the next recognized field label or  
   header is encountered.  
 - Consider adding a `markdownOrder` numeric property to field definitions in appSettings.json  

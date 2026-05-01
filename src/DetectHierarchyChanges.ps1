@@ -176,7 +176,7 @@ function Compare-Fields {
     $modifiableFields = @(
         'title', 'description', 'state', 'tags', 
         'storyPoints', 'effort', 'acceptanceCriteria', 
-        'acScenarios', 'extraInformation'
+        'acceptanceTests', 'extraInformation'
     )
     
     foreach ($field in $modifiableFields) {
@@ -361,7 +361,7 @@ foreach ($modItemKey in $modifiedFlat.Keys) {
                 changes       = @{
                     'description'         = @{ before = $null; after = $modItemData['description'] }
                     'acceptanceCriteria'  = @{ before = $null; after = $modItemData['acceptanceCriteria'] }
-                    'acScenarios'         = @{ before = $null; after = $modItemData['acScenarios'] }
+                    'acceptanceTests'         = @{ before = $null; after = $modItemData['acceptanceTests'] }
                     'storyPoints'         = @{ before = $null; after = $modItemData['storyPoints'] }
                     'effort'              = @{ before = $null; after = $modItemData['effort'] }
                     'tags'                = @{ before = $null; after = $modItemData['tags'] }
@@ -389,7 +389,7 @@ foreach ($modItemKey in $modifiedFlat.Keys) {
             changes       = @{
                 'description'         = @{ before = $null; after = $modItemData['description'] }
                 'acceptanceCriteria'  = @{ before = $null; after = $modItemData['acceptanceCriteria'] }
-                'acScenarios'         = @{ before = $null; after = $modItemData['acScenarios'] }
+                'acceptanceTests'         = @{ before = $null; after = $modItemData['acceptanceTests'] }
                 'storyPoints'         = @{ before = $null; after = $modItemData['storyPoints'] }
                 'effort'              = @{ before = $null; after = $modItemData['effort'] }
                 'tags'                = @{ before = $null; after = $modItemData['tags'] }

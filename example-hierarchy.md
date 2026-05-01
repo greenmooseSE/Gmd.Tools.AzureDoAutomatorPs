@@ -84,7 +84,7 @@ Entra ID so that users can securely log in with their organizational credentials
 | ⏹️ | Login page displays appropriate error messages for invalid credentials |  |  |
 | ⏹️ | Session is cleared when user logs out or token expires |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User successfully logs in with valid Entra ID credentials\
   Given user is on the login page\
   When user enters valid Entra ID email and password\
@@ -128,7 +128,7 @@ my account reflects my current details and communication preferences.
 | ⏹️ | All profile changes are audited with change timestamp and actor |  |  |
 | ⏹️ | New email requires verification via confirmation link |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User updates profile name successfully\
   Given user is logged in on profile page\
   When user edits name field and clicks save\
@@ -252,7 +252,7 @@ so that I can quickly request help from the support team.
 | ⏹️ | Form submission sends confirmation email with ticket number |  |  |
 | ⏹️ | Estimated response time is displayed based on priority and queue |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User creates ticket with valid information\
   Given user is in the create ticket form\
   When user fills in all required fields and clicks submit\
@@ -289,7 +289,7 @@ changes so I'm always informed about the progress of my issue resolution.
 | ⏹️ | User can customize which status changes trigger notifications |  |  |
 | ⏹️ | Notifications appear within 2 seconds of status change |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: Ticket is assigned to support agent and user is notified\
   Given ticket is in "Open" status\
   When support agent clicks assign button\
@@ -336,7 +336,7 @@ with AI-suggested related articles based on semantic similarity.
 | ⏹️ | Search supports filtering by category and date authored |  |  |
 | ⏹️ | Faceted search shows article counts by category |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User searches for articles about billing issues\
   Given user enters "how to dispute a charge" in search box\
   When search results load\
@@ -374,7 +374,7 @@ and moderation to ensure quality content.
 | ⏹️ | Solutions with 20+ helpful votes appear above original article content |  |  |
 | ⏹️ | Inappropriate content is hidden after 5 unhelpful votes and reviewed |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User submits helpful solution to popular article\
   Given user reads an article and has a solution\
   When user clicks "Add Solution" and fills in details\
@@ -407,5 +407,6 @@ after the change.
 - [ ] **Test 1**: Search index refreshes within 60 seconds of article update
 - [ ] **Test 2**: Deleted articles are removed from search results within 60 seconds
 - [ ] **Test 3**: Updated article title and content appear in results after refresh
+
 
 
