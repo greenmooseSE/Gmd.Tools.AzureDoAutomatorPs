@@ -6,7 +6,7 @@
 ## Feature: Sync AzDo Hierarchy to Plan Markdown
 
 {WorkItemId}: 2858  
-{State}: New  
+{State}: Done  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Effort}: 5  
 {Priority}: 2  
@@ -52,7 +52,7 @@ This feature is delivered in two end-to-end stories:
 ### Story: Export AzDo work item hierarchy to a new plan file (001)
 
 {WorkItemId}: 2859  
-{State}: New  
+{State}: Done  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Story Points}: 0.75  
 
@@ -122,20 +122,20 @@ Cover the scenarios described in the Acceptance Tests section below.
 
 | ✅ | What is Verified | Test(s) | Notes |
 |---|---|---|---|
-| ▢ | Given work item of type Epic, script calls `GetAzDoHierarchyForEpic.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | Given work item of type Feature, script calls `GetAzDoHierarchyForFeature.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | Given work item of type User Story, script calls `GetAzDoHierarchyForStory.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | Unsupported work item type (e.g. Task) causes the script to throw a descriptive error | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | When `-OutputPath` is not supplied, the output file is named `plan-{id}-{type}{CamelTitle}.md` under `docs/plans/` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | When `-OutputPath` is not supplied and title contains dots and spaces, they are stripped and the remainder is PascalCased | Pester — `ExportAzDoToMarkdownTest.ps1` | e.g. `Gmd.Tools AzDo` → `GmdToolsAzDo` |
-| ▢ | When target file already exists and `-Overwrite` is not set, the script throws with a message containing the file path | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | When target file already exists and `-Overwrite` is set, the script overwrites without error | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | Script outputs the resolved file path string to the pipeline | Pester — `ExportAzDoToMarkdownTest.ps1` | |
-| ▢ | `README.md` is updated to document `ExportAzDoToMarkdown.ps1` parameters and behavior | Manual verify | |
+| ✅ | Given work item of type Epic, script calls `GetAzDoHierarchyForEpic.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | Given work item of type Feature, script calls `GetAzDoHierarchyForFeature.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | Given work item of type User Story, script calls `GetAzDoHierarchyForStory.ps1` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | Unsupported work item type (e.g. Task) causes the script to throw a descriptive error | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | When `-OutputPath` is not supplied, the output file is named `plan-{id}-{type}{CamelTitle}.md` under `docs/plans/` | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | When `-OutputPath` is not supplied and title contains dots and spaces, they are stripped and the remainder is PascalCased | Pester — `ExportAzDoToMarkdownTest.ps1` | e.g. `Gmd.Tools AzDo` → `GmdToolsAzDo` |
+| ✅ | When target file already exists and `-Overwrite` is not set, the script throws with a message containing the file path | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | When target file already exists and `-Overwrite` is set, the script overwrites without error | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | Script outputs the resolved file path string to the pipeline | Pester — `ExportAzDoToMarkdownTest.ps1` | |
+| ✅ | `README.md` is updated to document `ExportAzDoToMarkdown.ps1` parameters and behavior | Manual verify | |
 
 #### {Acceptance Tests}
 
-- [ ] **Scenario 1: Export an Epic hierarchy to a new plan file**  
+- [x] **Scenario 1: Export an Epic hierarchy to a new plan file**  
   Given work item 1577 is of type Epic and titled `Gmd.Tools.AzureDoAutomatorPs`  
   And no `-OutputPath` is supplied  
   And `docs/plans/plan-1577-epicGmdToolsAzureDoAutomatorPs.md` does not exist  
@@ -145,7 +145,7 @@ Cover the scenarios described in the Acceptance Tests section below.
   And the output file `docs/plans/plan-1577-epicGmdToolsAzureDoAutomatorPs.md` is created  
   And the script outputs the path `docs/plans/plan-1577-epicGmdToolsAzureDoAutomatorPs.md`  
 
-- [ ] **Scenario 2: Export a Feature hierarchy using an explicit output path**  
+- [x] **Scenario 2: Export a Feature hierarchy using an explicit output path**  
   Given work item 2000 is of type Feature  
   And `-OutputPath "C:/tmp/my-plan.md"` is supplied  
   When `ExportAzDoToMarkdown.ps1 -WorkItemId 2000 -OutputPath "C:/tmp/my-plan.md"` is invoked  
@@ -153,14 +153,14 @@ Cover the scenarios described in the Acceptance Tests section below.
   And the file `C:/tmp/my-plan.md` is created with the converted markdown  
   And the script outputs the path `C:/tmp/my-plan.md`  
 
-- [ ] **Scenario 3: Existing file blocks export without -Overwrite**  
+- [x] **Scenario 3: Existing file blocks export without -Overwrite**  
   Given `docs/plans/plan-1577-epicGmdToolsAzureDoAutomatorPs.md` already exists  
   And `-Overwrite` is not supplied  
   When `ExportAzDoToMarkdown.ps1 -WorkItemId 1577` is invoked  
   Then the script throws an error containing the existing file path  
   And the existing file is not modified  
 
-- [ ] **Scenario 4: Unsupported work item type throws a descriptive error**  
+- [x] **Scenario 4: Unsupported work item type throws a descriptive error**  
   Given work item 9999 is of type Task  
   When `ExportAzDoToMarkdown.ps1 -WorkItemId 9999` is invoked  
   Then the script throws an error containing the unsupported type name `"Task"`  
@@ -168,7 +168,7 @@ Cover the scenarios described in the Acceptance Tests section below.
 ### Story: Sync existing plan markdown file from Azure DevOps (002)
 
 {WorkItemId}: 2860  
-{State}: New  
+{State}: Done  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Story Points}: 2  
 
@@ -248,20 +248,20 @@ Cover the scenarios described in the Acceptance Tests section below.
 
 | ✅ | What is Verified | Test(s) | Notes |
 |---|---|---|---|
-| ▢ | Items with a `{WorkItemId}` in the plan are updated with values fetched from AzDo | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | An item with a `{WorkItemId}` not present in the fetched hierarchy logs a warning containing the work item ID | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | Items without a `{WorkItemId}` and without `-MatchExistingByTitle` produce a warning log containing the item title | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | With `-MatchExistingByTitle`, an item without a `{WorkItemId}` whose title matches a sibling in AzDo gets its `{WorkItemId}` populated | Pester — `SyncMarkdownFromAzDoTest.ps1` | Match is scoped to the same parent container |
-| ▢ | With `-MatchExistingByTitle`, an item whose title matches nothing in the same container logs a warning containing the unmatched title | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | When top-level node has no `{WorkItemId}` but a child has one, the parent ID is auto-detected from the child's parent link, and a warning is logged | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | When no `{WorkItemId}` exists anywhere in the plan the script throws with a message indicating the anchor requirement | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | The plan file is overwritten with the updated markdown after a successful sync | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | Script outputs the resolved plan file path to the pipeline | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
-| ▢ | `README.md` is updated to document `SyncMarkdownFromAzDo.ps1` parameters and behavior | Manual verify | |
+| ✅ | Items with a `{WorkItemId}` in the plan are updated with values fetched from AzDo | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | An item with a `{WorkItemId}` not present in the fetched hierarchy logs a warning containing the work item ID | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | Items without a `{WorkItemId}` and without `-MatchExistingByTitle` produce a warning log containing the item title | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | With `-MatchExistingByTitle`, an item without a `{WorkItemId}` whose title matches a sibling in AzDo gets its `{WorkItemId}` populated | Pester — `SyncMarkdownFromAzDoTest.ps1` | Match is scoped to the same parent container |
+| ✅ | With `-MatchExistingByTitle`, an item whose title matches nothing in the same container logs a warning containing the unmatched title | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | When top-level node has no `{WorkItemId}` but a child has one, the parent ID is auto-detected from the child's parent link, and a warning is logged | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | When no `{WorkItemId}` exists anywhere in the plan the script throws with a message indicating the anchor requirement | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | The plan file is overwritten with the updated markdown after a successful sync | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | Script outputs the resolved plan file path to the pipeline | Pester — `SyncMarkdownFromAzDoTest.ps1` | |
+| ✅ | `README.md` is updated to document `SyncMarkdownFromAzDo.ps1` parameters and behavior | Manual verify | |
 
 #### {Acceptance Tests}
 
-- [ ] **Scenario 1: Items with WorkItemIds are refreshed from AzDo**  
+- [x] **Scenario 1: Items with WorkItemIds are refreshed from AzDo**  
   Given a plan file where the top-level Epic has `{WorkItemId}: 1577`  
   And the plan contains two stories — one with `{WorkItemId}: 100` and one without  
   When `SyncMarkdownFromAzDo.ps1 -PlanFilePath "plan.md"` is invoked  
@@ -269,7 +269,7 @@ Cover the scenarios described in the Acceptance Tests section below.
   And a warning is logged for the story without a `{WorkItemId}`  
   And the plan file is overwritten with the refreshed content  
 
-- [ ] **Scenario 2: Top-level node ID is detected from a child**  
+- [x] **Scenario 2: Top-level node ID is detected from a child**  
   Given a plan file where the top-level Epic has no `{WorkItemId}`  
   And the plan contains a story with `{WorkItemId}: 200`  
   And work item 200 has a parent link pointing to Epic ID 1577  
@@ -278,13 +278,13 @@ Cover the scenarios described in the Acceptance Tests section below.
   And the full Epic hierarchy is fetched using ID 1577  
   And the plan file is overwritten with the refreshed content  
 
-- [ ] **Scenario 3: No WorkItemId anywhere throws an error**  
+- [x] **Scenario 3: No WorkItemId anywhere throws an error**  
   Given a plan file with no `{WorkItemId}` on any work item  
   When `SyncMarkdownFromAzDo.ps1 -PlanFilePath "plan.md"` is invoked  
   Then the script throws an error whose message contains `"no WorkItemId found in plan file"`  
   And the plan file is not modified  
 
-- [ ] **Scenario 4: -MatchExistingByTitle fills in WorkItemId for matching item**  
+- [x] **Scenario 4: -MatchExistingByTitle fills in WorkItemId for matching item**  
   Given a plan file with Epic `{WorkItemId}: 1577`  
   And a story titled `"My Feature Story"` with no `{WorkItemId}`  
   And the AzDo hierarchy for Epic 1577 contains a story with the same title and ID 300  
@@ -292,10 +292,11 @@ Cover the scenarios described in the Acceptance Tests section below.
   Then the story in the refreshed plan file has `{WorkItemId}: 300`  
   And no warning about a missing ID is emitted for that story  
 
-- [ ] **Scenario 5: -MatchExistingByTitle logs warning for unmatched title**  
+- [x] **Scenario 5: -MatchExistingByTitle logs warning for unmatched title**  
   Given a plan file with Epic `{WorkItemId}: 1577`  
   And a story titled `"Nonexistent Story"` with no `{WorkItemId}`  
   And no story with that title exists under Epic 1577 in AzDo  
   When `SyncMarkdownFromAzDo.ps1 -PlanFilePath "plan.md" -MatchExistingByTitle` is invoked  
   Then a warning is logged containing `"No title match found for 'Nonexistent Story'"`  
   And the story item in the output has no `{WorkItemId}`  
+
