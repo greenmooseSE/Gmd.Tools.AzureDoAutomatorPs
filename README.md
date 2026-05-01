@@ -2736,10 +2736,10 @@ All scripts follow strict error handling practices:
 │   ├── RemoveAzDoCommentTest.ps1            (RemoveAzDoComment tests)
 │   ├── NewAzDoCommentReactionTest.ps1       (NewAzDoCommentReaction tests)
 │   ├── storyAcTests/
-│   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments AC scenario tests)
-│   │   ├── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment AC scenario tests)
+│   │   ├── 1584GetAzDoCommentsTest.ps1      (GetAzDoComments Acceptance Test tests)
+│   │   ├── 1585UpdateAzDoCommentTest.ps1    (UpdateAzDoComment Acceptance Test tests)
 │   │   ├── 2616ConfigDrivenApiReadWrite/
-│   │   │   └── 2616ConfigDrivenApiReadWriteTest.ps1  (ValidateUpsertFields AC scenario tests)
+│   │   │   └── 2616ConfigDrivenApiReadWriteTest.ps1  (ValidateUpsertFields Acceptance Test tests)
 │   │   ├── 2617McpConfigTemplateAllFields/
 │   │   │   └── 2617McpConfigTemplateAllFieldsTest.ps1 (Template generator / MCP config tests)
 │   │   └── 2618AssignedToByEmail/

@@ -27,6 +27,11 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
             ($content -match 'AC Scenarios') | Should Be $false
         }
 
+        It 'GivenReadme_ItShouldNotContainSingularAcScenarioText' {
+            $content = Get-Content (Join-Path $REPO_ROOT 'README.md') -Raw
+            ($content -match '\bAC [Ss]cenario\b') | Should Be $false
+        }
+
         It 'GivenReadme_ItShouldContainAcceptanceTestsText' {
             $content = Get-Content (Join-Path $REPO_ROOT 'README.md') -Raw
             ($content -match 'Acceptance Tests') | Should Be $true
@@ -43,6 +48,10 @@ Describe 'Story 2692 - Update documentation and prompt templates' {
             It "GivenDocFile_${fileName}_ItShouldNotContainAcScenariosText" {
                 $content = Get-Content $file.FullName -Raw
                 ($content -match 'AC Scenarios') | Should Be $false
+            }
+            It "GivenDocFile_${fileName}_ItShouldNotContainSingularAcScenarioText" {
+                $content = Get-Content $file.FullName -Raw
+                ($content -match '\bAC [Ss]cenario\b') | Should Be $false
             }
         }
     }

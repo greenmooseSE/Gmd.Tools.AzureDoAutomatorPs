@@ -36,7 +36,7 @@
 ## Relationship Between AC Criteria and Acceptance Tests
 - **AC Criteria** test individual conditions, properties, or validations in isolation (e.g., "Invalid email input should reject").
 - **Acceptance Tests** test complete user workflows using Given-When-Then (Gherkin/BDD format).
-- Typically, one AC Scenario exercises multiple AC Criteria; they should complement—not duplicate—each other.
+- Typically, one Acceptance Test exercises multiple AC Criteria; they should complement—not duplicate—each other.
 - Example: If AC says "System validates email format", the Scenario might be "Given invalid email | When user submits | Then system shows error".
 
 ## Extra Information
