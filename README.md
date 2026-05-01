@@ -1328,6 +1328,7 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
 - Supports optional Epic parent via `-EpicId`
 - DryRun mode shows planned operations without creation
+- `-OutputMode PlainText` (default) prints a colored columnar table; use `-OutputMode PSObject` to return a structured hashtable for scripting
 
 #### `RemoveAzDoEpic.ps1`
 Delete an Epic, optionally including all child work items (DESTRUCTIVE OPERATION).
@@ -3453,7 +3454,8 @@ Story description...
 $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
-    -MarkdownFilePath ".\hierarchy.md"
+    -MarkdownFilePath ".\hierarchy.md" `
+    -OutputMode PSObject
 
 # Inspect created items including Tasks
 $result.CreatedItems | Where-Object { $_.fields.'System.WorkItemType' -eq 'Task' } | ForEach-Object {
@@ -3557,7 +3559,8 @@ Story description...
 $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
-    -MarkdownFilePath ".\hierarchy.md"
+    -MarkdownFilePath ".\hierarchy.md" `
+    -OutputMode PSObject
 
 # Inspect created items including Bugs
 $result.CreatedItems | Where-Object { $_.fields.'System.WorkItemType' -eq 'Bug' } | ForEach-Object {
@@ -3608,7 +3611,8 @@ $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
     -MarkdownFilePath ".\hierarchy.md" `
-    -DryRun
+    -DryRun `
+    -OutputMode PSObject
 
 Write-Host "Would create: $($result.PlannedEpics) epic(s), $($result.PlannedFeatures) feature(s), $($result.PlannedStories) story(ies)"
 ```
@@ -3629,7 +3633,8 @@ $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
 $result = .\NewAzDoHierarchyFromMarkdown.ps1 `
     -Organization "myorg" `
     -Project "myproj" `
-    -MarkdownFilePath ".\hierarchy.md"
+    -MarkdownFilePath ".\hierarchy.md" `
+    -OutputMode PSObject
 
 # Access created work items
 $result.CreatedItems | ForEach-Object { 

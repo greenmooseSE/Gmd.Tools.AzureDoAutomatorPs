@@ -583,15 +583,12 @@ function Cleanup-Item {
         }
 
         # Map legacy "Custom.*" metadata-style fields (backward compat)
-        if ($Item.customFields.ContainsKey('Custom.ACScenarios')) {
-            $cleaned.acScenarios = $Item.customFields['Custom.ACScenarios']
-        }
         if ($Item.customFields.ContainsKey('Custom.ExtraInformation')) {
             $cleaned.extraInformation = $Item.customFields['Custom.ExtraInformation']
         }
         
         # Include any other custom fields that weren't specifically mapped
-        [string[]]$mappedFields = @('Acceptance Criteria', 'AC Scenarios', 'Extra Information', 'Custom.ACScenarios', 'Custom.ExtraInformation')
+        [string[]]$mappedFields = @('Acceptance Criteria', 'AC Scenarios', 'Extra Information', 'Custom.ExtraInformation')
         foreach ($fieldName in $Item.customFields.Keys) {
             if ($fieldName -notin $mappedFields) {
                 $cleaned[$fieldName] = $Item.customFields[$fieldName]
@@ -606,8 +603,8 @@ function Cleanup-Item {
         if (($Item.configFields.ContainsKey('Custom.AcceptanceCriteria') -or $Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) -and -not $cleaned.ContainsKey('acceptanceCriteria')) {
             $cleaned.acceptanceCriteria = if ($Item.configFields.ContainsKey('Microsoft.VSTS.Common.AcceptanceCriteria')) { $Item.configFields['Microsoft.VSTS.Common.AcceptanceCriteria'] } else { $Item.configFields['Custom.AcceptanceCriteria'] }
         }
-        if (($Item.configFields.ContainsKey('Custom.ACScenarios') -or $Item.configFields.ContainsKey('Custom.AcceptanceTests')) -and -not $cleaned.ContainsKey('acScenarios')) {
-            $cleaned.acScenarios = if ($Item.configFields.ContainsKey('Custom.AcceptanceTests')) { $Item.configFields['Custom.AcceptanceTests'] } else { $Item.configFields['Custom.ACScenarios'] }
+        if ($Item.configFields.ContainsKey('Custom.AcceptanceTests') -and -not $cleaned.ContainsKey('acScenarios')) {
+            $cleaned.acScenarios = $Item.configFields['Custom.AcceptanceTests']
         }
         if ($Item.configFields.ContainsKey('Custom.ExtraInformation') -and -not $cleaned.ContainsKey('extraInformation')) {
             $cleaned.extraInformation = $Item.configFields['Custom.ExtraInformation']
@@ -626,7 +623,6 @@ function Cleanup-Item {
         $cfgClone = @{} + $Item.configFields
         $cfgClone.Remove('Custom.AcceptanceCriteria')
         $cfgClone.Remove('Microsoft.VSTS.Common.AcceptanceCriteria')
-        $cfgClone.Remove('Custom.ACScenarios')
         $cfgClone.Remove('Custom.AcceptanceTests')
         $cfgClone.Remove('Custom.ExtraInformation')
         if ($cfgClone.Count -gt 0) {

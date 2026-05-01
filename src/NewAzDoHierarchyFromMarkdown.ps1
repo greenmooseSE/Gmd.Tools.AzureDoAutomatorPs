@@ -55,6 +55,11 @@ Switch: If specified, shows planned operations without creating work items
 Switch: If specified and an item has no WorkItemId in the markdown, matches existing work items
 by title (ignoring "(001)" suffixes) and updates them instead of creating new ones.
 
+.PARAMETER OutputMode
+Controls how the operation summary is reported. Default is PlainText which logs a colored
+columnar summary table to the console using ssLogIt.ps1 without returning a value.
+Use PSObject to instead return a structured hashtable suitable for piping or further processing.
+
 .OUTPUTS
 PSObject with summary of created/planned work items with hierarchy
 
@@ -91,11 +96,76 @@ param(
 
     [switch]$DryRun,
 
-    [switch]$UpdateExisting
+    [switch]$UpdateExisting,
+
+    [ValidateSet('PSObject', 'PlainText')]
+    [string]$OutputMode = 'PlainText'
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
+
+<#
+.SYNOPSIS
+Emits a colored columnar summary table via ssLogIt.ps1.
+Rows are ordered Epic → Feature → Story → Bug → Task.
+Create = green, Update = yellow, NoChange = gray.
+Also prints a totals row.
+#>
+function Write-PlainTextSummary {
+    param(
+        [hashtable]$Created,
+        [hashtable]$Updated,
+        [hashtable]$NoChange,
+        [bool]$IsDryRun
+    )
+
+    [string]$header = if ($IsDryRun) { 'DRY RUN — Planned operations' } else { 'Operation Summary' }
+
+    # Column widths
+    [int]$wType    = 10
+    [int]$wCreate  = 10
+    [int]$wUpdate  = 10
+    [int]$wNoChg   = 10
+
+    function hPad {
+        param([string]$s, [int]$w)
+        return $s.PadRight($w)
+    }
+
+    [string]$divider = ('-' * ($wType + $wCreate + $wUpdate + $wNoChg + 6))
+    [string]$colHeader = "$(hPad 'Type' $wType)  $(hPad 'Create' $wCreate)$(hPad 'Update' $wUpdate)$(hPad 'NoChange' $wNoChg)"
+
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message $header
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message $divider
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message $colHeader
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message $divider
+
+    [array]$rows = @(
+        @{ Label = 'Epic';    Cr = $Created['Epics'];    Up = $Updated['Epics'];    Nc = $NoChange['Epics']    }
+        @{ Label = 'Feature'; Cr = $Created['Features']; Up = $Updated['Features']; Nc = $NoChange['Features'] }
+        @{ Label = 'Story';   Cr = $Created['Stories'];  Up = $Updated['Stories'];  Nc = $NoChange['Stories']  }
+        @{ Label = 'Bug';     Cr = $Created['Bugs'];     Up = $Updated['Bugs'];     Nc = $NoChange['Bugs']     }
+        @{ Label = 'Task';    Cr = $Created['Tasks'];    Up = $Updated['Tasks'];    Nc = $NoChange['Tasks']    }
+    )
+
+    foreach ($row in $rows) {
+        [string]$crPart = if ($row.Cr -gt 0) { "::FgGreen::$(hPad $row.Cr.ToString() $wCreate)::FgDefault::" } else { hPad '-' $wCreate }
+        [string]$upPart = if ($row.Up -gt 0) { "::FgYellow::$(hPad $row.Up.ToString() $wUpdate)::FgDefault::" } else { hPad '-' $wUpdate }
+        [string]$ncPart = if ($row.Nc -gt 0) { "::FgCyan::$(hPad $row.Nc.ToString() $wNoChg)::FgDefault::"   } else { hPad '-' $wNoChg   }
+        $null = & ssLogIt.ps1 -Level Info -NoExtra -Message "$(hPad $row.Label $wType)  $crPart$upPart$ncPart"
+    }
+
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message $divider
+
+    [int]$totalCr = ($rows | ForEach-Object { $_.Cr } | Measure-Object -Sum).Sum
+    [int]$totalUp = ($rows | ForEach-Object { $_.Up } | Measure-Object -Sum).Sum
+    [int]$totalNc = ($rows | ForEach-Object { $_.Nc } | Measure-Object -Sum).Sum
+    [string]$tCrPart = if ($totalCr -gt 0) { "::FgGreen::$(hPad $totalCr.ToString() $wCreate)::FgDefault::" } else { hPad '-' $wCreate }
+    [string]$tUpPart = if ($totalUp -gt 0) { "::FgYellow::$(hPad $totalUp.ToString() $wUpdate)::FgDefault::" } else { hPad '-' $wUpdate }
+    [string]$tNcPart = if ($totalNc -gt 0) { "::FgCyan::$(hPad $totalNc.ToString() $wNoChg)::FgDefault::"   } else { hPad '-' $wNoChg   }
+    $null = & ssLogIt.ps1 -Level Info -NoExtra -Message "$(hPad 'TOTAL' $wType)  $tCrPart$tUpPart$tNcPart"
+}
 
 # Import modules
 . "$PSScriptRoot\AzDoAutomatorConstants.ps1"
@@ -399,16 +469,19 @@ function Get-TaskMarkdownFields {
 
 # Compares markdown tags against the System.Tags field of an existing AzDo work item.
 # Returns $true if tags need to be applied (differ from current state), $false when identical.
+# When no tags are specified in the markdown, returns $false — absence of tags means
+# "don't manage tags for this item", not "clear existing tags".
 function Test-TagsChanged {
     param(
         [string[]]$MarkdownTags,
         [object]$ExistingItem
     )
-    [string]$azDoTags = if ($null -ne $ExistingItem -and $ExistingItem.PSObject.Properties['fields'] -and $ExistingItem.fields.PSObject.Properties['System.Tags']) { $ExistingItem.fields.'System.Tags' } else { '' }
     [bool]$mdEmpty = ($null -eq $MarkdownTags -or $MarkdownTags.Count -eq 0)
+    # No tags in markdown = no intent to change tags; skip comparison entirely.
+    if ($mdEmpty) { return $false }
+    [string]$azDoTags = if ($null -ne $ExistingItem -and $ExistingItem.PSObject.Properties['fields'] -and $ExistingItem.fields.PSObject.Properties['System.Tags']) { $ExistingItem.fields.'System.Tags' } else { '' }
     [bool]$azEmpty = [string]::IsNullOrWhiteSpace($azDoTags)
-    if ($mdEmpty -and $azEmpty) { return $false }
-    if ($mdEmpty -ne $azEmpty) { return $true }
+    if ($azEmpty) { return $true }
     [string]$normalizedMarkdown = ($MarkdownTags | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne '' } | Sort-Object) -join '; '
     [string]$normalizedAzDo = ($azDoTags -split '\s*;\s*' | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne '' } | Sort-Object) -join '; '
     return $normalizedMarkdown -ne $normalizedAzDo
@@ -421,7 +494,8 @@ function Analyze-DryRunOperations {
         [object[]]$Features,
         [string]$Organization,
         [string]$Project,
-        [string]$PatToken
+        [string]$PatToken,
+        [bool]$UpdateExisting
     )
 
     $analysis = @{
@@ -454,6 +528,13 @@ function Analyze-DryRunOperations {
             [hashtable]$MarkdownFields,
             [int]$ParentId
         )
+
+        # When the item has no workItemId and UpdateExisting is not requested, skip the
+        # title-based search entirely — it is expensive and would always return Create anyway.
+        $hasWorkItemId = ($null -ne $Item.workItemId -and [int]$Item.workItemId -gt 0)
+        if (-not $hasWorkItemId -and -not $UpdateExisting) {
+            return @{ State = 'Create'; Id = $null }
+        }
 
         $resolveArgs = @{
             Organization = $Organization
@@ -794,11 +875,21 @@ function Update-MarkdownWithWorkItemIds {
         if ($line -match '^(#{1,5})\s+(Epic|Feature|Story|Task|Bug):\s+(.+)$') {
             [string]$titleFromHeader = $Matches[3].Trim()
 
-            # Check if the next line already has {WorkItemId}: N (curly-brace) or the legacy asterisk form
-            [string]$nextLine = if ($i + 1 -lt $lines.Count) { $lines[$i + 1] } else { '' }
-            if ($nextLine -match '^\{WorkItemId\}:' -or $nextLine -match '^\*\*WorkItemId\*\*:') {
-                continue
+            # Scan forward through the item's section (until next header) to detect existing markers
+            [bool]$alreadyHasId    = $false
+            [bool]$alreadyHasState = $false
+            for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+                if ($lines[$j] -match '^#{1,5}\s+(Epic|Feature|Story|Task|Bug):') { break }
+                if ($lines[$j] -match '^\{WorkItemId\}:' -or $lines[$j] -match '^\*\*WorkItemId\*\*:') {
+                    $alreadyHasId = $true
+                }
+                if ($lines[$j] -match '^\{State\}:' -or $lines[$j] -match '^\*\*State\*\*:') {
+                    $alreadyHasState = $true
+                }
+                if ($alreadyHasId -and $alreadyHasState) { break }
             }
+
+            if ($alreadyHasId) { continue }
 
             # Normalize title (strip trailing "(NNN)") to find a match
             [string]$normalizedTitle = $titleFromHeader -replace '\s*\(\d+\)\s*$', ''
@@ -816,8 +907,8 @@ function Update-MarkdownWithWorkItemIds {
             if ($null -ne $foundId) {
                 $newLines.Add("{WorkItemId}: $foundId")
 
-                # Also insert State when a state map is provided and State is not already on next-next line
-                if ($null -ne $TitleToStateMap) {
+                # Also insert State when a state map is provided and State is not already in the section
+                if (-not $alreadyHasState -and $null -ne $TitleToStateMap) {
                     $foundState = $null
                     foreach ($key in $TitleToStateMap.Keys) {
                         [string]$keyStr = [string]$key
@@ -827,11 +918,7 @@ function Update-MarkdownWithWorkItemIds {
                         }
                     }
                     if (-not [string]::IsNullOrWhiteSpace($foundState)) {
-                        # Check the line after the one we just inserted is not already a State line (either syntax)
-                        [string]$lineAfterNextLine = if ($i + 1 -lt $lines.Count) { $lines[$i + 1] } else { '' }
-                        if ($lineAfterNextLine -notmatch '^\{State\}:' -and $lineAfterNextLine -notmatch '^\*\*State\*\*:') {
-                            $newLines.Add("{State}: $foundState")
-                        }
+                        $newLines.Add("{State}: $foundState")
                     }
                 }
             }
@@ -857,46 +944,36 @@ try {
 
     if ($DryRun) {
         # Analyze operations in dry-run mode (which items will be created vs. updated vs. unchanged)
-        $analysis = Analyze-DryRunOperations -Epics $epics -Features $features -Organization $Organization -Project $Project -PatToken $PatToken
-        
-        # Log detailed breakdown
-        $null = & ssLogIt.ps1 -Level Info -Message "DRY RUN: Detailed breakdown of planned operations:"
-        $null = & ssLogIt.ps1 -Level Info -Message "  Epics:    $($analysis.EpicsCreate) to create, $($analysis.EpicsUpdate) to update, $($analysis.EpicsNoChange) no change"
-        $null = & ssLogIt.ps1 -Level Info -Message "  Features: $($analysis.FeaturesCreate) to create, $($analysis.FeaturesUpdate) to update, $($analysis.FeaturesNoChange) no change"
-        $null = & ssLogIt.ps1 -Level Info -Message "  Stories:  $($analysis.StoriesCreate) to create, $($analysis.StoriesUpdate) to update, $($analysis.StoriesNoChange) no change"
-        $null = & ssLogIt.ps1 -Level Info -Message "  Bugs:     $($analysis.BugsCreate) to create, $($analysis.BugsUpdate) to update, $($analysis.BugsNoChange) no change"
-        $null = & ssLogIt.ps1 -Level Info -Message "  Tasks:    $($analysis.TasksCreate) to create, $($analysis.TasksUpdate) to update, $($analysis.TasksNoChange) no change"
-        $null = & ssLogIt.ps1 -Level Debug -Message "DryRun mode - no work items created"
-        
+        $analysis = Analyze-DryRunOperations -Epics $epics -Features $features -Organization $Organization -Project $Project -PatToken $PatToken -UpdateExisting $UpdateExisting.IsPresent
+
         # Build complete dry-run output with detailed breakdown
         [hashtable]$dryRunOutput = @{
             DryRunMode = $true
-            Epics      = @{
-                Create   = $analysis.EpicsCreate
-                Update   = $analysis.EpicsUpdate
-                NoChange = $analysis.EpicsNoChange
-            }
-            Features   = @{
-                Create   = $analysis.FeaturesCreate
-                Update   = $analysis.FeaturesUpdate
-                NoChange = $analysis.FeaturesNoChange
-            }
-            Stories    = @{
-                Create   = $analysis.StoriesCreate
-                Update   = $analysis.StoriesUpdate
-                NoChange = $analysis.StoriesNoChange
-            }
-            Bugs       = @{
-                Create   = $analysis.BugsCreate
-                Update   = $analysis.BugsUpdate
-                NoChange = $analysis.BugsNoChange
-            }
-            Tasks      = @{
-                Create   = $analysis.TasksCreate
-                Update   = $analysis.TasksUpdate
-                NoChange = $analysis.TasksNoChange
-            }
+            Epics      = @{ Create = $analysis.EpicsCreate;    Update = $analysis.EpicsUpdate;    NoChange = $analysis.EpicsNoChange    }
+            Features   = @{ Create = $analysis.FeaturesCreate; Update = $analysis.FeaturesUpdate; NoChange = $analysis.FeaturesNoChange }
+            Stories    = @{ Create = $analysis.StoriesCreate;  Update = $analysis.StoriesUpdate;  NoChange = $analysis.StoriesNoChange  }
+            Bugs       = @{ Create = $analysis.BugsCreate;     Update = $analysis.BugsUpdate;     NoChange = $analysis.BugsNoChange     }
+            Tasks      = @{ Create = $analysis.TasksCreate;    Update = $analysis.TasksUpdate;    NoChange = $analysis.TasksNoChange    }
             Structure  = $parsedHierarchy
+        }
+
+        if ($OutputMode -eq 'PlainText') {
+            Write-PlainTextSummary `
+                -Created  @{ Epics = $analysis.EpicsCreate;    Features = $analysis.FeaturesCreate; Stories = $analysis.StoriesCreate; Bugs = $analysis.BugsCreate; Tasks = $analysis.TasksCreate } `
+                -Updated  @{ Epics = $analysis.EpicsUpdate;    Features = $analysis.FeaturesUpdate; Stories = $analysis.StoriesUpdate; Bugs = $analysis.BugsUpdate; Tasks = $analysis.TasksUpdate } `
+                -NoChange @{ Epics = $analysis.EpicsNoChange;  Features = $analysis.FeaturesNoChange; Stories = $analysis.StoriesNoChange; Bugs = $analysis.BugsNoChange; Tasks = $analysis.TasksNoChange } `
+                -IsDryRun $true
+        } else {
+            $null = & ssLogIt.ps1 -Level Info -Message "DRY RUN: Detailed breakdown of planned operations:"
+            $null = & ssLogIt.ps1 -Level Info -Message "  Epics:    $($analysis.EpicsCreate) to create, $($analysis.EpicsUpdate) to update, $($analysis.EpicsNoChange) no change"
+            $null = & ssLogIt.ps1 -Level Info -Message "  Features: $($analysis.FeaturesCreate) to create, $($analysis.FeaturesUpdate) to update, $($analysis.FeaturesNoChange) no change"
+            $null = & ssLogIt.ps1 -Level Info -Message "  Stories:  $($analysis.StoriesCreate) to create, $($analysis.StoriesUpdate) to update, $($analysis.StoriesNoChange) no change"
+            $null = & ssLogIt.ps1 -Level Info -Message "  Bugs:     $($analysis.BugsCreate) to create, $($analysis.BugsUpdate) to update, $($analysis.BugsNoChange) no change"
+            $null = & ssLogIt.ps1 -Level Info -Message "  Tasks:    $($analysis.TasksCreate) to create, $($analysis.TasksUpdate) to update, $($analysis.TasksNoChange) no change"
+        }
+        $null = & ssLogIt.ps1 -Level Debug -Message "DryRun mode - no work items created"
+        if ($OutputMode -eq 'PlainText') {
+            return
         }
         return $dryRunOutput
     }
@@ -908,9 +985,9 @@ try {
         PlannedStories  = 0
         PlannedTasks    = 0
         CreatedItems    = @{}  # all processed items by ID; kept for caller compatibility
-        Created         = @{ Epics = 0; Features = 0; Stories = 0; Tasks = 0 }
-        Updated         = @{ Epics = 0; Features = 0; Stories = 0; Tasks = 0 }
-        NoChange        = @{ Epics = 0; Features = 0; Stories = 0; Tasks = 0 }
+        Created         = @{ Epics = 0; Features = 0; Stories = 0; Bugs = 0; Tasks = 0 }
+        Updated         = @{ Epics = 0; Features = 0; Stories = 0; Bugs = 0; Tasks = 0 }
+        NoChange        = @{ Epics = 0; Features = 0; Stories = 0; Bugs = 0; Tasks = 0 }
         TagsApplied     = 0
         TagsSkipped     = 0
     }
@@ -1861,17 +1938,29 @@ try {
     }
 
     # Log a clear summary of what actually happened
-    [int]$totalCreated  = $summary.Created.Epics  + $summary.Created.Features  + $summary.Created.Stories  + $summary.Created.Tasks
-    [int]$totalUpdated  = $summary.Updated.Epics  + $summary.Updated.Features  + $summary.Updated.Stories  + $summary.Updated.Tasks
-    [int]$totalNoChange = $summary.NoChange.Epics + $summary.NoChange.Features + $summary.NoChange.Stories + $summary.NoChange.Tasks
-    $null = & ssLogIt.ps1 -Level Info -Message "=== Operation Summary ==="
-    $null = & ssLogIt.ps1 -Level Info -Message "  Epics:    $($summary.Created.Epics) created, $($summary.Updated.Epics) updated, $($summary.NoChange.Epics) no change"
-    $null = & ssLogIt.ps1 -Level Info -Message "  Features: $($summary.Created.Features) created, $($summary.Updated.Features) updated, $($summary.NoChange.Features) no change"
-    $null = & ssLogIt.ps1 -Level Info -Message "  Stories:  $($summary.Created.Stories) created, $($summary.Updated.Stories) updated, $($summary.NoChange.Stories) no change"
-    $null = & ssLogIt.ps1 -Level Info -Message "  Tasks:    $($summary.Created.Tasks) created, $($summary.Updated.Tasks) updated, $($summary.NoChange.Tasks) no change"
-    $null = & ssLogIt.ps1 -Level Info -Message "  Tags:     $taggedCount applied, $tagSkippedCount skipped (no change)"
-    $null = & ssLogIt.ps1 -Level Info -Message "  Total:    $totalCreated created, $totalUpdated updated, $totalNoChange no change"
+    if ($OutputMode -eq 'PlainText') {
+        Write-PlainTextSummary `
+            -Created  $summary.Created `
+            -Updated  $summary.Updated `
+            -NoChange $summary.NoChange `
+            -IsDryRun $false
+        $null = & ssLogIt.ps1 -Level Info -NoExtra -Message "  Tags: $taggedCount applied, $tagSkippedCount skipped (no change)"
+    } else {
+        [int]$totalCreated  = $summary.Created.Epics  + $summary.Created.Features  + $summary.Created.Stories  + $summary.Created.Tasks
+        [int]$totalUpdated  = $summary.Updated.Epics  + $summary.Updated.Features  + $summary.Updated.Stories  + $summary.Updated.Tasks
+        [int]$totalNoChange = $summary.NoChange.Epics + $summary.NoChange.Features + $summary.NoChange.Stories + $summary.NoChange.Tasks
+        $null = & ssLogIt.ps1 -Level Info -Message "=== Operation Summary ==="
+        $null = & ssLogIt.ps1 -Level Info -Message "  Epics:    $($summary.Created.Epics) created, $($summary.Updated.Epics) updated, $($summary.NoChange.Epics) no change"
+        $null = & ssLogIt.ps1 -Level Info -Message "  Features: $($summary.Created.Features) created, $($summary.Updated.Features) updated, $($summary.NoChange.Features) no change"
+        $null = & ssLogIt.ps1 -Level Info -Message "  Stories:  $($summary.Created.Stories) created, $($summary.Updated.Stories) updated, $($summary.NoChange.Stories) no change"
+        $null = & ssLogIt.ps1 -Level Info -Message "  Tasks:    $($summary.Created.Tasks) created, $($summary.Updated.Tasks) updated, $($summary.NoChange.Tasks) no change"
+        $null = & ssLogIt.ps1 -Level Info -Message "  Tags:     $taggedCount applied, $tagSkippedCount skipped (no change)"
+        $null = & ssLogIt.ps1 -Level Info -Message "  Total:    $totalCreated created, $totalUpdated updated, $totalNoChange no change"
+    }
 
+    if ($OutputMode -eq 'PlainText') {
+        return
+    }
     return $summary
 }
 catch {

@@ -165,7 +165,7 @@ function Create-WorkItem {
         'Story' {
             if ($Fields.ContainsKey('storyPoints') -and $Fields['storyPoints']) { $apiFields['Microsoft.VSTS.Scheduling.StoryPoints'] = $Fields['storyPoints'] }
             if ($Fields.ContainsKey('acceptanceCriteria') -and $Fields['acceptanceCriteria']) { $apiFields['Microsoft.VSTS.Common.AcceptanceCriteria'] = $Fields['acceptanceCriteria'] }
-            if ($Fields.ContainsKey('acScenarios') -and $Fields['acScenarios']) { $apiFields['Custom.ACScenarios'] = $Fields['acScenarios'] }
+            if ($Fields.ContainsKey('acScenarios') -and $Fields['acScenarios']) { $apiFields['Custom.AcceptanceTests'] = $Fields['acScenarios'] }
         }
         { $_ -in 'Feature', 'Epic' } {
             if ($Fields.ContainsKey('effort') -and $Fields['effort']) { $apiFields['Microsoft.VSTS.Scheduling.Effort'] = $Fields['effort'] }
@@ -211,7 +211,7 @@ function Update-WorkItem {
             'storyPoints' { 'Microsoft.VSTS.Scheduling.StoryPoints' }
             'effort' { 'Microsoft.VSTS.Scheduling.Effort' }
             'acceptanceCriteria' { 'Microsoft.VSTS.Common.AcceptanceCriteria' }
-            'acScenarios' { 'Custom.ACScenarios' }
+            'acScenarios' { 'Custom.AcceptanceTests' }
             'extraInformation' { 'Custom.ExtraInformation' }
             { $fieldName -match '^Custom\.' } { $fieldName }
             default { $null }

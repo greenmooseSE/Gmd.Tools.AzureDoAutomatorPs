@@ -83,6 +83,7 @@ try {
         -Project $Project `
         -MarkdownFilePath $tempFile `
         -PatToken $PatToken `
+        -OutputMode PSObject `
         -ErrorAction Stop
     
     # Find the created task

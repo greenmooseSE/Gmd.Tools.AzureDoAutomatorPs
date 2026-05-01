@@ -56,7 +56,7 @@ $ErrorActionPreference = 'Stop'
 # Description and content fields
 [string]$script:FIELD_DESCRIPTION = 'System.Description'
 [string]$script:FIELD_ACCEPTANCE_CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria'
-[string]$script:FIELD_AC_SCENARIOS = 'Custom.ACScenarios'
+[string]$script:FIELD_AC_SCENARIOS = 'Custom.AcceptanceTests'
 [string]$script:FIELD_EXTRA_INFORMATION = 'Custom.ExtraInformation'
 
 # Bug-specific fields

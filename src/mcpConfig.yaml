@@ -426,7 +426,7 @@ commands:
 
   - id: upsert-story
     script: ./UpsertAzDoStory.ps1
-    description: "Create or update a User Story work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), StoryPoints (Microsoft.VSTS.Scheduling.StoryPoints), OriginalEstimate (Microsoft.VSTS.Scheduling.OriginalEstimate), RemainingWork (Microsoft.VSTS.Scheduling.RemainingWork), CompletedWork (Microsoft.VSTS.Scheduling.CompletedWork), ACScenarios (Custom.ACScenarios), AcceptanceCriteria (Custom.AcceptanceCriteria), StoryAcceptanceTests (Custom.StoryAcceptanceTests), AIImplemented (Custom.AIImplemented), CodeReviewed (Custom.CodeReviewed), FunctionallyTested (Custom.FunctionallyTested), DeployedToDev (Custom.DeployedToDev), DeployedToStaging (Custom.DeployedToStaging), DeployedToProduction (Custom.DeployedToProduction), ExtraInformation (Custom.ExtraInformation), FixedIn (Custom.FixedIn)."
+    description: "Create or update a User Story work item. Updates by ID if provided, otherwise upserts by title. Uses organization/project from environment variables. Writable fields via -Fields: Title (System.Title), Description (System.Description), State (System.State), Tags (System.Tags), Priority (Microsoft.VSTS.Common.Priority), StoryPoints (Microsoft.VSTS.Scheduling.StoryPoints), OriginalEstimate (Microsoft.VSTS.Scheduling.OriginalEstimate), RemainingWork (Microsoft.VSTS.Scheduling.RemainingWork), CompletedWork (Microsoft.VSTS.Scheduling.CompletedWork), AcScenarios (Custom.AcceptanceTests), AcceptanceCriteria (Microsoft.VSTS.Common.AcceptanceCriteria), AIImplemented (Custom.AIImplemented), CodeReviewed (Custom.CodeReviewed), FunctionallyTested (Custom.FunctionallyTested), DeployedToDev (Custom.DeployedToDev), DeployedToStaging (Custom.DeployedToStaging), DeployedToProduction (Custom.DeployedToProduction), ExtraInformation (Custom.ExtraInformation), FixedIn (Custom.FixedIn)."
     passStyle: named
     params:
       - name: Title
@@ -844,6 +844,12 @@ commands:
         required: false
         default: false
         mapTo: UpdateExisting
+      - name: OutputMode
+        type: string
+        required: false
+        default: PSObject
+        mapTo: OutputMode
+        description: "PSObject returns a structured hashtable; PlainText (default for CLI) logs a colored table. MCP callers should use PSObject."
 
   - id: export-hierarchy-to-markdown
     script: ./ConvertHierarchyToMarkdown.ps1
