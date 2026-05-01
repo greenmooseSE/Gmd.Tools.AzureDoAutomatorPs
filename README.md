@@ -1252,6 +1252,61 @@ Story description here...
 Task description...
 ```
 
+#### `ExportAzDoToMarkdown.ps1`
+Export a work item hierarchy (Epic, Feature, or Story) from Azure DevOps to a new plan markdown file. Wraps the `GetAzDoHierarchyFor*.ps1` + `ConvertHierarchyToMarkdown.ps1` pipeline and automatically names the output file using the standard convention.
+
+Usage:
+```powershell
+# Export Feature 2858 to an auto-named plan file under docs/plans/
+.\ExportAzDoToMarkdown.ps1 -WorkItemId 2858
+
+# Export to an explicit path
+.\ExportAzDoToMarkdown.ps1 -WorkItemId 2858 -OutputPath "C:\tmp\my-plan.md"
+
+# Overwrite an existing file
+.\ExportAzDoToMarkdown.ps1 -WorkItemId 2858 -Overwrite
+```
+
+**Parameters:**
+- `WorkItemId` (required): ID of the Epic, Feature, or User Story to export
+- `Organization` (optional): Azure DevOps organization (default: from constants)
+- `Project` (optional): Project name (default: from constants)
+- `Pat` (optional): PAT token (default: auto-retrieved from encrypted env var)
+- `OutputPath` (optional): Full output file path; if omitted, auto-named as `docs/plans/plan-{id}-{type}{CamelTitle}.md`
+- `Overwrite` (switch): Allow overwriting an existing file; throws if absent and file exists
+
+**Auto-naming convention:**
+`docs/plans/plan-{id}-{type}{CamelCaseTitle}.md` where `{type}` is `epic`, `feat`, or `story` and `{CamelCaseTitle}` is the work item title converted to PascalCase with non-alphanumeric characters removed.
+Example: Feature 2858 titled `Sync AzDo Hierarchy to Plan Markdown` → `docs/plans/plan-2858-featSyncAzDoHierarchyToPlanMarkdown.md`
+
+**Output:** The resolved output file path as a string.
+
+#### `SyncMarkdownFromAzDo.ps1`
+Refresh an existing plan markdown file by fetching the current Azure DevOps hierarchy and overwriting the file. Items with a `{WorkItemId}` are updated in-place; items without one are logged as warnings (or optionally matched by title when `-MatchExistingByTitle` is supplied).
+
+Usage:
+```powershell
+# Sync all items that have a WorkItemId
+.\SyncMarkdownFromAzDo.ps1 -PlanFilePath ".\docs\plans\plan-2858-featSyncAzDoHierarchyToPlanMarkdown.md"
+
+# Also match items without a WorkItemId by their title
+.\SyncMarkdownFromAzDo.ps1 -PlanFilePath ".\plan.md" -MatchExistingByTitle
+```
+
+**Parameters:**
+- `PlanFilePath` (required): Path to the existing plan markdown file to sync
+- `Organization` (optional): Azure DevOps organization (default: from constants)
+- `Project` (optional): Project name (default: from constants)
+- `Pat` (optional): PAT token (default: auto-retrieved from encrypted env var)
+- `MatchExistingByTitle` (switch): When set, items without a `{WorkItemId}` are matched against the fetched AzDo hierarchy by title (case-insensitive, scoped to same parent container)
+
+**Top-level ID resolution:**
+- If the top-level node has a `{WorkItemId}`, it is used directly.
+- If the top-level node has no `{WorkItemId}` but a child does, the parent ID is auto-detected from the child's `System.LinkTypes.Hierarchy-Reverse` relation.
+- If no `{WorkItemId}` is found anywhere, the script throws: `"Cannot sync: no WorkItemId found in plan file."`.
+
+**Output:** The resolved `PlanFilePath` as a string, confirming the file that was updated.
+
 #### `NewAzDoHierarchyFromMarkdown.ps1`
 Create complete work item hierarchy from markdown file or content string. After creation, **WorkItemId** lines are written back to the file so subsequent runs update existing items instead of creating duplicates.
 
