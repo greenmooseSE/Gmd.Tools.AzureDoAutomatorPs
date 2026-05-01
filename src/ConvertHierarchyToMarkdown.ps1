@@ -190,11 +190,20 @@ function Add-MarkdownLineBreaks {
         return ""
     }
 
-    # Encode bare < as &lt; so tag-like identifiers (e.g. <StmtsDir>/path) display
-    # correctly in rendered markdown instead of being treated as hidden HTML tags.
-    # Only < is encoded; > is intentionally left as-is because > at the start of a
-    # line is a markdown blockquote and must not be changed to &gt;.
-    $Text = $Text -replace '<', '&lt;'
+    # Strip HTML structural tags from AzDo HTML field values (e.g. <header>, <div>, <p>)
+    # so that exported markdown is plain text, matching what Normalize-HtmlValue produces
+    # on the AzDo side during comparison in NewAzDoHierarchyFromMarkdown.ps1.
+    $Text = $Text -replace '<[^>]+>', ''
+
+    # Decode HTML entities to plain text. AzDo stores rich-text fields as HTML so
+    # entities like &lt;ISO8601&gt; must be decoded to their literal characters for
+    # the exported markdown. After stripping tags above, no bare < remains from HTML
+    # structure, so no re-encoding is needed.
+    $Text = $Text -replace '&nbsp;', ' '
+    $Text = $Text -replace '&lt;', '<'
+    $Text = $Text -replace '&gt;', '>'
+    $Text = $Text -replace '&amp;', '&'
+    $Text = $Text -replace '&quot;', '"'
 
     # Split text by newlines
     $lines = $Text -split "`n"
@@ -212,13 +221,15 @@ function Add-MarkdownLineBreaks {
             $line -match '^\s*[#]{1,6}\s' -or `
             $line -match '^\s*[-*+]\s' -or `
             $line -match '^\s*\d+[\.\)]\s' -or `
-            $line -match '\|') {
+            $line -match '\|' -or `
+            $line.TrimEnd() -match '^`{3,}') {
             # Don't add trailing spaces
             $result += $line
         }
         else {
-            # Add 2 trailing spaces for markdown line breaks
-            $result += "$line  "
+            # Strip any existing trailing whitespace first, then add exactly 2 spaces.
+            # Avoids doubling trailing spaces on round-trip when AzDo already stores them.
+            $result += "$($line.TrimEnd())  "
         }
     }
     

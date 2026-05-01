@@ -6,7 +6,7 @@
 ## Feature: Sync AzDo Hierarchy to Plan Markdown
 
 {WorkItemId}: 2858  
-{State}: Done  
+{State}: Active  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Effort}: 5  
 {Priority}: 2  
@@ -52,7 +52,7 @@ This feature is delivered in two end-to-end stories:
 ### Story: Export AzDo work item hierarchy to a new plan file (001)
 
 {WorkItemId}: 2859  
-{State}: Done  
+{State}: RTM  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Story Points}: 0.75  
 
@@ -168,7 +168,7 @@ Cover the scenarios described in the Acceptance Tests section below.
 ### Story: Sync existing plan markdown file from Azure DevOps (002)
 
 {WorkItemId}: 2860  
-{State}: Done  
+{State}: RTM  
 {tags}: azDoAutomator, epicAzDoAutomator, syncMarkdown  
 {Story Points}: 2  
 
