@@ -169,12 +169,12 @@ requiring a separate sync step
 {Acceptance Criteria}  
 | ✅ | What is Verified | Test(s) | Notes |  
 |---|-----------------|---------|-------|  
-| ☐ | `ConvertHierarchyToMarkdown.ps1` emits `{LastChangedDate}` after `{WorkItemId}` for each item | | Value sourced from `System.ChangedDate` |  
-| ☐ | `ConvertMarkdownToHierarchyJson.ps1` parses `{LastChangedDate}` and includes it in output JSON | | Field preserved as string, not written to AzDo |  
-| ☐ | Round-trip: export → re-import preserves `{LastChangedDate}` values | | No data loss |  
-| ☐ | `GenerateAzDoMarkdownHierarchyTemplate.ps1` documents `{LastChangedDate}` in template | | Explains purpose and format |  
-| ☐ | Items without `System.ChangedDate` in source data omit the field (no empty line) | | Graceful handling |  
-| ☐ | README.md is updated to reflect this story's changes | | New field documented |
+| ✅ | `ConvertHierarchyToMarkdown.ps1` emits `{LastChangedDate}` after `{WorkItemId}` for each item | LastChangedDateOutputTest.ps1 | Value sourced from `System.ChangedDate` |  
+| ✅ | `ConvertMarkdownToHierarchyJson.ps1` parses `{LastChangedDate}` and includes it in output JSON | LastChangedDateParseTest.ps1 | Field preserved as string, not written to AzDo |  
+| ✅ | Round-trip: export → re-import preserves `{LastChangedDate}` values | LastChangedDateParseTest.ps1 | No data loss |  
+| ✅ | `GenerateAzDoMarkdownHierarchyTemplate.ps1` documents `{LastChangedDate}` in template | | Explains purpose and format |  
+| ✅ | Items without `System.ChangedDate` in source data omit the field (no empty line) | LastChangedDateOutputTest.ps1 | Graceful handling |  
+| ✅ | README.md is updated to reflect this story's changes | | New field documented |
 
 {Acceptance Tests}  
 1. **Scenario**: Export hierarchy emits LastChangedDate  
