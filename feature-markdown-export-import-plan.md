@@ -72,7 +72,7 @@ azdoStateConfig-falco-it-GMD.json:
 | ☐ | Configuration format is documented in README.md with examples |  |  |  
 | ☐ | README.md includes troubleshooting section for configuration loading issues |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Configuration file exists and is valid  
    Given repository contains `azdoStateConfig-falco-it-GMD.json`  
    When LoadStateConfiguration is called with org "falco-it" and project "GMD"  
@@ -117,7 +117,7 @@ The export functionality must include state information in markdown metadata and
 | ☐ | Non-writable states have comment warning users that changes will be ignored |  |  |  
 | ☐ | Export completes successfully even if state configuration is incomplete |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Export includes editable state  
    Given a Story with state "New" which is in writableStates list  
    When export is generated  
@@ -165,7 +165,7 @@ Extend `ExportAzDoHierarchy.ps1` to include WorkItemId in metadata and ensure al
 | ☐ | README.md documents the export feature with usage examples |  |  |  
 | ☐ | mcpConfig.yaml is updated with export command definitions if exposed as MCP tools |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Export includes WorkItemId for each work item  
    Given a Story with ID 1234 is being exported  
    When export is generated  
@@ -213,7 +213,7 @@ Extend export to capture custom field values defined in Azure DevOps.
 | ☐ | Field values are properly escaped for markdown |  |  |  
 | ☐ | Unknown or null custom fields do not cause export to fail |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Custom fields are exported and preserved  
    Given Story has custom field "Platform" with value "Web"  
    When export is generated  
@@ -246,7 +246,7 @@ Build a robust parser that handles markdown created and edited by humans, preser
 | ☐ | Parser fails gracefully with clear error if WorkItemId is missing |  |  |  
 | ☐ | Parser validates markdown structure and reports invalid items |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Markdown with title and description changes is parsed correctly  
    Given exported markdown where user changed Story title from "Old Title" to "New Title" and description  
    When markdown is parsed  
@@ -295,7 +295,7 @@ Create a comprehensive diff engine that identifies field-level changes and hiera
 | ☐ | Diff identifies new work items without WorkItemId |  |  |  
 | ☐ | Diff validates state changes respect configured writable states |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Single field change is detected  
    Given original Story has title "Current Title" and modified has "New Title"  
    When diff is calculated  
@@ -353,7 +353,7 @@ Implement the final stage of the reimport pipeline that applies changes with com
 | ☐ | README.md documents state change restrictions and validation rules |  |  |  
 | ☐ | mcpConfig.yaml is updated with reimport and validation command definitions |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Single field update is applied successfully  
    Given validated diff shows Story 1234 title changed to "Updated Title"  
    When change is applied  
@@ -418,7 +418,7 @@ Build helper functions that manage the test lifecycle: create temporary epic wit
 | ☐ | Cleanup function reliably deletes test Epic and all child work items |  |  |  
 | ☐ | Test infrastructure fails clearly if creation fails |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Test hierarchy is created and ready for use  
    Given test setup is called with hierarchy specification  
    When CreateTestHierarchy is invoked  
@@ -476,7 +476,7 @@ Create comprehensive test cases covering various modification scenarios.
 | ☐ | State changes to writable states are applied successfully |  |  |  
 | ☐ | State changes to non-writable states are rejected during reimport |  |  |  
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Complete round-trip export-modify-reimport preserves data  
    Given test hierarchy with 1 Feature, 2 Stories, 1 Task  
    When hierarchy is exported to markdown  
@@ -515,3 +515,4 @@ Create comprehensive test cases covering various modification scenarios.
 **OriginalEstimate**: 5  
 **Description**  
 Create integration tests in Pester covering export-import scenarios. Tests should verify field changes, state validation, and error handling.  
+
