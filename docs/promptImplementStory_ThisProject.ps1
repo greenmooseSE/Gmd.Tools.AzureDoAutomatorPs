@@ -79,8 +79,6 @@ function hReadInclude {
 # ── Load rule files ────────────────────────────────────────────────────────────
 $implementRulesContent            = hReadInclude 'implementStoryRules.md'
 $implementRulesThisProjectContent = hReadInclude 'implementStoryRules_ThisProject.md'
-$generalStoryRulesContent         = hReadInclude 'createStoryRules_General.md'
-$projectStoryRulesContent         = hReadInclude 'createStoryRules_ThisProject.md'
 $archRulesContent                 = hReadInclude 'architecturalRules_General.md'
 
 # ── Derive branch info ─────────────────────────────────────────────────────────
@@ -227,16 +225,6 @@ This project uses **Pester** for integration-level PowerShell tests.
 $implementRulesContent
 
 $implementRulesThisProjectContent
-
----
-## General Story Rules
-
-$generalStoryRulesContent
-
----
-## Project-Specific Story Rules (AzureDoAutomatorPs)
-
-$projectStoryRulesContent
 
 ---
 
