@@ -29,13 +29,13 @@
 - Focus on what the user/feature MUST do or behave like when this story is complete.
 - Each AC item should be testable with an automated test (unit, integration, or snapshot).
 
-## AC Scenarios
+## Acceptance Tests
 - Write Gherkin/BDD scenarios in bullet list format `- [ ] **Scenario 1: Scenario title**  \nGiven ...  \nWhen ...  \nThen ...`.
 - The scenarios should be explicit enough so they can be written as automated (integration) tests.
 
-## Relationship Between AC Criteria and AC Scenarios
+## Relationship Between AC Criteria and Acceptance Tests
 - **AC Criteria** test individual conditions, properties, or validations in isolation (e.g., "Invalid email input should reject").
-- **AC Scenarios** test complete user workflows using Given-When-Then (Gherkin/BDD format).
+- **Acceptance Tests** test complete user workflows using Given-When-Then (Gherkin/BDD format).
 - Typically, one AC Scenario exercises multiple AC Criteria; they should complement—not duplicate—each other.
 - Example: If AC says "System validates email format", the Scenario might be "Given invalid email | When user submits | Then system shows error".
 

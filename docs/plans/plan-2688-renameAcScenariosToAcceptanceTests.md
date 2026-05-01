@@ -87,7 +87,7 @@ Scenario: Parser recognizes Acceptance Tests field from example files
 
 ### Story: Replace "AC Scenarios" in parser and export scripts
 {WorkItemId}: 2691
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 2
 {Priority}: 1

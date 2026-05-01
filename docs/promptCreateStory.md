@@ -3,7 +3,7 @@ Create a story in Azure DevOps following ALL rules in C:\Dev\own\GDrive\Privat\D
 **CRITICAL:** Always fetch the latest work item context from Azure DevOps (parent feature, parent epic, existing stories) using the scripts provided. Do NOT rely on memory or previous context from earlier conversations.
 
 ## Required Process
-1. **Read and summarize createStoryRules.md** — output a brief summary of each field requirement (Description format, Acceptance Criteria format, AC Scenarios format, Story Points, Extra Information, Tags)
+1. **Read and summarize createStoryRules.md** — output a brief summary of each field requirement (Description format, Acceptance Criteria format, Acceptance Tests format, Story Points, Extra Information, Tags)
 2. **Create the story** with all fields populated per the rules
 3. **Validate** — provide a checklist showing ✓/✗ for compliance with each rule from the file
 
