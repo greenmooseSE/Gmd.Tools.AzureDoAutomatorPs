@@ -6,7 +6,7 @@
 {WorkItemId}: 2694
 {State}: New
 {tags}: azDoAutomator, agentWorkflow, planProgress, epicAzDoAutomator
-{Effort}: 21
+{Effort}: 23
 {Priority}: 1
 
 ### {Description}
@@ -36,6 +36,7 @@ are instructed to use ONLY these scripts and never modify plan files or run git 
 | `ValidatePlanIntegrity.ps1` | Detect unauthorized manual plan modifications |
 | `UpdateStoryInPlan.ps1` | Safely update a specific story in a plan markdown by WorkItemId |
 | `SyncStoryToAzDo.ps1` | Sync a single story (by WorkItemId) from plan to AzDO, not entire hierarchy |
+| `InvokeGitCommitAsAgent.ps1` | Wrap `git commit` with agent identity (user.name/email) read from appSettings.json per org/project |
 
 #### Markdown Parsing Helpers (in same folder)
 
@@ -82,6 +83,10 @@ are instructed to use ONLY these scripts and never modify plan files or run git 
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent beginning a story implementation,  
+**I want** a script that creates my working branch and updates the plan state,  
+**so that** I always start with the correct git and plan context without manually editing files or running git commands.  
+
 Create `src/agentWorkflow/StartStory.ps1` that performs the following steps when an AI agent  
 begins implementing a story:  
 1. Validate current branch is the feature branch (or create story branch from feature branch).  
@@ -135,6 +140,10 @@ Scenario: Start story fails when not on feature branch
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent implementing a story,  
+**I want** a script to mark acceptance criteria as completed, warned, or skipped in the plan,  
+**so that** story progress is recorded correctly without me directly editing the markdown file.  
+
 Create `src/agentWorkflow/MarkACCompleted.ps1` that marks one or multiple Acceptance Criteria  
 items as completed, with optional warnings or skipped status, in the plan markdown file.
 
@@ -190,6 +199,10 @@ Scenario: Invalid ACIndex fails
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent completing a story,  
+**I want** a script that marks an acceptance test scenario as done while verifying the test file exists,  
+**so that** test evidence is linked in the plan with confidence that the test is real and passing.  
+
 Create `src/agentWorkflow/MarkAcceptanceTestCompleted.ps1` that marks an acceptance test  
 scenario as completed, verifying the test file actually exists and the test passes.
 
@@ -246,6 +259,10 @@ Scenario: Fails when test file does not exist
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent verifying a story implementation,  
+**I want** a script that runs Pester tests with coverage analysis and fails if coverage decreases,  
+**so that** I can confirm test quality before marking the story complete.  
+
 Create `src/agentWorkflow/RunStoryTests.ps1` that runs tests relevant to the current story  
 with coverage analysis. It uses an external helper script for coverage measurement and reports  
 missing coverage lines.
@@ -304,6 +321,10 @@ Scenario: Tests fail when coverage decreases
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent finishing a story,  
+**I want** a script that validates all ACs and tests are done before merging and syncing to AzDO,  
+**so that** stories are only closed when fully verified and the feature branch stays in a clean, releasable state.  
+
 Create `src/agentWorkflow/CompleteStory.ps1` that finalizes a story implementation:
 1. Validates ALL ACs are marked (Completed or Skipped — not unmarked).
 2. Validates ALL Acceptance Tests are marked.
@@ -359,6 +380,10 @@ Scenario: Complete story fails with unmarked ACs
 {Priority}: 2
 
 #### {Description}
+**As a** AI agent or reviewer auditing workflow compliance,  
+**I want** a script that detects unauthorized plan modifications by comparing file hashes,  
+**so that** I can be confident no one bypassed the agentWorkflow scripts by editing the plan directly.  
+
 Create `src/agentWorkflow/ValidatePlanIntegrity.ps1` that detects unauthorized plan  
 modifications by comparing the current file hash against the stored checksum.
 
@@ -408,6 +433,10 @@ Scenario: Modified plan fails in strict mode
 {Priority}: 1
 
 #### {Description}
+**As a** agentWorkflow script author,  
+**I want** shared markdown parsing helpers to extract and update individual story fields,  
+**so that** all agentWorkflow scripts rely on the same consistent parsing logic instead of duplicating it.  
+
 Create markdown parsing helpers in `src/agentWorkflow/`:
 
 **GetStoryFromPlan.ps1**: Extract a single story's complete markdown block from a plan file.
@@ -460,6 +489,10 @@ Scenario: Update state field in plan
 {Priority}: 1
 
 #### {Description}
+**As a** AI agent completing or updating a story,  
+**I want** a script that syncs a single story to Azure DevOps without touching the rest of the hierarchy,  
+**so that** AzDO reflects the latest story state quickly without the risk of accidentally overwriting unrelated work items.  
+
 Create `src/agentWorkflow/SyncStoryToAzDo.ps1` that syncs a single story from a plan to  
 Azure DevOps, without syncing the entire hierarchy.
 
@@ -513,6 +546,10 @@ Scenario: DryRun shows planned changes
 {Priority}: 1
 
 #### {Description}
+**As a** developer or AI agent about to implement a story,  
+**I want** all prompt templates and documentation to mandate use of agentWorkflow scripts,  
+**so that** agents are never unaware of the enforced workflow and cannot bypass it with direct plan edits or raw git commands.  
+
 Update all AI agent prompt templates and README.md to:
 1. Clearly instruct agents to use `src/agentWorkflow/` scripts for ALL plan modifications.
 2. Explicitly forbid direct plan file edits.
@@ -567,6 +604,10 @@ Scenario: README documents all agentWorkflow scripts
 {Priority}: 2
 
 #### {Description}
+**As a** agentWorkflow script or AI agent,  
+**I want** a lightweight utility that compares the current plan file hash against a stored baseline,  
+**so that** any unauthorized modification is detected before a workflow step proceeds.  
+
 Create `src/agentWorkflow/ComparePlanChecksum.ps1` as a standalone utility to compare  
 plan checksums. This is a lightweight wrapper used by other scripts and can also be called  
 directly by agents to verify plan state before proceeding.
@@ -600,5 +641,91 @@ Scenario: Update stores new checksum
   Given an outdated checksum
   When ComparePlanChecksum.ps1 -PlanFile plan.md -Update
   Then the stored hash matches the current file hash
+```
+
+---
+
+### Story: Add agent git identity configuration and helper
+{WorkItemId}: 2861
+{State}: New
+
+{tags}: azDoAutomator, agentWorkflow, epicAzDoAutomator
+{Story Points}: 2
+{Priority}: 2
+
+#### {Description}
+**As a** AI agent performing automated git commits,  
+**I want** git commits to be attributed to a configurable agent identity read from appSettings.json,  
+**so that** automated commits are not mistakenly attributed to a human user's git config.  
+
+Add per-org/project git identity configuration to `appSettings.json` and create a helper
+script `src/agentWorkflow/InvokeGitCommitAsAgent.ps1` so that automated git commits
+performed by agentWorkflow scripts use an AI agent identity instead of the current
+user's git config.
+
+**appSettings.json changes**: Under each `organizations[org].projects[project]` entry, add an optional `gitIdentity`
+object with `userName` and `email` fields:
+```json
+{
+  "organizations": {
+    "falco-it": {
+      "projects": {
+        "GMD": {
+          "gitIdentity": {
+            "userName": "AI Agent [GMD]",
+            "email": "ai-agent@falco-it.example.com"
+          },
+          "fields": {
+            "Epic": [ ... ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**InvokeGitCommitAsAgent.ps1**: Reads `gitIdentity` from appSettings.json for the
+given org/project and invokes `git -c user.name=<name> -c user.email=<email> commit`,
+forwarding all additional arguments. Falls back to a plain `git commit` if no
+`gitIdentity` is configured for that org/project.
+
+Parameters:
+- `-Organization` (mandatory): AzDO organization name to look up in appSettings.json.
+- `-Project` (mandatory): AzDO project name to look up in appSettings.json.
+- `-CommitArgs` (optional): Additional arguments forwarded verbatim to `git commit`.
+- `-AppSettingsPath` (optional): Override path to appSettings.json. Default: well-known location.
+
+Integration: `StartStory.ps1` and `CompleteStory.ps1` must pass `-Organization` and `-Project` parameters and
+use this helper for any git commit operations rather than invoking `git commit` directly.
+
+#### {Acceptance Criteria}
+| Status | Criteria |
+|--------|----------|
+| | `appSettings.json` schema accepts optional `gitIdentity` (userName, email) per org/project entry |
+| | `InvokeGitCommitAsAgent.ps1` reads `gitIdentity` from appSettings.json for the specified org/project |
+| | Script constructs and runs `git -c user.name=... -c user.email=... commit <args>` when identity is configured |
+| | Falls back to plain `git commit <args>` when no `GitIdentity` is configured for the org/project |
+| | `StartStory.ps1` accepts `-Organization` and `-Project` and delegates git commits to this helper |
+| | `CompleteStory.ps1` accepts `-Organization` and `-Project` and delegates git commits to this helper |
+| | Script uses ssLogIt.ps1 for all output |
+| | Script fails fast (with a clear error) if `-Organization`/`-Project` cannot be resolved to an appSettings entry |
+
+#### {Acceptance Tests}
+```gherkin
+Scenario: Git commit uses agent identity from appSettings
+  Given appSettings.json has gitIdentity for org "falco-it" / project "GMD"
+  When InvokeGitCommitAsAgent.ps1 -Organization "falco-it" -Project "GMD" -CommitArgs "-m 'story: implement X'"
+  Then the resulting commit has the configured user.name and user.email in git log
+
+Scenario: Falls back to default git identity when not configured
+  Given appSettings.json has no gitIdentity entry for org "falco-it" / project "GMD"
+  When InvokeGitCommitAsAgent.ps1 -Organization "falco-it" -Project "GMD" -CommitArgs "-m 'story: implement X'"
+  Then git commit is invoked without -c user.name / -c user.email overrides
+
+Scenario: StartStory uses agent identity when committing
+  Given appSettings.json has gitIdentity configured for the project
+  When StartStory.ps1 -PlanFile plan.md -WorkItemId 9999 -Organization "falco-it" -Project "GMD"
+  Then any git commit performed by StartStory uses the configured agent identity
 ```
 
