@@ -24,7 +24,7 @@
 * If we have a test for it, write the test method name in the Test(s) column with backticks (e.g., `GivenEmailIsInvalid_ItShouldThrowException`).
 * If an AC item is not implemented, instead of ✅ emoticon, use ❌ and indicate with strike-through in the "What is Verified" column and a comment in Notes (e.g., `~~AC item~~` and `Not implemented because ...`).
 
-## Story field  "AC Scenarios" (Gherkin/BDD scenarios)
+## Story field  "Acceptance Tests" (Gherkin/BDD scenarios)
 * Ensure each scenario is implemented in tests, check off the the items (`- [x]` or `✅`) and update scenario with suffix of test name (e.g. `- [x] Scenario: User logs in 🧪 ``GivenStartPage_WhenUserLogsIn_SystemUpdatesDbWithUserSession`` ` )
 
 ## When completed implementing a story
