@@ -244,7 +244,7 @@ function Build-PrunedHierarchy {
         $prunedStories = [System.Collections.Generic.List[PSObject]]::new()
         foreach ($story in @($Item.Stories)) {
             if ($null -ne $story.Id -and $PlanIds.Contains([int]$story.Id)) {
-                $prunedStories.Add($story)
+                $prunedStories.Add((Build-PrunedHierarchy -Item $story -PlanIds $PlanIds))
             }
         }
         $pruned | Add-Member -NotePropertyName 'Stories' -NotePropertyValue $prunedStories.ToArray()

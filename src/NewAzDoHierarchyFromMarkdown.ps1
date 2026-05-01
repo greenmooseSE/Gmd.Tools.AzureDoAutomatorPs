@@ -1154,8 +1154,8 @@ try {
             return
         }
         $liveItem = Get-AzDoWorkItemById -Organization $Organization -Project $Project -WorkItemId $itemId -PatToken $PatToken
-        [string]$liveDate = if ($liveItem.PSObject.Properties['fields'] -and -not [string]::IsNullOrWhiteSpace($liveItem.fields.'System.ChangedDate')) {
-            $liveItem.fields.'System.ChangedDate'
+        [string]$liveDate = if ($liveItem.PSObject.Properties['fields'] -and -not [string]::IsNullOrWhiteSpace($liveItem.fields.$script:FIELD_SYSTEM_CHANGED_DATE)) {
+            $liveItem.fields.$script:FIELD_SYSTEM_CHANGED_DATE
         } else { '' }
         if ([string]::IsNullOrWhiteSpace($liveDate)) { return }
         if ([datetime]$liveDate -gt [datetime]$Item.lastChangedDate) {
@@ -2205,12 +2205,12 @@ try {
         if ($item.PSObject.Properties['fields']) {
             $idWritebackMap[$item.fields.'System.Title'] = $itemId
             $stateWritebackMap[$item.fields.'System.Title'] = $item.fields.'System.State'
-            [string]$changedDate = $item.fields.'System.ChangedDate'
+            [string]$changedDate = $item.fields.$script:FIELD_SYSTEM_CHANGED_DATE
             if (-not [string]::IsNullOrWhiteSpace($changedDate)) {
                 # ConvertFrom-Json deserialises date strings to [DateTime]; format explicitly as
                 # ISO 8601 UTC so the written value is parseable on the next staleness check.
                 # Always use InvariantCulture to prevent locale-specific colon replacements (e.g. ː).
-                $changedDateObj = $item.fields.'System.ChangedDate'
+                $changedDateObj = $item.fields.$script:FIELD_SYSTEM_CHANGED_DATE
                 $changedDate = if ($changedDateObj -is [datetime]) {
                     $changedDateObj.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
                 } else {

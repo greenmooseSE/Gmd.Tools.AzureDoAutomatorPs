@@ -100,7 +100,7 @@ function Format-Iso8601Date {
     if ([string]::IsNullOrWhiteSpace($s)) { return $null }
     # If it's already a recognised date string, normalise to UTC ISO8601.
     [datetime]$parsed = [datetime]::MinValue
-    if ([datetime]::TryParse($s, [ref]$parsed)) {
+    if ([datetime]::TryParse($s, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) {
         return $parsed.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [System.Globalization.CultureInfo]::InvariantCulture)
     }
     return $s
