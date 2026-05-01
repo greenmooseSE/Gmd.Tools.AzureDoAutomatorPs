@@ -60,7 +60,7 @@ Scenario: Renamed script sets Acceptance Tests field
 
 ### Story: Replace "AC Scenarios" references in all markdown example files
 {WorkItemId}: 2690
-{State}: New
+{State}: Done
 {tags}: azDoAutomator, rename, epicAzDoAutomator
 {Effort}: 1
 {Priority}: 2

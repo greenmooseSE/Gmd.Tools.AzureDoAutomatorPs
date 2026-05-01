@@ -106,7 +106,7 @@ function Get-FieldConfigForType {
 .SYNOPSIS
 Labels that are already output as core metadata fields and must be skipped during config-driven output.
 #>
-[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path', 'Acceptance Criteria', 'AC Scenarios', 'Extra Information')
+[string[]]$script:CoreOutputLabels = @('WorkItemId', 'Tags', 'Story Points', 'Effort', 'State', 'Description', 'Title', 'Assigned To', 'Area Path', 'Iteration Path', 'Acceptance Criteria', 'Acceptance Tests', 'Extra Information')
 
 <#
 .SYNOPSIS

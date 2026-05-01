@@ -575,8 +575,16 @@ function Cleanup-Item {
         if ($Item.customFields.ContainsKey('Acceptance Criteria')) {
             $cleaned.acceptanceCriteria = $Item.customFields['Acceptance Criteria']
         }
+        if ($Item.customFields.ContainsKey('Acceptance Tests')) {
+            $cleaned.acScenarios = $Item.customFields['Acceptance Tests']
+        }
         if ($Item.customFields.ContainsKey('AC Scenarios')) {
-            $cleaned.acScenarios = $Item.customFields['AC Scenarios']
+            if (Get-Command 'ssLogIt.ps1' -ErrorAction SilentlyContinue) {
+                $null = & ssLogIt.ps1 -Level Warn -Message "Deprecated field label 'AC Scenarios' found - use '{Acceptance Tests}' instead"
+            }
+            if (-not $cleaned.ContainsKey('acScenarios')) {
+                $cleaned.acScenarios = $Item.customFields['AC Scenarios']
+            }
         }
         if ($Item.customFields.ContainsKey('Extra Information')) {
             $cleaned.extraInformation = $Item.customFields['Extra Information']
@@ -588,7 +596,7 @@ function Cleanup-Item {
         }
         
         # Include any other custom fields that weren't specifically mapped
-        [string[]]$mappedFields = @('Acceptance Criteria', 'AC Scenarios', 'Extra Information', 'Custom.ExtraInformation')
+        [string[]]$mappedFields = @('Acceptance Criteria', 'Acceptance Tests', 'AC Scenarios', 'Extra Information', 'Custom.ExtraInformation')
         foreach ($fieldName in $Item.customFields.Keys) {
             if ($fieldName -notin $mappedFields) {
                 $cleaned[$fieldName] = $Item.customFields[$fieldName]
