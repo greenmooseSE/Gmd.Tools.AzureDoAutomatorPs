@@ -145,7 +145,7 @@ Add a `### Story:` example demonstrating all five link fields, including
 entries with and without optional titles.  
 
 **Step 7 — Add Pester tests**  
-Cover the scenarios described in the AC Scenarios section below.  
+Cover the scenarios described in the Acceptance Tests section below.  
 
 #### {Acceptance Criteria}
 
@@ -254,7 +254,7 @@ as a single line with comma-separated `<id> "<title>"` entries:
 Emit only fields that have at least one link. Omit empty link fields entirely.  
 
 **Step 4 — Add Pester tests**  
-Cover the scenarios described in the AC Scenarios section below.  
+Cover the scenarios described in the Acceptance Tests section below.  
 
 #### {Acceptance Criteria}
 

@@ -29,7 +29,7 @@ Once in that mode, every subsequent line — including `**Field Name**: value` m
 is treated as description content. The only lines that can terminate description mode are:  
 
 - A new work item header (`### Story:`, `## Feature:`, etc.)  
-- One of three hardcoded header patterns: `#### Acceptance Criteria`, `#### AC Scenarios`,  
+- One of three hardcoded header patterns: `#### Acceptance Criteria`, `#### Acceptance Tests`,  
   `#### Extra Information`  
 
 All other fields (`**Story Acceptance Tests**`, `**Feature Acceptance Tests**`, any future  
@@ -299,8 +299,8 @@ and `GenerateAzDoMarkdownHierarchyTemplate.ps1` to produce templates in the new 
 ##### example-hierarchy.md  
 - Replace all `**Field Name**: value` markers with `{Field Name}: value`.  
 - Replace all `**Description**` with `{Description}`.  
-- Replace all `#### Acceptance Criteria`, `#### AC Scenarios`, `#### Extra Information`  
-  with `{Acceptance Criteria}`, `{AC Scenarios}`, `{Extra Information}`.  
+- Replace all `#### Acceptance Criteria`, `#### Acceptance Tests`, `#### Extra Information`  
+  with `{Acceptance Criteria}`, `{Acceptance Tests}`, `{Extra Information}`.  
 
 {Acceptance Criteria}
 | ✅ | What is Verified | Test(s) | Notes |
