@@ -1190,7 +1190,7 @@ try {
     }
     if ($staleItems.Count -gt 0) {
         if ($DryRun) {
-            $null = & ssLogIt.ps1 -Level Warn -Message "Staleness check: $($staleItems.Count) stale item(s) detected (dry-run, not aborting):"
+            $null = & ssLogIt.ps1 -Level Warn -Message "Staleness check: ::FgYellow::$($staleItems.Count)::FgDefault:: stale item(s) detected (dry-run, not aborting):"
             foreach ($stale in $staleItems) {
                 $null = & ssLogIt.ps1 -Level Warn -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault:: - stored: $($stale.StoredDate) | live: $($stale.LiveDate)"
             }
@@ -1199,8 +1199,11 @@ try {
                 $null = & ssLogIt.ps1 -Level Warn -Message "::FgYellow::Stale item (proceeding with -Force): [$($stale.Id)] $($stale.Title) - stored: $($stale.StoredDate) | live: $($stale.LiveDate)::FgDefault::"
             }
         } else {
-            [string]$staleDetails = ($staleItems | ForEach-Object { "  ID=$($_.Id) '$($_.Title)' stored=$($_.StoredDate) live=$($_.LiveDate)" }) -join "`n"
-            throw "Staleness check failed: $($staleItems.Count) work item(s) have been modified in Azure DevOps since the markdown was last synced. Re-sync your markdown file or use -Force to override.`n$staleDetails"
+            $null = & ssLogIt.ps1 -Level Error -Message "Staleness check failed: ::FgYellow::$($staleItems.Count)::FgDefault:: work item(s) modified in AzDo since last sync. Re-sync with ::FgCyan::SyncMarkdownFromAzDo.ps1::FgDefault:: or use -Force to override."
+            foreach ($stale in $staleItems) {
+                $null = & ssLogIt.ps1 -Level Error -Message "  ::FgYellow::[$($stale.Id)] $($stale.Title)::FgDefault:: — stored: ::FgGreen::$($stale.StoredDate)::FgDefault:: | live: ::FgRed::$($stale.LiveDate)::FgDefault::"
+            }
+            throw "Staleness check failed: $($staleItems.Count) work item(s) have been modified in Azure DevOps since the markdown was last synced."
         }
     }
 
@@ -2235,6 +2238,9 @@ try {
     return $summary
 }
 catch {
-    $null = & ssLogIt.ps1 -Level Error -Message "Failed to create hierarchy from markdown: $_"
+    # Staleness errors are already logged with color tokens above; only log unexpected errors here.
+    if ($_.Exception.Message -notmatch '^Staleness check failed:') {
+        $null = & ssLogIt.ps1 -Level Error -Message "Failed to create hierarchy from markdown: $_"
+    }
     throw
 }

@@ -414,7 +414,8 @@ function Parse-MarkdownToWorkItems {
                         }
                     }
                     'System.State' {
-                        $currentItem.state = $marker.inlineValue
+                        # Strip the read-only annotation " ⚠️ (read-only)" appended by ConvertHierarchyToMarkdown.ps1
+                        $currentItem.state = if ($null -ne $marker.inlineValue) { ($marker.inlineValue -replace '\s*⚠️.*$', '').Trim() } else { $marker.inlineValue }
                     }
                     'System.AssignedTo' {
                         $currentItem.assignedTo = $marker.inlineValue
