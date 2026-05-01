@@ -217,7 +217,7 @@ Additional context for this story generated at $Seq.
 | ☐ | Validation rejects invalid input and surfaces error |  |  |
 | ☐ | State is persisted correctly across requests |  |  |
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Happy path - all inputs valid  
    Given the system is in a valid initial state  
    When the user performs the requested action  
@@ -275,7 +275,7 @@ Repro steps for bug generated at $($Seq):
 | ☐ | Error is surfaced to the user with a clear message |  |  |
 | ☐ | System recovers without data loss |  |  |
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Bug condition is triggered  
    Given the defective condition exists  
    When the operation is performed  

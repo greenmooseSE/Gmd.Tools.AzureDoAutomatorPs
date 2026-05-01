@@ -130,7 +130,7 @@ all calls originate from BFF backends using the client library.
 - [ ] Revocation is idempotent (revoking already-revoked token succeeds)
 - [ ] Unit test verifies token revocation
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Refresh token is revoked on logout
    Given a user has an active refresh token  
    When the user calls logout with their refresh token  
@@ -188,7 +188,7 @@ all calls originate from BFF backends using the client library.
 - [ ] Returns HTTP 401 if token revoked
 - [ ] Unit test verifies token exchange with various state
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Valid refresh token returns new access token
    Given a valid, non-revoked refresh token  
    And token has not expired  
@@ -251,7 +251,7 @@ So that the user stays authenticated without re-triggering the Google sign-in fl
 - [ ] The endpoint is publicly accessible (`[AllowAnonymous]`) since the refresh token itself is the credential
 - [ ] Tests cover: successful refresh, expired token, revoked token, rotation
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Valid refresh token returns new token pair\
    Given the API is running\  
    And a user authenticated via Google and received a refresh token\  
@@ -319,7 +319,7 @@ So that I can monitor service health, latency, and error rates.
 - [ ] Log level is configurable per environment via `appsettings.json`
 - [ ] Tests verify no sensitive data appears in log output
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Google authentication success is logged\
    Given the API is running with structured logging enabled\  
    When a BFF backend successfully authenticates via Google\  
@@ -404,7 +404,7 @@ The implementation follows the standard OAuth 2.0 Authorization Code flow:
 - [ ] Configuration fails fast if credentials are missing
 - [ ] Unit test verifies discovery fetch and validation
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: OIDC discovery is fetched and validated on startup
    Given Google OAuth 2.0 credentials are configured  
    When the service initializes  
@@ -478,7 +478,7 @@ So that I can identify and authenticate the user in my application.
 - [ ] If Google token validation fails (expired, invalid signature), return 401 with `&quot;Invalid Google token&quot;`
 - [ ] Tests cover: new user creation, existing user resolution, rejected unverified email, invalid token
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: New user authenticates with valid Google ID token\
    Given the API is running\  
    And no user exists with the Google subject ID from the token\  
@@ -542,7 +542,7 @@ So that dev/staging/prod use separate Google projects.
 - [ ] `appsettings.Development.json` contains a placeholder or local Client ID
 - [ ] Tests verify fail-fast behavior on missing configuration
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Service starts successfully with valid Google Client ID\
    Given `appsettings.json` has `Authentication:Google:ClientId` set to a valid value\  
    When the API starts\  
@@ -601,7 +601,7 @@ As a developer\nI want the CI pipeline to build the solution and run all tests\n
 - [ ] Test results are published as pipeline artifacts
 - [ ] All introduced code has unit/integration test coverage
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Solution builds successfully\
    Given the CI pipeline triggers on a commit\  
    When `dotnet build TheSln.sln` executes\  
@@ -726,7 +726,7 @@ Migrations apply automatically at startup via `Database.Migrate()` when `EnableD
 | ✅ | Database defaults for timestamps | BddScenario_DefaultValuesBothExist | GETUTCDATE for SQL Server, datetime('now') for SQLite |
 | ✅ | Migrations for all 3 database providers | AllProviderMigrationsValidated | SQL Server, SQL Server LocalDb, SQLite |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 - [x] **Scenario 1: Fresh database migration creates Users table with correct structure**
   Given a fresh database with no migrations  
   When EF Core migration 'CreateUsersTable' is applied  
@@ -849,7 +849,7 @@ Migrations apply automatically at startup via `Database.Migrate()` when `EnableD
 - [ ] Unit test verifies table structure matches schema
 - [ ] Migration is idempotent
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: RefreshTokens table is created with correct structure
    Given a fresh SQL Server database with no tables  
    When the EF Core migration is applied  
@@ -965,7 +965,7 @@ Migrations apply automatically at startup via `Database.Migrate()` when `EnableD
 - [ ] Unit test verifies table structure matches schema
 - [ ] Migration is idempotent
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: SigningKeys table is created with correct structure
    Given a fresh SQL Server database with no tables  
    When the EF Core migration is applied  
@@ -1049,7 +1049,7 @@ So that only authorized backends can exchange tokens.
 - [ ] If `ApiSecurity:ApiKey` is not configured, the service fails fast at startup
 - [ ] Tests cover: valid key accepted, missing key rejected, wrong key rejected, public endpoints accessible
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Valid API key grants access to auth endpoint\
    Given the API is running with `ApiSecurity:ApiKey` set to `&quot;my-secret-key&quot;`\  
    When a request to `POST /v1/auth/google` includes header `X-Api-Key: my-secret-key`\  
@@ -1116,7 +1116,7 @@ So that I can perform fast health probes without body parsing.
 - [ ] No response body is returned
 - [ ] Integration test verifies the endpoint
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: HEAD health returns 204\
    Given the API is running\  
    When I make a HEAD request to `/v1/health`\  
@@ -1144,7 +1144,7 @@ So that I can monitor whether the API is operational.
 - [ ] Response content type is `application/json`
 - [ ] Integration test verifies the endpoint
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: GET health returns healthy status\
    Given the API is running\  
    When I make a GET request to `/v1/health`\  
@@ -1197,7 +1197,7 @@ So that I can monitor whether the API is operational.
 - [ ] Works without authentication/authorization
 - [ ] Unit test verifies endpoint response and timing
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Liveness probe returns 200 when service is running
    Given the service is running  
    When GET /health is called  
@@ -1274,7 +1274,7 @@ So that I can monitor whether the API is operational.
 - [ ] Works without authentication/authorization
 - [ ] Unit test verifies readiness checks
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Readiness probe returns 200 when all dependencies are ready
    Given the service is running with full initialization  
    And database is accessible  
@@ -1349,7 +1349,7 @@ So that I don't have to implement refresh logic in every consuming application.
 - [ ] DI extension method `AddAuthServiceTokenManagement(this IServiceCollection)` registers the token manager
 - [ ] Unit tests cover: returns cached token, refreshes expired token, throws on failed refresh
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Token manager returns cached non-expired token\
    Given the token manager holds a valid access token expiring in 5 minutes\  
    When `GetValidAccessTokenAsync()` is called\  
@@ -1395,7 +1395,7 @@ So that it can be packaged as a NuGet and consumed by BFF backends.
 - [ ] The project compiles without errors
 - [ ] No dependency on `Gmd.AuthService.WebApi` or `Gmd.AuthService.DbContext` (the client lib is independent)
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Client library project compiles\
    Given the `Gmd.AuthService.ClientLib` project exists under `src/`\  
    When I run `dotnet build TheSln.sln`\  
@@ -1443,7 +1443,7 @@ So that I can call AuthService endpoints in a strongly-typed manner.
 - [ ] HttpClient is registered via `IHttpClientFactory` for proper lifecycle management
 - [ ] Unit tests verify DI registration and HTTP calls (using mock HTTP handler)
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: BFF registers and resolves the AuthService client\
    Given a BFF backend calls `services.AddAuthServiceClient(opts =&gt; opts.BaseUrl = &quot;https://auth.example.com&quot;)`\  
    When the `IAuthServiceClient` is resolved from the DI container\  
@@ -1500,7 +1500,7 @@ So that I can trust the `user_id` and `email` claims in incoming tokens.
 - [ ] DI extension method registers the validator
 - [ ] Unit tests verify validation with mock JWKS, valid/invalid/expired tokens
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Valid AuthService JWT is accepted\
    Given the JWKS endpoint returns the signing public key\  
    And a valid RS256-signed JWT is presented\  
@@ -1561,7 +1561,7 @@ So that I can understand and integrate with the AuthService MVP API.
 - [ ] Security scheme `apiKeyAuth` (header `X-Api-Key`) is documented
 - [ ] Integration test verifies the spec is served and contains all endpoints
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: OpenAPI spec is accessible in development\
    Given the API is running in Development mode\  
    When I request `/swagger/v1/swagger.json`\  
@@ -1614,7 +1614,7 @@ So that each environment runs the latest validated build.
 - [ ] Production deployment requires manual approval gate
 - [ ] Health endpoint is checked post-deployment to verify the service is running
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Dev environment is deployed automatically after CI\
    Given the CI pipeline has published a successful build artifact\  
    When the CD pipeline triggers for the `dev` stage\  
@@ -1669,7 +1669,7 @@ So that I can programmatically handle errors from the API.
 - [ ] All error responses have `Content-Type: application/json`
 - [ ] Integration tests cover each error category
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Business logic error returns 400\
    Given the API is running\  
    When I make a request that triggers an `InvalidOperationException`\  
@@ -1743,7 +1743,7 @@ So that consuming services can cryptographically verify tokens using the public 
 - [ ] JWT can be validated using the public key from the JWKS endpoint
 - [ ] Unit tests verify token structure, claims, and signature validation
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Generated JWT contains required claims\
    Given a user exists in the database\  
    When the JWT service generates an access token for the user\  
@@ -1803,7 +1803,7 @@ So that consuming services can cryptographically verify tokens using the public 
 - [ ] Valid JWK format per RFC 7517
 - [ ] Unit test verifies JWKS format and content
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: JWKS endpoint returns active signing keys
    Given the service has active signing keys in database  
    When GET /.well-known/jwks.json is called  
@@ -1852,7 +1852,7 @@ So that I can validate JWT tokens issued by the AuthService.
 - [ ] At least one active key is always present
 - [ ] Integration test verifies JWKS response structure
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: JWKS returns RSA public keys\
    Given the API is running and a signing key exists\  
    When I make a GET request to `/v1/auth/jwks`\  

@@ -165,7 +165,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
             $output | Should Not Match '\*\*State\*\*:'
             $output | Should Not Match '\*\*WorkItemId\*\*:'
             $output | Should Not Match '#### Acceptance Criteria'
-            $output | Should Not Match '#### AC Scenarios'
+            $output | Should Not Match '#### Acceptance Tests'
             $output | Should Not Match '#### Extra Information'
         }
     }
@@ -203,7 +203,7 @@ Describe 'Story 2630 - {Field Name} curly-brace output from ConvertHierarchyToMa
             $content | Should Not Match '\*\*tags\*\*:'
             $content | Should Not Match '\*\*Story Points\*\*:'
             $content | Should Not Match '#### Acceptance Criteria'
-            $content | Should Not Match '#### AC Scenarios'
+            $content | Should Not Match '#### Acceptance Tests'
             $content | Should Not Match '#### Extra Information'
         }
 

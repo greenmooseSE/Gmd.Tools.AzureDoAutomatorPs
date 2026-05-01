@@ -45,7 +45,7 @@ Implement user self-registration with email verification
 - [ ] Verification email is sent
 - [ ] Account activated after verification
 
-#### AC Scenarios
+#### Acceptance Tests
 1. **Scenario**: Valid registration
    Given user enters valid email
    When registration form is submitted
@@ -127,7 +127,7 @@ try {
             Write-Host "`n  Acceptance Criteria items: $($story.acceptanceCriteria.Split([Environment]::NewLine).Count)"
         }
         if ($story.acScenarios) {
-            Write-Host "  AC Scenarios items: $($story.acScenarios.Split([Environment]::NewLine).Count)"
+            Write-Host "  Acceptance Tests items: $($story.acScenarios.Split([Environment]::NewLine).Count)"
         }
         if ($story.extraInformation) {
             Write-Host "  Extra Information: $($story.extraInformation.Split([Environment]::NewLine).Count)"

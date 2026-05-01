@@ -107,7 +107,7 @@ Write-Host "Project: $Project"
 Write-Host ""
 
 # ============================================================================
-# AC Scenario 1: Complete round-trip without modifications preserves data
+# ACCEPTANCE TEST 1: Complete round-trip without modifications preserves data
 # ============================================================================
 
 Invoke-Test "GivenTestHierarchyWithFeatureBug2StoriesAndTask_WhenExportedParsedAndReimported_ThenAllWorkItemsMatchAndNoChangesDetected" {
@@ -237,7 +237,7 @@ Invoke-Test "GivenTestHierarchyWithFeatureBug2StoriesAndTask_WhenExportedParsedA
 }
 
 # ============================================================================
-# AC Scenario 2: Title and description modifications survive round-trip
+# ACCEPTANCE TEST 2: Title and description modifications survive round-trip
 # ============================================================================
 
 Invoke-Test "GivenStoryWithOriginalTitleAndDescription_WhenExportedModifiedAndReimported_ThenChangesAreAppliedAndSecondExportConfirms" {
@@ -372,7 +372,7 @@ Invoke-Test "GivenStoryWithOriginalTitleAndDescription_WhenExportedModifiedAndRe
 }
 
 # ============================================================================
-# AC Scenario 3: Non-writable state changes are rejected during reimport
+# ACCEPTANCE TEST 3: Non-writable state changes are rejected during reimport
 # ============================================================================
 
 Invoke-Test "GivenStoryInWritableState_WhenMarkdownStateChangedToNonWritableState_ThenDetectHierarchyChangesRaisesErrorWithValidStates" {

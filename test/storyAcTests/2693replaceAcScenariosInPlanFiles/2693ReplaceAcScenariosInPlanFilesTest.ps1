@@ -2,12 +2,12 @@
 
 <#
 .SYNOPSIS
-AC tests for Story 2693: Replace "AC Scenarios" in plan markdown files.
+AC tests for Story 2693: Replace "Acceptance Tests" in plan markdown files.
 Verifies all plan files under docs/plans/ and docs/legacyPlans/ use
-"Acceptance Tests" instead of "AC Scenarios".
+"Acceptance Tests" instead of "Acceptance Tests".
 
 .DESCRIPTION
-Tests: No plan file contains "AC Scenarios", plans still parse correctly
+Tests: No plan file contains "Acceptance Tests", plans still parse correctly
 via ConvertMarkdownToHierarchyJson.ps1.
 
 Run with: Invoke-Pester .\test\storyAcTests\2693replaceAcScenariosInPlanFiles\2693ReplaceAcScenariosInPlanFilesTest.ps1
@@ -19,9 +19,9 @@ $ErrorActionPreference = 'Stop'
 [string]$REPO_ROOT = Resolve-Path (Join-Path $PSScriptRoot '../../../')
 [string]$SRC_DIR   = Join-Path $REPO_ROOT 'src'
 
-Describe 'Story 2693 - Replace AC Scenarios in plan markdown files' {
+Describe 'Story 2693 - Replace Acceptance Tests in plan markdown files' {
 
-    Context 'docs/plans/*.md - no AC Scenarios references' {
+    Context 'docs/plans/*.md - no Acceptance Tests references' {
 
         $planFiles = Get-ChildItem (Join-Path $REPO_ROOT 'docs\plans') -Filter '*.md' -File
 
@@ -29,12 +29,12 @@ Describe 'Story 2693 - Replace AC Scenarios in plan markdown files' {
             $fileName = $file.Name
             It "GivenPlanFile_${fileName}_ItShouldNotContainAcScenariosText" {
                 $content = Get-Content $file.FullName -Raw
-                ($content -match 'AC Scenarios') | Should Be $false
+                ($content -match 'Acceptance Tests') | Should Be $false
             }
         }
     }
 
-    Context 'docs/legacyPlans/*.md - no AC Scenarios references' {
+    Context 'docs/legacyPlans/*.md - no Acceptance Tests references' {
 
         $legacyDir = Join-Path $REPO_ROOT 'docs\legacyPlans'
         if (Test-Path $legacyDir) {
@@ -43,7 +43,7 @@ Describe 'Story 2693 - Replace AC Scenarios in plan markdown files' {
                 $fileName = $file.Name
                 It "GivenLegacyPlanFile_${fileName}_ItShouldNotContainAcScenariosText" {
                     $content = Get-Content $file.FullName -Raw
-                    ($content -match 'AC Scenarios') | Should Be $false
+                    ($content -match 'Acceptance Tests') | Should Be $false
                 }
             }
         } else {

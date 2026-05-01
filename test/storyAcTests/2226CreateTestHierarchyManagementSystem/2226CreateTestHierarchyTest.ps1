@@ -105,7 +105,7 @@ Write-Host "Project: $Project"
 Write-Host ""
 
 # ============================================================================
-# AC Scenario 1: Test hierarchy is created and ready for use
+# ACCEPTANCE TEST 1: Test hierarchy is created and ready for use
 # ============================================================================
 
 Invoke-Test "GivenTestSetupIsCalled_WhenCreateTestHierarchyInvoked_ThenEpicIsCreatedAndFeaturesAreReturned" {
@@ -200,7 +200,7 @@ Invoke-Test "GivenTestSetupIsCalled_WhenCreateTestHierarchyInvoked_ThenEpicIsCre
 }
 
 # ============================================================================
-# AC Scenario 2: Complex test hierarchy with multiple levels is created
+# ACCEPTANCE TEST 2: Complex test hierarchy with multiple levels is created
 # ============================================================================
 
 Invoke-Test "GivenTestSpecifiesComplexHierarchy_WhenCreateTestHierarchyBuildsStructure_ThenAllItemsAreCreatedAtDepths" {
@@ -326,7 +326,7 @@ Invoke-Test "GivenTestSpecifiesComplexHierarchy_WhenCreateTestHierarchyBuildsStr
 }
 
 # ============================================================================
-# AC Scenario 3: Cleanup removes all test data
+# ACCEPTANCE TEST 3: Cleanup removes all test data
 # ============================================================================
 
 Invoke-Test "GivenTestCreatedEpicWithNestedWorkItems_WhenCleanupIsCalled_ThenEpicAndChildrenAreDeleted" {

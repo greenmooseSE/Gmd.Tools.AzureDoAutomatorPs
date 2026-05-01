@@ -112,8 +112,8 @@ $template = @"
 # - Test(s) column: Add the name or reference to tests that verify each AC
 # - Notes column: Add any clarifications about the tests, edge cases, or special considerations
 
-# AC SCENARIOS (BDD/GHERKIN)
-# {AC Scenarios}
+# Acceptance Tests (BDD/GHERKIN)
+# {Acceptance Tests}
 # 1. **Scenario**: Clear scenario title
 #    Given [initial state]
 #    When [action performed]
@@ -190,7 +190,7 @@ Keep the description focused on the "what" and "why", not "how".
 | ☐ | Criterion 2 validates another specific behavior |  |  |
 | ☐ | Criterion 3 validates the integration or edge case |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: Happy path with all inputs valid  
    Given [initial precondition or state]  
    When [user performs action]  
@@ -237,7 +237,7 @@ actionable tasks. Include what needs to be built, modified, or integrated.
 | ☐ | First behavior is correctly implemented |  |  |
 | ☐ | Edge cases are handled |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: Normal operation  
    Given [precondition]  
    When [action]  
@@ -278,7 +278,7 @@ foundational work. This feature sets up any supporting systems needed.
 | ☐ | Component is deployed and operational |  |  |
 | ☐ | Monitoring and logging are in place |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: System starts correctly with new component  
    Given [component installed]  
    When [system starts]  
@@ -301,7 +301,7 @@ foundational work. This feature sets up any supporting systems needed.
 | ☐ | User receives helpful error message |  |  |
 | ☐ | System does not crash |  |  |
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: Invalid input is provided  
    Given [invalid condition]  
    When [error occurs]  
@@ -366,7 +366,7 @@ and manage connected applications.
 - [ ] Refresh token rotation is working
 - [ ] Logout properly revokes tokens
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User successfully authenticates  
    Given [user opens portal]  
    When [user clicks sign in]  
@@ -394,7 +394,7 @@ and manage connected applications.
 - [ ] Time-based OTP codes are validated correctly
 - [ ] Backup codes are provided and tested
 
-{AC Scenarios}
+{Acceptance Tests}
 1. **Scenario**: User enables MFA  
    Given [user is in security settings]  
    When [user clicks enable MFA]  

@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-AC Scenario verification tests for story 1584: GetAzDoComments functionality
-Tests map directly to AC Scenarios and verify listing all comments on work items.
+ACCEPTANCE TEST verification tests for story 1584: GetAzDoComments functionality
+Tests map directly to Acceptance Tests and verify listing all comments on work items.
 #>
 
 Set-StrictMode -Version 3.0
@@ -74,13 +74,13 @@ function Print-Summary {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 1584: GetAzDoComments" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 1584: GetAzDoComments" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # ============================================================================
-# AC SCENARIO 1: List all comments on a work item
+# ACCEPTANCE TEST 1: List all comments on a work item
 # ============================================================================
-Write-Host "`n[AC SCENARIO 1] List all comments on a work item" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 1] List all comments on a work item" -ForegroundColor Yellow
 
 try {
     # Create a test Epic
@@ -136,18 +136,18 @@ try {
         throw "Comment missing 'createdDate' field"
     }
     
-    Record-Test -Scenario "AC SCENARIO 1: List all comments on a work item" -Passed $true -Details "All 3 comments retrieved with complete metadata"
+    Record-Test -Scenario "ACCEPTANCE TEST 1: List all comments on a work item" -Passed $true -Details "All 3 comments retrieved with complete metadata"
     Write-Host "  ✓ PASSED: All 3 comments retrieved with metadata" -ForegroundColor Green
 }
 catch {
-    Record-Test -Scenario "AC SCENARIO 1: List all comments on a work item" -Passed $false -Details $_.Exception.Message
+    Record-Test -Scenario "ACCEPTANCE TEST 1: List all comments on a work item" -Passed $false -Details $_.Exception.Message
     Write-Host "  ✗ FAILED: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 # ============================================================================
-# AC SCENARIO 2: Empty comment list (no comments on work item)
+# ACCEPTANCE TEST 2: Empty comment list (no comments on work item)
 # ============================================================================
-Write-Host "`n[AC SCENARIO 2] Empty comment list (no comments on work item)" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 2] Empty comment list (no comments on work item)" -ForegroundColor Yellow
 
 try {
     # Create a new test Epic with no comments
@@ -174,11 +174,11 @@ try {
         throw "Expected empty array (0 comments), but got $emptyCount items"
     }
     
-    Record-Test -Scenario "AC SCENARIO 2: Empty comment list (work item with no comments)" -Passed $true -Details "Correctly returned empty array"
+    Record-Test -Scenario "ACCEPTANCE TEST 2: Empty comment list (work item with no comments)" -Passed $true -Details "Correctly returned empty array"
     Write-Host "  ✓ PASSED: Empty array returned for work item with no comments" -ForegroundColor Green
 }
 catch {
-    Record-Test -Scenario "AC SCENARIO 2: Empty comment list (work item with no comments)" -Passed $false -Details $_.Exception.Message
+    Record-Test -Scenario "ACCEPTANCE TEST 2: Empty comment list (work item with no comments)" -Passed $false -Details $_.Exception.Message
     Write-Host "  ✗ FAILED: $($_.Exception.Message)" -ForegroundColor Red
 }
 

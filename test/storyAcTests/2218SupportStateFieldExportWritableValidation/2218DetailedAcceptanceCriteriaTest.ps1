@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-Detailed AC Scenarios tests for story 2218: Export markdown with state field and validation
+Detailed Acceptance Tests tests for story 2218: Export markdown with state field and validation
 
 .DESCRIPTION
 Tests the ConvertHierarchyToMarkdown.ps1 script to verify:
@@ -69,7 +69,7 @@ Write-Host "══════════════════════�
 $pat = $env:GMD_AZDO_MACHINE_WORKITEMSRW | & 'C:\Dev\own\GDrive\Work\Dev\bbTooling\PowerShell\ssEncryptDecrypt.ps1' -Decrypt
 
 # ============================================================================
-# DETAILED AC SCENARIO 1: Export markdown includes State field
+# DETAILED ACCEPTANCE TEST 1: Export markdown includes State field
 # ============================================================================
 Write-Host "`n[DETAILED TEST 1] Markdown export includes State field in metadata" -ForegroundColor Yellow
 
@@ -124,7 +124,7 @@ try {
 }
 
 # ============================================================================
-# DETAILED AC SCENARIO 2: Editable state has no warning
+# DETAILED ACCEPTANCE TEST 2: Editable state has no warning
 # ============================================================================
 Write-Host "`n[DETAILED TEST 2] Editable state (in writableStates) has no warning comment" -ForegroundColor Yellow
 
@@ -183,7 +183,7 @@ try {
 }
 
 # ============================================================================
-# DETAILED AC SCENARIO 3: Non-editable state has warning comment
+# DETAILED ACCEPTANCE TEST 3: Non-editable state has warning comment
 # ============================================================================
 Write-Host "`n[DETAILED TEST 3] Non-editable state (NOT in writableStates) has warning comment" -ForegroundColor Yellow
 
@@ -253,7 +253,7 @@ try {
 }
 
 # ============================================================================
-# DETAILED AC SCENARIO 4: Export with incomplete configuration uses defaults
+# DETAILED ACCEPTANCE TEST 4: Export with incomplete configuration uses defaults
 # ============================================================================
 Write-Host "`n[DETAILED TEST 4] Export works with incomplete/missing configuration (defaults applied)" -ForegroundColor Yellow
 

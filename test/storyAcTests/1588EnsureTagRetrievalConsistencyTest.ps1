@@ -6,11 +6,11 @@ Tests for Story 1588: Ensure tags retrieval consistency across all work item typ
 Verifies that tags retrieval is applied consistently to all work item types 
 (Epic, Feature, Story, Task) in the Azure DevOps automation scripts.
 
-AC Scenarios tested:
-- AC SCENARIO 1: Tags are retrieved for all hierarchy levels (Epic, Features, Stories)
-- AC SCENARIO 2: Tags can be set and retrieved for Tasks
-- AC SCENARIO 3: GetAzDoUserStory includes tags in returned object
-- AC SCENARIO 4: All work items in hierarchy have consistent tag access
+Acceptance Tests tested:
+- ACCEPTANCE TEST 1: Tags are retrieved for all hierarchy levels (Epic, Features, Stories)
+- ACCEPTANCE TEST 2: Tags can be set and retrieved for Tasks
+- ACCEPTANCE TEST 3: GetAzDoUserStory includes tags in returned object
+- ACCEPTANCE TEST 4: All work items in hierarchy have consistent tag access
 
 Requires Environment variables set:
 - GMD_AZDO_ORGANIZATION: Organization name
@@ -150,8 +150,8 @@ try {
     # Run tests
     Write-Host "`n=== Running Tests ===" -ForegroundColor Cyan
 
-    # AC SCENARIO 1: Tags are retrieved for all hierarchy levels (Epic, Features, Stories)
-    Invoke-Test "AC SCENARIO 1: GetAzDoHierarchyForEpic includes Tags for Epic" {
+    # ACCEPTANCE TEST 1: Tags are retrieved for all hierarchy levels (Epic, Features, Stories)
+    Invoke-Test "ACCEPTANCE TEST 1: GetAzDoHierarchyForEpic includes Tags for Epic" {
         $result = & "$SRC_DIR/GetAzDoHierarchyForEpic.ps1" -Organization $Organization -Project $Project `
             -EpicId $epic.id
         
@@ -168,7 +168,7 @@ try {
         }
     }
 
-    Invoke-Test "AC SCENARIO 1: GetAzDoHierarchyForEpic includes Tags for Features" {
+    Invoke-Test "ACCEPTANCE TEST 1: GetAzDoHierarchyForEpic includes Tags for Features" {
         $result = & "$SRC_DIR/GetAzDoHierarchyForEpic.ps1" -Organization $Organization -Project $Project `
             -EpicId $epic.id
         
@@ -191,7 +191,7 @@ try {
         }
     }
 
-    Invoke-Test "AC SCENARIO 1: GetAzDoHierarchyForEpic includes Tags for Stories" {
+    Invoke-Test "ACCEPTANCE TEST 1: GetAzDoHierarchyForEpic includes Tags for Stories" {
         $result = & "$SRC_DIR/GetAzDoHierarchyForEpic.ps1" -Organization $Organization -Project $Project `
             -EpicId $epic.id
         
@@ -224,8 +224,8 @@ try {
         }
     }
 
-    # AC SCENARIO 2: Tags can be set and retrieved for Tasks
-    Invoke-Test "AC SCENARIO 2: GetAzDoWorkItem includes Tags for Task" {
+    # ACCEPTANCE TEST 2: Tags can be set and retrieved for Tasks
+    Invoke-Test "ACCEPTANCE TEST 2: GetAzDoWorkItem includes Tags for Task" {
         $result = & "$SRC_DIR/GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project `
             -WorkItemId $task.id
         
@@ -242,8 +242,8 @@ try {
         }
     }
 
-    # AC SCENARIO 3: GetAzDoUserStory includes tags in returned object
-    Invoke-Test "AC SCENARIO 3: GetAzDoUserStory includes Tags property" {
+    # ACCEPTANCE TEST 3: GetAzDoUserStory includes tags in returned object
+    Invoke-Test "ACCEPTANCE TEST 3: GetAzDoUserStory includes Tags property" {
         $result = & "$SRC_DIR/GetAzDoUserStory.ps1" -Organization $Organization -Project $Project `
             -WorkItemId $story.id
         
@@ -260,8 +260,8 @@ try {
         }
     }
 
-    # AC SCENARIO 4: All work items consistently have tags property
-    Invoke-Test "AC SCENARIO 4: All work item types use System.Tags field" {
+    # ACCEPTANCE TEST 4: All work items consistently have tags property
+    Invoke-Test "ACCEPTANCE TEST 4: All work item types use System.Tags field" {
         # Test Epic
         $epicWi = & "$SRC_DIR/GetAzDoWorkItem.ps1" -Organization $Organization -Project $Project -WorkItemId $epic.id
         if ($epicWi.fields.'System.Tags' -notlike "*testTag1*") {

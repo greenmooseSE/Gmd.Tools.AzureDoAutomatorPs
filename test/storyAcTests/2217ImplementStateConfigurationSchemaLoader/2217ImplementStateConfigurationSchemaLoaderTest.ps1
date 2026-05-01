@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-AC Scenario verification tests for story 2217: Implement State Configuration Schema and Loader
+ACCEPTANCE TEST verification tests for story 2217: Implement State Configuration Schema and Loader
 Tests loading, caching, and validation of state configuration from JSON files
 
 .DESCRIPTION
@@ -62,13 +62,13 @@ function Print-Summary {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 2217: State Configuration" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 2217: State Configuration" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # ============================================================================
-# AC SCENARIO 1: Configuration file exists and is valid
+# ACCEPTANCE TEST 1: Configuration file exists and is valid
 # ============================================================================
-Write-Host "`n[AC SCENARIO 1] Configuration file exists and is valid" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 1] Configuration file exists and is valid" -ForegroundColor Yellow
 Write-Host "  Given repository contains azdoStateConfig-falco-it-GMD.json" -ForegroundColor DarkGray
 Write-Host "  When LoadStateConfiguration is called" -ForegroundColor DarkGray
 Write-Host "  Then configuration is parsed successfully" -ForegroundColor DarkGray
@@ -126,9 +126,9 @@ catch {
 }
 
 # ============================================================================
-# AC SCENARIO 2: Configuration file is missing but defaults are available
+# ACCEPTANCE TEST 2: Configuration file is missing but defaults are available
 # ============================================================================
-Write-Host "`n[AC SCENARIO 2] Configuration file is missing but defaults are available" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 2] Configuration file is missing but defaults are available" -ForegroundColor Yellow
 Write-Host "  Given repository does not contain configuration file for org-project" -ForegroundColor DarkGray
 Write-Host "  When LoadStateConfiguration is called" -ForegroundColor DarkGray
 Write-Host "  Then a default configuration is returned" -ForegroundColor DarkGray
@@ -181,9 +181,9 @@ catch {
 }
 
 # ============================================================================
-# AC SCENARIO 3: Configuration references invalid state names
+# ACCEPTANCE TEST 3: Configuration references invalid state names
 # ============================================================================
-Write-Host "`n[AC SCENARIO 3] Configuration validates state configuration" -ForegroundColor Yellow
+Write-Host "`n[ACCEPTANCE TEST 3] Configuration validates state configuration" -ForegroundColor Yellow
 Write-Host "  Given configuration file references state names" -ForegroundColor DarkGray
 Write-Host "  When LoadStateConfiguration is called" -ForegroundColor DarkGray
 Write-Host "  Then configuration can be validated for structure" -ForegroundColor DarkGray

@@ -165,7 +165,7 @@ no end-user code ever calls it directly — all calls originate from BFF backend
 | ✅ | Database defaults for timestamps | BddScenario_DefaultValuesBothExist | GETUTCDATE for SQL Server, datetime('now') for SQLite |
 | ✅ | Migrations for all 3 database providers | AllProviderMigrationsValidated | SQL Server, SQL Server LocalDb, SQLite |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 - [x] **Scenario 1: Fresh database migration creates Users table with correct structure**
   Given a fresh database with no migrations
   
@@ -307,7 +307,7 @@ no end-user code ever calls it directly — all calls originate from BFF backend
 | ▢ | Unit test verifies table structure matches schema |  |  |
 | ▢ | Migration is idempotent |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: SigningKeys table is created with correct structure
    Given a fresh SQL Server database with no tables
   
@@ -418,7 +418,7 @@ no end-user code ever calls it directly — all calls originate from BFF backend
 | ▢ | Unit test verifies table structure matches schema |  |  |
 | ▢ | Migration is idempotent |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: RefreshTokens table is created with correct structure
    Given a fresh SQL Server database with no tables
   
@@ -513,7 +513,7 @@ for generating SHA-256 hash strings used in integration test data setup (e.g., s
 | ▢ | Startup fails if `Seed:AdminUser:Email` is missing |  |  |
 | ▢ | `TokenHashHelper.ComputeSha256Hash` returns consistent SHA-256 hex |  |  |
 
-#### AC Scenarios
+#### Acceptance Tests
 1. ▢ Scenario: Admin user is seeded on first startup
   Given a clean database with no users  
   And `Seed:AdminUser:Email` is set to "admin@example.com" in appsettings  
@@ -569,7 +569,7 @@ So that dev/staging/prod use separate Google projects.
 | ▢ | `appsettings.Development.json` contains a placeholder or local Client ID |  |  |
 | ▢ | Tests verify fail-fast behavior on missing configuration |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Service starts successfully with valid Google Client ID  
    Given `appsettings.json` has `Authentication:Google:ClientId` set to a valid value\  
    When the API starts\  
@@ -662,7 +662,7 @@ Response 401:
 | ▢ | If Google token validation fails (expired, invalid signature), return 401 with "Invalid Google token" |  |  |
 | ▢ | Tests cover: new user creation, existing user resolution, rejected unverified email, invalid token |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: New user authenticates with valid Google ID token  
    Given the API is running\  
    And no user exists with the Google subject ID from the token\  
@@ -738,7 +738,7 @@ So that consuming services can cryptographically verify tokens using the public 
 | ▢ | JWT can be validated using the public key from the JWKS endpoint |  |  |
 | ▢ | Unit tests verify token structure, claims, and signature validation |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Generated JWT contains required claims  
    Given a user exists in the database\  
    When the JWT service generates an access token for the user\  
@@ -815,7 +815,7 @@ Response 200:
 | ▢ | Response includes `Cache-Control: public, max-age=3600` header |  |  |
 | ▢ | Integration test verifies JWKS response structure |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ Scenario: JWKS returns RSA public keys
    Given the API is running and a signing key exists\  
    When I make a GET request to `/v1/auth/jwks`\  
@@ -903,7 +903,7 @@ Response 400:
 | ▢ | X-Api-Key header is still required (BFF-to-AuthService call, not user-facing) |  |  |
 | ▢ | Tests cover: successful refresh, expired token, revoked token, rotation |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Valid refresh token returns new token pair  
    Given the API is running\  
    And a user authenticated via Google and received a refresh token\  
@@ -986,7 +986,7 @@ Response 400:
 | ▢ | X-Api-Key header is required |  |  |
 | ▢ | Unit test verifies token revocation |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Refresh token is revoked on logout
    Given a user has an active refresh token
   
@@ -1053,7 +1053,7 @@ So that only authorized backends can exchange tokens.
 | ▢ | If `ApiSecurity:ApiKey` is not configured, the service fails fast at startup |  |  |
 | ▢ | Tests cover: valid key accepted, missing key rejected, wrong key rejected, JWKS accessible without key |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Valid API key grants access to auth endpoint  
    Given the API is running with `ApiSecurity:ApiKey` set to "my-secret-key"\  
    When a request to `POST /v1/auth/google` includes header `X-Api-Key: my-secret-key`\  
@@ -1102,7 +1102,7 @@ So that it can be packaged as a NuGet and consumed by BFF backends.
 | ▢ | The project compiles without errors |  |  |
 | ▢ | No dependency on `Gmd.AuthService.WebApi` or `Gmd.AuthService.DbContext` (the client lib is independent) |  |  |
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. ▢ **Scenario**: Client library project compiles  
    Given the `Gmd.AuthService.ClientLib` project exists under `src/`\  
    When I run `dotnet build TheSln.sln`\  
@@ -1151,7 +1151,7 @@ So that I can call AuthService endpoints in a strongly-typed manner.
 - [ ] HttpClient is registered via `IHttpClientFactory` for proper lifecycle management
 - [ ] Unit tests verify DI registration and HTTP calls (using mock HTTP handler)
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: BFF registers and resolves the AuthService client  
    Given a BFF backend calls `services.AddAuthServiceClient(opts => opts.BaseUrl = "https://auth.example.com")`\  
    When the `IAuthServiceClient` is resolved from the DI container\  
@@ -1202,7 +1202,7 @@ So that I don't have to implement refresh logic in every consuming application.
 - [ ] DI extension method `AddAuthServiceTokenManagement(this IServiceCollection)` registers the token manager
 - [ ] Unit tests cover: returns cached token, refreshes expired token, throws on failed refresh
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Token manager returns cached non-expired token  
    Given the token manager holds a valid access token expiring in 5 minutes\  
    When `GetValidAccessTokenAsync()` is called\  
@@ -1260,7 +1260,7 @@ So that I can trust the `user_id` and `email` claims in incoming tokens.
 - [ ] DI extension method registers the validator
 - [ ] Unit tests verify validation with mock JWKS, valid/invalid/expired tokens
 
-#### AC Scenarios  
+#### Acceptance Tests  
 1. **Scenario**: Valid AuthService JWT is accepted  
    Given the JWKS endpoint returns the signing public key\  
    And a valid RS256-signed JWT is presented\  
@@ -1366,7 +1366,7 @@ Browser              Demo App Backend          AuthService
 | ▢ | Profile page redirects to home when unauthenticated | GivenUnauthenticated_WhenProfilePageRequested_ThenRedirectToHome | Integration test |
 | ▢ | Demo app uses `IAuthServiceClient` (not raw HttpClient to AuthService) | N/A — code review | Architecture constraint |
 
-#### AC Scenarios
+#### Acceptance Tests
 - [ ] **Scenario 1: User logs in via Google through demo app**  
   Given the demo app and AuthService are running  
   And the user navigates to the demo app home page  

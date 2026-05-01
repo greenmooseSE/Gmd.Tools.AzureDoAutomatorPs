@@ -4,7 +4,7 @@ Tests for story AB#2221: Parse Modified Markdown and Reconstruct Work Item Tree
 
 .DESCRIPTION
 Tests that a modified markdown file can be parsed to reconstruct the work item tree
-with all changes properly captured. Tests AC scenarios:
+with all changes properly captured. Tests Acceptance Tests:
 1. Markdown with title and description changes is parsed correctly
 2. Parser detects missing WorkItemId and prevents implicit updates
 3. Parser handles user who reorganized hierarchy
@@ -71,7 +71,7 @@ Write-Host "Organization: $Organization"
 Write-Host "Project: $Project`n"
 
 try {
-    # AC Scenario 1: Markdown with title and description changes is parsed correctly
+    # ACCEPTANCE TEST 1: Markdown with title and description changes is parsed correctly
     Invoke-Test "GivenExportedMarkdownWithChanges_WhenParsed_ThenExtractNewTitleAndDescription" {
         Write-Host "  Testing parsing markdown with title and description changes..." -ForegroundColor Cyan
         
@@ -125,7 +125,7 @@ This is the NEW story description that was modified.
         }
     }
     
-    # AC Scenario 2: Parser handles missing WorkItemId gracefully (optional in unified parser)
+    # ACCEPTANCE TEST 2: Parser handles missing WorkItemId gracefully (optional in unified parser)
     Invoke-Test "GivenMarkdownWithMissingWorkItemId_WhenParsed_ThenParseSuccessfullyWithNullId" {
         Write-Host "  Testing parser handling of missing WorkItemId..." -ForegroundColor Cyan
         
@@ -169,7 +169,7 @@ This story is missing the WorkItemId metadata. With the unified parser, this is 
         }
     }
     
-    # AC Scenario 3: Parser handles user who reorganized hierarchy
+    # ACCEPTANCE TEST 3: Parser handles user who reorganized hierarchy
     Invoke-Test "GivenMarkdownWithReorganizedHierarchy_WhenParsed_ThenCaptureNewStructure" {
         Write-Host "  Testing parser handling of reorganized hierarchy..." -ForegroundColor Cyan
         

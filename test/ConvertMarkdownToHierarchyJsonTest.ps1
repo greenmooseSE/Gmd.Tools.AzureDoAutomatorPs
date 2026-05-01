@@ -280,11 +280,11 @@ Task desc **Bold**: task value more
 
         It "GivenBoldLinesInACScenarios_WhenParsing_ItShouldPreserveBoldAsContent" {
             [string]$markdown = @"
-### Story: Bold In AC Scenarios
+### Story: Bold In Acceptance Tests
 {WorkItemId}: 996
 {State}: Active
 
-{AC Scenarios}
+{Acceptance Tests}
 **Scenario 1**: happy path
 User opens the app
 **Expected**: app loads successfully

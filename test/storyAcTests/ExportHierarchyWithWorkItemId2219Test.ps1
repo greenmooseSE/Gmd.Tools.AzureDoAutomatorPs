@@ -6,7 +6,7 @@ Test for story AB#2219: Export Hierarchy to Markdown with WorkItemId Preservatio
 Tests that exported markdown includes WorkItemId in metadata for all work items,
 and that WorkItemId is preserved during export for round-trip import validation.
 
-Tests AC scenarios:
+Tests Acceptance Tests:
 1. Export includes WorkItemId for each work item
 2. Complete hierarchy with all levels is exported
 3. Export preserves all metadata fields
@@ -98,8 +98,8 @@ Write-Host "Organization: $Organization"
 Write-Host "Project: $Project`n"
 
 try {
-    # Test 1: AC Scenario 1 - WorkItemId in Feature metadata using feature 2216
-    Invoke-Test "AC Scenario 1: Feature includes WorkItemId in markdown metadata" {
+    # Test 1: ACCEPTANCE TEST 1 - WorkItemId in Feature metadata using feature 2216
+    Invoke-Test "ACCEPTANCE TEST 1: Feature includes WorkItemId in markdown metadata" {
         Write-Host "  Fetching Feature 2216 hierarchy..." -ForegroundColor Cyan
         
         # Get Feature hierarchy for the existing feature 2216
@@ -126,8 +126,8 @@ try {
         }
     }
     
-    # Test 2: AC Scenario 2 & 3 - Complete hierarchy with all levels and metadata
-    Invoke-Test "AC Scenario 2 & 3: Hierarchy preserves all metadata with WorkItemIds" {
+    # Test 2: ACCEPTANCE TEST 2 & 3 - Complete hierarchy with all levels and metadata
+    Invoke-Test "ACCEPTANCE TEST 2 & 3: Hierarchy preserves all metadata with WorkItemIds" {
         Write-Host "  Verifying complete hierarchy structure..." -ForegroundColor Cyan
         
         # Get Feature hierarchy

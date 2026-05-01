@@ -314,7 +314,7 @@ function Convert-StoryToMarkdown {
         $markdown += "`n"
     }
     
-    # Add AC scenarios
+    # Add Acceptance Tests
     if ($ACScenarios) {
         $markdown += "`n{Acceptance Tests}  `n"
         $markdown += (Add-MarkdownLineBreaks $ACScenarios)

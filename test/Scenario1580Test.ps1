@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-Verification tests for all AC Scenarios in story 1580: UpsertAzDoFeature functionality
-Tests map directly to AC Scenarios and verify each behavioral requirement.
+Verification tests for all Acceptance Tests in story 1580: UpsertAzDoFeature functionality
+Tests map directly to Acceptance Tests and verify each behavioral requirement.
 #>
 
 Set-StrictMode -Version 3.0
@@ -30,7 +30,7 @@ function Record-Test {
 }
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "AC SCENARIO VERIFICATION - Story 1580: UpsertAzDoFeature" -ForegroundColor Cyan
+Write-Host "ACCEPTANCE TEST VERIFICATION - Story 1580: UpsertAzDoFeature" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 # ============================================================================

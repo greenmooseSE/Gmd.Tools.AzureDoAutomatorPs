@@ -79,7 +79,7 @@ Re-run on same file to update existing items (uses WorkItemIds already in the fi
 - When WorkItemId is present in the markdown, it is used directly for ID-based updates
 - WorkItemId lines are written back only when -MarkdownFile is used (not -MarkdownContent)
 - Hierarchy is inferred from header levels: # = Epic, ## = Feature, ### = Story, #### = Task/Bug
-- Tasks do NOT support Acceptance Criteria or AC Scenarios (only Description, Priority, time tracking fields)
+- Tasks do NOT support Acceptance Criteria or Acceptance Tests (only Description, Priority, time tracking fields)
 - Tasks require a Story parent in the markdown structure (enforced during parsing)
 - Use RemoveAzDoTask.ps1 for individual Task deletion
 - Use RemoveAzDoEpic.ps1 for cascading delete of entire Epic hierarchies
