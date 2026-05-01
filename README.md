@@ -1383,6 +1383,8 @@ Write-Host "Created: $($result.CreatedItems.Count) items"
 - WorkItemId written back to file after create; second run updates by ID instead of creating duplicates
 - `{LastChangedDate}` is a **local-only** metadata field written by export/sync scripts and used by the staleness guard. It is never sent to Azure DevOps. Do NOT edit it manually.
 - Supports optional Epic parent via `-EpicId`
+- DryRun mode shows planned operations without creating work items; staleness check runs but does not abort in DryRun mode
+- Use `-Force` to proceed even when stale items are detected (a warning is logged per stale item)
 - DryRun mode shows planned operations without creation
 - `-OutputMode PlainText` (default) prints a colored columnar table; use `-OutputMode PSObject` to return a structured hashtable for scripting
 
